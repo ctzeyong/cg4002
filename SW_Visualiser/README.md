@@ -4,8 +4,6 @@ The software visualiser for BridgeRush: a Unity AR app that renders the match on
 
 This folder holds the scripts I wrote for it (`script/`). Art packs, Unity `Library/` output and builds are not included.
 
-## What I have done
-
 - **AR arena tracking**: detect the opponent's AprilTag with `jp.keijiro.apriltag`, smooth the pose, hold it when the marker is briefly lost, and build a lane axis between the two devices. Towers, bridge and water are placed along that axis, with the floor height taken from AR plane detection.
 - **Gesture input**: a stroke recogniser that classifies hand-drawn symbols (Circle, Caret, Arc, Z, Infinity, Triangle, Star) from touch points, plus a summon cursor to choose where a unit spawns.
 - **Match logic**: a mana economy, unit spawning, lane movement, melee combat, tower damage and counter-damage, out-of-bounds damage, an optional enemy bot, and a 180 s match timer. Unit stats and prefabs are data-driven through ScriptableObjects.
