@@ -36,6 +36,10 @@ LOG_FILE = REPO / "logs" / "run_board.log"
 # Where --fetch-logs puts the board's own log files, one folder per UTC day.
 FETCHED_LOGS = REPO / "logs" / "board"
 BOARD_SOURCES = REPO / "ultra96"
+# AI's module that gesture.py imports, copied next to it on the board
+AI_MODULE = REPO.parent / "AI" / "board" / "accelerator.py"
+# the bitstream gesture.py loads, also copied next to it. must match gesture.BITSTREAM
+BITSTREAM = REPO.parent / "AI" / "board" / "gesture_min_q.xsa"
 
 # Call the venv's python directly rather than relying on an activated venv.
 VENV_PYTHON = "~/comms-venv/bin/python"
@@ -122,13 +126,17 @@ def relog(line):
 
 
 async def sync_sources(conn):
-    """Copy every ultra96/*.py to ~/comms/ on the board.
+    """Copy every ultra96/*.py, plus AI's accelerator.py and bitstream, to ~/comms/ on the board.
 
     The whole folder, not a list of names, so a new file is never left behind.
     """
     files = sorted(BOARD_SOURCES.glob("*.py"))
     if not files:
         raise SystemExit(f"no sources found in {BOARD_SOURCES}")
+    for needed in (AI_MODULE, BITSTREAM):
+        if not needed.exists():
+            raise SystemExit(f"missing {needed}, which gesture.py needs on the board")
+        files.append(needed)
     async with conn.start_sftp_client() as sftp:
         await sftp.makedirs("comms", exist_ok=True)
         await sftp.put([str(path) for path in files], "comms/")

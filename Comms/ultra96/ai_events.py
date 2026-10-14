@@ -1,4 +1,7 @@
-"""Dummy AI events generated on the Ultra96 (a stand-in for the real classifier)."""
+"""Build the AI events on the Ultra96.
+
+Events come from the classifier, or are dummies for ECHO and --event-every.
+"""
 
 import random
 import time
@@ -25,13 +28,27 @@ def random_event(player, seq, key=None):
     `key` (the pressed key) picks the gesture if it is in KEY_GESTURES; otherwise
     random. `seq` comes from the caller, so all events share one counter.
     """
+    return _event(player, seq, KEY_GESTURES.get(key) or random.choice(GESTURES))
+
+
+def make_event(player, seq, key=None, result=None):
+    """Build one AI event, from the classifier's result if there is one, otherwise a dummy.
+
+    Both have the same fields. `key` only picks the gesture of a dummy event.
+    """
+    if result is None:
+        return random_event(player, seq, key)
+    return _event(player, seq, result.label)
+
+
+def _event(player, seq, gesture):
     return {
         "type": "AI_EVENT",
         "player": player,
         "seq": seq,
-        "gesture": KEY_GESTURES.get(key) or random.choice(GESTURES),
+        "gesture": gesture,
         "mana_cost": random.randint(*MANA_COST_RANGE),
-        # Board wall clock. Hop 4 of the latency measurement: taken before A and B's
-        # emits diverge, so it marks the same moment in both. notes/latency.md 3.2.
+        # board wall clock, taken after inference and before the A and B emits split,
+        # hop 4 of the latency measurement
         "timestamp": time.time(),
     }
