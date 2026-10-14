@@ -1,0 +1,30 @@
+<!--
+  IL2CPP managed stripping removes types it cannot see being used. Everything here
+  resolves types at runtime, so preserve the assemblies or the Android build fails
+  where the Editor works.
+
+  `Client`, `Protocol`, `Common`, `Security` and similar names sometimes shown online
+  are namespaces, not separate assemblies.
+
+  SSH.NET is the reason this file is longer than demo-visualiser's. It picks its cipher,
+  MAC, key-exchange and host-key algorithms by name out of a dictionary built at
+  construction time, so the concrete implementations (most of which live in
+  BouncyCastle) have no statically visible reference anywhere. Stripping them produces
+  a handshake that fails on the phone with an algorithm-negotiation error while the
+  Editor, which does not strip, connects perfectly.
+
+  NOTE: keep two consecutive hyphens out of this comment. XML forbids that sequence
+  inside a comment, and UnityLinker aborts the whole Android build on it before any
+  stripping happens, with "Fatal error in Unity CIL Linker" and an XmlException naming
+  the line. The build then fails in seconds with nothing on screen, which reads like a
+  build that never started rather than one that failed. Cost an hour on 2026-09-18.
+-->
+<linker>
+  <assembly fullname="MQTTnet" preserve="all" />
+  <assembly fullname="Newtonsoft.Json" preserve="all" />
+  <assembly fullname="Renci.SshNet" preserve="all" />
+  <assembly fullname="BouncyCastle.Cryptography" preserve="all" />
+  <assembly fullname="System.Formats.Asn1" preserve="all" />
+  <assembly fullname="Microsoft.Extensions.Logging.Abstractions" preserve="all" />
+  <assembly fullname="Microsoft.Extensions.DependencyInjection.Abstractions" preserve="all" />
+</linker>

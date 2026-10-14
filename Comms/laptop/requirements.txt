@@ -1,0 +1,10 @@
+bleak>=0.22,<1.0
+# aiomqtt 2.x wraps paho for asyncio; the 2.0 API differs from 1.x
+# (`identifier` not `client_id`, `client.messages` not `client.messages()`),
+# so the major version is pinned.
+aiomqtt>=2.0,<3.0
+# The SSH tunnel runs in-process (laptop/tunnel.py) rather than under ssh.exe,
+# which cannot be given a password non-interactively — see notes/ultra96_setup.md.
+asyncssh>=2.14,<3.0
+pytest>=8.0
+pytest-asyncio>=0.23
