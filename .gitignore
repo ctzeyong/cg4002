@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ipynb_checkpoints/
+
+# virtual environments
+.venv/
+venv/
+
+# secrets
+.env
+
+# OS clutter
+.DS_Store
+Thumbs.db
+desktop.ini
