@@ -1,0 +1,12 @@
+<!--
+  IL2CPP managed stripping removes types it cannot see being used. MQTTnet and
+  Newtonsoft.Json both resolve types at runtime, so preserve both assemblies or the
+  Android build fails where the Editor works.
+
+  `Client`, `Protocol` and similar names sometimes shown online are namespaces, not
+  separate assemblies.
+-->
+<linker>
+  <assembly fullname="MQTTnet" preserve="all" />
+  <assembly fullname="Newtonsoft.Json" preserve="all" />
+</linker>
