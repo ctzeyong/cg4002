@@ -36,9 +36,9 @@ LOG_FILE = REPO / "logs" / "run_board.log"
 # Where --fetch-logs puts the board's own log files, one folder per UTC day.
 FETCHED_LOGS = REPO / "logs" / "board"
 BOARD_SOURCES = REPO / "ultra96"
-# AI's module that gesture.py imports, copied next to it on the board
-AI_MODULE = REPO.parent / "AI" / "board" / "accelerator.py"
-# the bitstream gesture.py loads, also copied next to it. must match gesture.BITSTREAM
+# AI's API that gesture.py imports, copied next to it on the board
+AI_MODULE = REPO.parent / "AI" / "board" / "ai_api.py"
+# the bitstream ai_api.py loads, also copied next to it. must match ai_api.BITSTREAM
 BITSTREAM = REPO.parent / "AI" / "board" / "gesture_min_q.xsa"
 
 # Call the venv's python directly rather than relying on an activated venv.
@@ -126,7 +126,7 @@ def relog(line):
 
 
 async def sync_sources(conn):
-    """Copy every ultra96/*.py, plus AI's accelerator.py and bitstream, to ~/comms/ on the board.
+    """Copy every ultra96/*.py, plus AI's ai_api.py and bitstream, to ~/comms/ on the board.
 
     The whole folder, not a list of names, so a new file is never left behind.
     """

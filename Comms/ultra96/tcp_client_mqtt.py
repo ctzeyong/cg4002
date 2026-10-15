@@ -134,7 +134,7 @@ async def run_tcp(host, port, outbound, stats, event_every=0.0, sensor_every=0):
 
     classifier = gesture.load_classifier() if sensor_every > 0 else None
     if classifier is not None:
-        log.info("classifier: %s", classifier.name)
+        log.info("classifier: %s", type(classifier).__name__)
     while True:
         try:
             await one_session(host, port, events, event_every, sensor_every, classifier)

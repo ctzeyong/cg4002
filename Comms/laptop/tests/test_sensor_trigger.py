@@ -193,11 +193,11 @@ async def test_a_failed_inference_skips_that_window_and_the_next_one_still_works
     class FailsOnce:
         calls = 0
 
-        def classify(self, features):
+        def classify(self, samples, timeout=None):
             self.calls += 1
             if self.calls == 1:
                 raise gesture.ClassifierError("DMA still busy after 50 ms")
-            return "5", 0.9, 1.0
+            return "5", 0.9
 
     windows = full_windows({1: 0})
     windows.classifier = FailsOnce()

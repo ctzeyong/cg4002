@@ -314,7 +314,7 @@ async def test_both_panes_announce_shutdown_with_the_same_line(module_name, capl
 
 @pytest.mark.asyncio
 async def test_sync_also_copies_the_ai_teams_module_that_gesture_imports():
-    """gesture.py needs AI's accelerator.py and bitstream beside it to load the classifier."""
+    """gesture.py needs AI's ai_api.py and bitstream beside it to load the classifier."""
     put = []
 
     class Sftp:
@@ -334,11 +334,11 @@ async def test_sync_also_copies_the_ai_teams_module_that_gesture_imports():
     conn = SimpleNamespace(start_sftp_client=lambda: Opened())
     await asyncio.wait_for(run_board.sync_sources(conn), timeout=DEADLINE_S)
 
-    assert {"gesture.py", "tcp_client.py", "accelerator.py", "gesture_min_q.xsa"} <= set(put)
+    assert {"gesture.py", "tcp_client.py", "ai_api.py", "gesture_min_q.xsa"} <= set(put)
 
 
-def test_sync_copies_the_bitstream_gesture_py_loads():
+def test_sync_copies_the_bitstream_ai_api_loads():
     """run_board names the bitstream separately, so the two names must not drift apart."""
     import gesture  # ultra96/, on sys.path via conftest
 
-    assert run_board.BITSTREAM.name == gesture.BITSTREAM.name
+    assert run_board.BITSTREAM.name == gesture.ai_api.BITSTREAM.name

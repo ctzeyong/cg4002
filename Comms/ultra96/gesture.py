@@ -1,36 +1,24 @@
-"""Gesture windows on the Ultra96, and the classifier that reads them.
+"""Gesture windows on the Ultra96, handed to AI's API to classify.
 
-Keeps each node's last 100 IMU samples and turns them into the model's input. The model
-itself (input shape, fixed point, the FPGA calls) is AI's accelerator.py.
-Board check: `python3 gesture.py CSV [BITSTREAM]`.
+Keeps each node's last samples and asks AI's ai_api.py what gesture they are,
+so a new model changes nothing here.
 """
 
 import collections
-import math
 import pathlib
 import sys
 import time
 
 try:
-    import accelerator  # on the board, accelerator.py sits next to this file
+    import ai_api  # on the board, ai_api.py sits next to this file
 except ImportError:  # in the repo, it is in the AI folder instead
     sys.path.append(str(pathlib.Path(__file__).resolve().parents[2] / "AI" / "board"))
-    import accelerator
+    import ai_api
 
-WINDOW = accelerator.TIMESTEPS  # samples per inference, one second at 100 Hz
-CHANNELS = ("ax", "ay", "az", "gx", "gy", "gz")  # the model's channel order
-assert len(CHANNELS) == accelerator.CHANNELS
-
-# sensor ranges from the hardware sketch (±2 g, ±500 °/s), may change in the sensors integration
-ACCEL_LSB_PER_G = 16384
-GYRO_LSB_PER_DPS = 65.5
-STANDARD_GRAVITY = 9.80665
-ACCEL_SCALE = STANDARD_GRAVITY / ACCEL_LSB_PER_G  # counts -> m/s²
-GYRO_SCALE = math.radians(1) / GYRO_LSB_PER_DPS  # counts -> rad/s
-SCALES = (ACCEL_SCALE,) * 3 + (GYRO_SCALE,) * 3
-
-# the gesture field in the AI event is just the class number until the classes are named
-LABELS = tuple(str(i) for i in range(accelerator.N_CLASSES))
+WINDOW = ai_api.WINDOW
+CHANNELS = ai_api.CHANNELS
+LABELS = ai_api.LABELS
+ClassifierError = ai_api.ClassifyError
 
 # same rule as the laptop's ble_client, a jump of 128 or more means the seq went backwards
 SEQ_BACKWARD_THRESHOLD = 128
@@ -38,33 +26,12 @@ SEQ_BACKWARD_THRESHOLD = 128
 # result of classifying one window, missing is the number of packets lost inside it
 Result = collections.namedtuple("Result", "label confidence t_infer_ms missing")
 
-# still need to confirm with the AI team which bitstream is the latest
-BITSTREAM = pathlib.Path(__file__).with_name("gesture_min_q.xsa")
-DMA_TIMEOUT_S = 0.05  # an inference normally takes about 1 ms
+TIMEOUT_S = 0.05  # most a classification may block the event loop; it normally takes ~1 ms
 FPGA_MANAGER = pathlib.Path("/sys/class/fpga_manager/fpga0")  # only exists on the board
-
-
-class ClassifierError(Exception):
-    """Raised when an inference fails, e.g. the DMA stalls. That window gets no AI event."""
 
 
 def _is_int(value):
     return isinstance(value, int) and not isinstance(value, bool)
-
-
-quantise = accelerator.to_fixed  # converts a float to the model's Q6.10 int16
-
-
-def to_features(samples):
-    """Convert raw counts (one 6-value sample per time step) into the 600 model inputs.
-
-    The output is in time order, the same as the AI team's CSV rows.
-    """
-    return [
-        quantise(count * scale)
-        for sample in samples
-        for count, scale in zip(sample, SCALES)
-    ]
 
 
 def log_fields(result):
@@ -93,8 +60,8 @@ class Windows:
         node, seq, imu = msg.get("node"), msg.get("seq"), msg.get("imu")
         if not (_is_int(node) and _is_int(seq) and isinstance(imu, dict)):
             return False
-        sample = tuple(imu.get(name) for name in CHANNELS)
-        if not all(_is_int(value) for value in sample):
+        sample = {name: imu.get(name) for name in CHANNELS}
+        if not all(_is_int(value) for value in sample.values()):
             return False
 
         last = self._last_seq.get(node)
@@ -114,84 +81,22 @@ class Windows:
         window = self._samples.get(node)
         if window is None or len(window) < WINDOW:
             return None
-        features = to_features(sample for sample, _ in window)
-        label, confidence, t_infer_ms = self.classifier.classify(features)
+        started = time.perf_counter()
+        label, confidence = self.classifier.classify([s for s, _ in window], timeout=TIMEOUT_S)
+        t_infer_ms = (time.perf_counter() - started) * 1000
         # don't count the first sample's gap since it happened before the window started
         missing = sum(gap for _, gap in window) - window[0][1]
         return Result(label, confidence, t_infer_ms, missing)
 
 
 class StubClassifier:
-    """Used in place of the FPGA classifier when there is no FPGA (the laptop and tests)."""
+    """Used instead of AI's classifier where there is no FPGA (the laptop and tests)."""
 
-    name = "stub"
-
-    def classify(self, features):
-        """Pick a class from the inputs, so the same window always gives the same class."""
-        started = time.perf_counter()
-        label = LABELS[sum(features) % len(LABELS)]
-        return label, 1.0, (time.perf_counter() - started) * 1000
-
-
-class Classifier:
-    name = "fpga"
-
-    def __init__(self, bitstream=BITSTREAM):
-        self.accelerator = accelerator.Accelerator(bitstream)
-        # first inference is slow so run warmup now
-        started = time.perf_counter()
-        self.infer([0] * (WINDOW * len(CHANNELS)))
-        self.cold_ms = (time.perf_counter() - started) * 1000
-
-    def infer(self, features):
-        """Run one inference with the 600 Q6.10 inputs and return the 7 logits as floats."""
-        return self.accelerator.infer(features, timeout=DMA_TIMEOUT_S)
-
-    def classify(self, features):
-        """Return the most likely class, its softmax probability and the inference time in ms."""
-        started = time.perf_counter()
-        try:
-            logits = self.infer(features)
-        except RuntimeError as exc:  # DMA timeout, or pynq refusing to use a busy channel
-            raise ClassifierError(str(exc)) from exc
-        t_infer_ms = (time.perf_counter() - started) * 1000
-        best = max(range(len(logits)), key=logits.__getitem__)
-        confidence = 1 / sum(math.exp(z - logits[best]) for z in logits)
-        return LABELS[best], confidence, t_infer_ms
+    def classify(self, samples, timeout=None):
+        """Pick a class from the counts, so the same window always gives the same class."""
+        total = sum(sum(sample.values()) for sample in samples)
+        return LABELS[total % len(LABELS)], 1.0
 
 
 def load_classifier():
-    return Classifier() if FPGA_MANAGER.exists() else StubClassifier()
-
-
-def check(csv_path, bitstream=BITSTREAM):
-    import csv
-
-    clf = Classifier(bitstream)
-    with open(csv_path, newline="") as f:
-        reader = csv.reader(f)
-        next(reader)
-        rows = [next(reader) for _ in range(10)]
-
-    print("--- the first 10 rows; compare with their test_accuracy.py ---")
-    for row in rows:
-        logits = clf.infer([quantise(float(v)) for v in row[1:]])
-        best = max(range(len(logits)), key=logits.__getitem__)
-        print(f"  logits: {[round(z, 3) for z in logits]}  pred: {best}  label: {row[0]}")
-
-    times = [clf.classify([quantise(float(v)) for v in rows[i % 10][1:]])[2] for i in range(100)]
-    print(f"cold (first after loading): {clf.cold_ms:.3f} ms")
-    print(f"warm x100: mean {sum(times) / len(times):.3f} ms, max {max(times):.3f} ms")
-
-    windows = Windows(clf)
-    for seq in range(WINDOW):
-        windows.add({"node": 1, "seq": seq, "imu": dict(zip(CHANNELS, (seq * 100,) * 6))})
-    started = time.perf_counter()
-    for _ in range(100):
-        windows.classify(1)
-    per_window = (time.perf_counter() - started) * 10  # average ms per window over 100 runs
-    print(f"window -> inputs -> class, x100: mean {per_window:.3f} ms")
-
-
-if __name__ == "__main__":
-    check(*sys.argv[1:3])
+    return ai_api.GestureClassifier() if FPGA_MANAGER.exists() else StubClassifier()

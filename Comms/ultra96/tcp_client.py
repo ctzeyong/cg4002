@@ -437,7 +437,7 @@ async def run(host: str, port: int, event_every: float = 0.0, sensor_every: int 
     """
     classifier = gesture.load_classifier() if sensor_every > 0 else None
     if classifier is not None:
-        log.info("classifier: %s", classifier.name)
+        log.info("classifier: %s", type(classifier).__name__)
     while True:
         try:
             await one_session(host, port, event_every, sensor_every, classifier)
