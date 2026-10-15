@@ -10,6 +10,7 @@ import logging
 import re
 import signal
 import sys
+import time
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -21,7 +22,9 @@ SCRIPTS = Path(__file__).resolve().parents[2] / "scripts"
 if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
+import board_logging  # noqa: E402
 import run_board  # noqa: E402
+import run_board_a  # noqa: E402
 
 
 def launch_branch(command):
@@ -217,6 +220,74 @@ def test_the_preflight_checks_use_the_configured_port(port):
 
     assert f"grep -q '127.0.0.1:{port} '" in command
     assert f"--port {port}" in command
+
+
+# --- the client runs as root -------------------------------------------------
+# The classifier loads a bitstream, which only root may do
+
+LAUNCHERS = [run_board, run_board_a]
+
+
+@pytest.mark.parametrize("module", LAUNCHERS)
+def test_the_client_is_launched_as_root_and_keeps_home(module):
+    """Each part is load-bearing:
+    - setsid: off the SSH terminal, so a dropped session cannot reach the client through sudo;
+    - sudo -n: fails at once instead of waiting for a password nobody can type;
+    - HOME kept: the client logs to ~/comms/logs, where --fetch-logs and attach look, not /root;
+    - XILINX_XRT: sudo drops it, and without it pynq raises "No Devices Found" (I1, 15 Oct).
+    """
+    branch = launch_branch(module.remote_command(8888, [], restart=False))
+
+    expected = (
+        'nohup setsid sudo -n env HOME="$HOME" XILINX_XRT=/usr '
+        f'~/comms-venv/bin/python {module.CLIENT} '
+    )
+    assert expected in branch
+
+
+@pytest.mark.parametrize("module", LAUNCHERS)
+@pytest.mark.parametrize("restart", [False, True])
+def test_every_kill_runs_as_root(module, restart):
+    """A plain pkill cannot kill a root client. --sync would then attach to the old code, and
+    the A and B launchers could not stop each other's client, which then evict each other."""
+    for command in (module.remote_command(8888, [], restart=restart), module.stop_command()):
+        assert command.count("pkill") == command.count("sudo -n pkill -f ") > 0
+
+
+SUDO_CMDLINES = [
+    # sudo stays alive as the client's parent, with the client in its own argv
+    "sudo -n env HOME=/home/xilinx /home/xilinx/comms-venv/bin/python "
+    "/home/xilinx/comms/tcp_client_mqtt.py --host 127.0.0.1 --port 8888",
+    "sudo -n env HOME=/home/xilinx /home/xilinx/comms-venv/bin/python "
+    "/home/xilinx/comms/tcp_client.py --host 127.0.0.1 --port 8888",
+    # and the kill itself names the pattern
+    'sudo -n pkill -f ^[^ ]*python[0-9.]*[ ]+[^ ]*tcp_client_mqtt\\.py',
+]
+
+
+@pytest.mark.parametrize("cmdline", SUDO_CMDLINES)
+@pytest.mark.parametrize("pattern", [run_board.PROCESS_PATTERN, run_board_a.PROCESS_PATTERN])
+def test_the_process_patterns_do_not_match_sudo(cmdline, pattern):
+    """Matching sudo would make pgrep -af list each client twice."""
+    assert re.search(pattern, cmdline) is None
+
+
+@pytest.mark.parametrize("module", LAUNCHERS)
+def test_todays_log_folder_is_made_before_the_root_client_starts(module):
+    """If the root client made it, the folder would be root's, and a client not run as root
+    (the A/B baseline from comms/) could not create its log there that day."""
+    command = module.remote_command(8888, [], restart=False)
+
+    assert command.index('mkdir -p ~/comms/logs/"$(date -u +%Y-%m-%d)"') < command.index("nohup")
+
+
+def test_the_day_folder_is_the_one_board_logging_writes_to():
+    """Same UTC date format, or the root client would still make its own folder."""
+    stamp = time.strptime("2026-10-15 23:30", "%Y-%m-%d %H:%M")
+    path = board_logging.run_log_path(Path("logs/tcp_client.log"), now=stamp)
+    date_format = re.search(r"date -u \+(\S+?)\)", run_board.DAY_FOLDER).group(1)
+
+    assert path.parent.name == time.strftime(date_format, stamp)
 
 
 # --- Ctrl-C ----------------------------------------------------------------

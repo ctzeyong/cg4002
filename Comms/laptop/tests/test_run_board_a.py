@@ -26,7 +26,7 @@ B_CMDLINE = "/home/u/comms-venv/bin/python /home/u/comms/tcp_client_mqtt.py --ho
 
 def test_a_launches_tcp_client_and_never_bs_client():
     command = run_board_a.remote_command(8888, [], restart=False)
-    launched = re.search(r"nohup \S+ (\S+)", command).group(1)
+    launched = re.search(r"nohup .*?/bin/python (\S+)", command).group(1)
     assert launched == "~/comms/tcp_client.py"
 
 

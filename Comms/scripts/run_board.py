@@ -43,12 +43,24 @@ BITSTREAM = REPO.parent / "AI" / "board" / "gesture_min_q.xsa"
 
 # Call the venv's python directly rather than relying on an activated venv.
 VENV_PYTHON = "~/comms-venv/bin/python"
+# Root, because pynq refuses to reach the FPGA without it ("Root permissions required"),
+# for loading the bitstream and for every register access after.
+# -n fails at once instead of waiting for a password nobody can type. HOME is kept so the
+# client's own logs still go to ~/comms/logs, not /root. sudo also drops XILINX_XRT, which
+# the login shell sets, and without it pynq finds no FPGA ("No Devices Found").
+# setsid takes it off the SSH terminal, so a dropped session cannot reach it through sudo.
+AS_ROOT = 'setsid sudo -n env HOME="$HOME" XILINX_XRT=/usr'
+# The client runs as root, so stopping it needs root too.
+PKILL = "sudo -n pkill"
 CLIENT = "~/comms/tcp_client_mqtt.py"
 # Must start at "python", or pgrep/pkill would also match our own remote shell.
 PROCESS_PATTERN = r"^[^ ]*python[0-9.]*[ ]+[^ ]*tcp_client_mqtt\.py"
 # Configuration A's client, stopped before B's starts. A copy of run_board_a.PROCESS_PATTERN,
 # because that file imports this one; tests/test_run_board_a.py keeps the two equal.
 A_PROCESS_PATTERN = r"^[^ ]*python[0-9.]*[ ]+[^ ]*tcp_client\.py"
+# Today's (UTC) log folder, made here as xilinx before the launch.
+# Same name as board_logging.run_log_path.
+DAY_FOLDER = 'mkdir -p ~/comms/logs/"$(date -u +%Y-%m-%d)"'
 
 # A board log line, so its time/name prefix can be stripped before re-logging here.
 # (The format has no level, so board warnings show here as INFO.)
@@ -68,16 +80,16 @@ def remote_command(port, client_args, restart):
     extra = (" " + " ".join(client_args)) if client_args else ""
     launch = (
         f"cap=~/comms/logs/console_$(date -u +%Y%m%dT%H%M%SZ).log; "
-        f"nohup {VENV_PYTHON} {CLIENT} --host 127.0.0.1 --port {port}{extra} "
+        f"nohup {AS_ROOT} {VENV_PYTHON} {CLIENT} --host 127.0.0.1 --port {port}{extra} "
         f'> "$cap" 2>&1 &'
     )
     steps = [
         # tcp_server keeps the newest client, so a leftover A client and this one would
         # evict each other every 2 s, with no error. Mirror of run_board_a.py.
-        f'pkill -f "{A_PROCESS_PATTERN}" && echo "STOPPED: configuration A client killed"',
+        f'{PKILL} -f "{A_PROCESS_PATTERN}" && echo "STOPPED: configuration A client killed"',
     ]
     if restart:
-        steps.append(f'pkill -f "{PROCESS_PATTERN}" && echo "STOPPED: previous client killed"')
+        steps.append(f'{PKILL} -f "{PROCESS_PATTERN}" && echo "STOPPED: previous client killed"')
         steps.append("sleep 1")
     steps += [
         f"if ! ss -ltn | grep -q '127.0.0.1:{port} '; then "
@@ -86,7 +98,7 @@ def remote_command(port, client_args, restart):
         "echo 'WARN: no broker on 1883 -- sudo systemctl start mosquitto'; fi",
         "ss -ltn | grep ':1883 ' | grep -qv '127.0.0.1\\|::1' "
         "&& echo 'WARN: the broker is bound wider than loopback'",
-        "mkdir -p ~/comms/logs",
+        DAY_FOLDER,
         # Tail the file this launch created, not just the newest (maybe an old run's).
         f'if pgrep -f "{PROCESS_PATTERN}" >/dev/null; then echo "ATTACH: client already running"; '
         f'pgrep -af "{PROCESS_PATTERN}"; '
@@ -106,7 +118,7 @@ def remote_command(port, client_args, restart):
 def stop_command():
     """Kill the client and say whether there was one."""
     return (
-        f'pkill -f "{PROCESS_PATTERN}" && echo "STOPPED" '
+        f'{PKILL} -f "{PROCESS_PATTERN}" && echo "STOPPED" '
         '|| echo "nothing to stop: no client was running"'
     )
 
