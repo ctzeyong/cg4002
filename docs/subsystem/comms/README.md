@@ -6,6 +6,8 @@ publishes them to a Mosquitto broker running locally on the Ultra96.
 
 This document follows the Comms-individual implementation under `team/Comms`. It does not
 describe the later AI-Comms integration or depend on files under `team/AI`.
+On branch `ai-comms` and after it merges, `--sensor-trigger` runs the FPGA classifier instead:
+see [AI–Comms integration](../../integration/ai-comms.md).
 
 ## Table of contents
 
@@ -61,7 +63,7 @@ There are currently three ways to create a dummy gesture event:
   any other key selects one randomly.
 - `--sensor-trigger N` creates a random event after approximately `N` SENSOR packets per player.
   This is a latency-test stand-in for the final packet of a gesture window; it does not buffer a
-  window or run classification.
+  window or run classification. With the AI integration it does both: see [AI–Comms integration](../../integration/ai-comms.md).
 - `--event-every N` creates a dummy event every `N` seconds without requiring BLE traffic. This
   is useful for testing only the event-to-MQTT part of the path.
 
@@ -278,7 +280,7 @@ Useful variants:
 
 Do not use `--event-every` as evidence that BLE or the phone display works. It only tests event
 creation and the later MQTT path. Neither it nor `--sensor-trigger` proves FPGA inference because
-this standalone implementation does not run the classifier. Broker acceptance is also not proof
+this standalone implementation does not run the classifier ([AI–Comms integration](../../integration/ai-comms.md) adds it). Broker acceptance is also not proof
 of phone receipt; confirm the event in the phone's own `received` display/log.
 
 ## 3. Relevant Configuration B files
@@ -373,7 +375,7 @@ cd <path-to-team>\Comms
 
 After the first synchronized run, omit `--sync`. For latency testing only, add
 `--sensor-trigger 100`; it creates dummy events after roughly 100 SENSOR packets and does not run
-classification.
+classification. With the AI integration it classifies on the FPGA: see [AI–Comms integration](../../integration/ai-comms.md).
 
 Never mix the pairs:
 

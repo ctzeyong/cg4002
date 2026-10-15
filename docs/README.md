@@ -15,6 +15,10 @@ Cross-subsystem contracts, full-system setup, and integration runbooks belong in
 [`integration/`](integration/). This keeps shared interfaces separate from implementation
 details owned by one subsystem.
 
+| Integration | Documentation |
+|---|---|
+| AI ↔ Comms | [FPGA classifier in the board client](integration/ai-comms.md) |
+
 When adding documentation:
 
 - place subsystem-specific material under `subsystem/<name>/`;
