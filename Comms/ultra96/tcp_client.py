@@ -335,11 +335,13 @@ async def receiver(
                 log.warning("no AI event: classifier failed on node %d (%s)", player, exc)
                 continue
             if result is None:
+                without_imu = windows.without_imu(player)
                 log.info(
-                    "no AI event: node %d has %d of %d samples",
+                    "no AI event: node %d has %d of %d samples%s",
                     player,
                     windows.size(player),
                     gesture.WINDOW,
+                    f"; the last {without_imu} had no IMU reading" if without_imu else "",
                 )
                 continue
         try:

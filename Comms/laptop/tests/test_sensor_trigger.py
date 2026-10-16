@@ -32,9 +32,10 @@ import latency_report  # noqa: E402
 PREFIX = "2026-10-02 12:00:00,000Z [x] "
 
 
-def sensor(node, seq, t=50.0):
+def sensor(node, seq, t=50.0, status=gesture.IMU_OK):
     imu = dict(zip(gesture.CHANNELS, (seq * 100, 1, 2, 3, 4, 5)))
-    return {"type": "SENSOR", "node": node, "seq": seq & 0xFF, "timestamp": t, "imu": imu}
+    reserved = [status, 0, 0, 0, 0]
+    return {"type": "SENSOR", "node": node, "seq": seq & 0xFF, "timestamp": t, "imu": imu, "reserved": reserved}
 
 
 def full_windows(next_seqs):
@@ -186,6 +187,22 @@ async def test_a_trigger_before_the_window_fills_says_why_and_sends_nothing(capl
     assert "no AI event: node 1 has 5 of 100 samples" in caplog.messages
     assert [m.split(" player=")[1][:1] for m in _ai_events(caplog)] == ["2"]
     assert " conf=" not in _ai_events(caplog)[0]
+
+
+@pytest.mark.asyncio
+async def test_a_node_with_no_imu_reading_says_so_and_sends_nothing(caplog):
+    """An unplugged IMU's zeros must not become a gesture event."""
+    frames = [sensor(1, seq, status=2) for seq in range(3)]
+    frames.append({"type": "ECHO", "node": 2, "seq": 0, "timestamp": 1.0, "fields": [-99]})
+    windows = full_windows({1: 0})  # full of readings from before the IMU went missing
+
+    await _run_receiver(
+        frames, caplog, lambda log: _ai_events(log), tcp_client.SensorTrigger(1), windows
+    )
+
+    assert "no AI event: node 1 has 0 of 100 samples; the last 1 had no IMU reading" in caplog.messages
+    assert "no AI event: node 1 has 0 of 100 samples; the last 3 had no IMU reading" in caplog.messages
+    assert [m.split(" player=")[1][:1] for m in _ai_events(caplog)] == ["2"]
 
 
 @pytest.mark.asyncio

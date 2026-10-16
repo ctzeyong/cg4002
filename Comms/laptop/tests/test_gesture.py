@@ -31,8 +31,14 @@ class Recording:
         return "0", 1.0
 
 
-def packet(seq, node=1, imu=(0, 0, 0, 0, 0, 0)):
-    return {"type": "SENSOR", "node": node, "seq": seq & 0xFF, "imu": dict(zip(gesture.CHANNELS, imu))}
+def packet(seq, node=1, imu=(0, 0, 0, 0, 0, 0), status=gesture.IMU_OK):
+    return {
+        "type": "SENSOR",
+        "node": node,
+        "seq": seq & 0xFF,
+        "imu": dict(zip(gesture.CHANNELS, imu)),
+        "reserved": [status, 0, 0, 0, 0],
+    }
 
 
 def windows(classifier=None):
@@ -116,6 +122,93 @@ def test_malformed_packets_are_skipped():
     ]
     assert [w.add(msg) for msg in bad] == [False] * len(bad)
     assert w.size(1) == 0
+
+
+# --- only IMU readings reach the model ---------------------------------------
+
+
+def test_the_board_reads_the_status_the_laptop_and_firmware_use():
+    import ble_packet  # laptop/, the copy of firebeetle/imu.h's ImuStatus
+
+    assert gesture.IMU_OK == ble_packet.IMU_OK
+
+
+NO_READING = [
+    {"reserved": [0, 0, 0, 0, 0]},  # old firmware's dummy ramp
+    {"reserved": [2, 0, 0, 0, 0]},  # IMU missing, zeros
+    {"reserved": [3, 0, 0, 0, 0]},  # IMU recovering, zeros
+    {"reserved": [7, 0, 0, 0, 0]},  # unknown
+    {"reserved": None},
+    {"reserved": []},
+    {"reserved": [True, 0, 0, 0, 0]},
+]
+
+
+@pytest.mark.parametrize("change", NO_READING, ids=lambda c: repr(c["reserved"]))
+def test_a_packet_without_an_imu_reading_starts_the_window_again(change):
+    w = windows()
+    fill(w, range(100))
+    assert not w.add({**packet(100), **change})
+    assert w.size(1) == 0
+    assert w.classify(1) is None  # the readings from before it are not classified again
+
+
+def test_a_packet_with_no_reserved_field_is_not_a_reading():
+    w = windows()
+    msg = packet(0)
+    del msg["reserved"]
+    assert not w.add(msg)
+    assert w.size(1) == 0
+
+
+def test_after_an_outage_the_model_gets_only_readings_from_after_it():
+    rec = Recording()
+    w = windows(rec)
+    for seq in range(100):
+        assert w.add(packet(seq, imu=(seq, 1, 1, 1, 1, 1)))
+    # Unplugged for 2 s: zeros at status 2, then one status 3. Longer than half the seq
+    # range, so if these packets didn't move the seq on, the next reading would look late.
+    for seq in range(100, 300):
+        assert not w.add(packet(seq, status=2 if seq < 299 else 3))
+    for seq in range(300, 399):
+        assert w.add(packet(seq, imu=(seq, 1, 1, 1, 1, 1)))
+    assert w.classify(1) is None  # 99 readings since the outage, not enough
+    assert w.add(packet(399, imu=(399, 1, 1, 1, 1, 1)))
+    result = w.classify(1)
+    assert [s["ax"] for s in rec.samples] == list(range(300, 400))
+    assert result.missing == 0  # the outage's packets arrived, so none were lost
+
+
+def test_packets_without_a_reading_are_counted_until_one_returns():
+    w = windows()
+    fill(w, range(3))
+    for seq in range(3, 6):
+        w.add(packet(seq, status=2))
+    assert w.without_imu(1) == 3
+    assert w.without_imu(2) == 0
+    w.add(packet(6))
+    assert w.without_imu(1) == 0
+
+
+def test_a_repeat_or_late_packet_without_a_reading_leaves_the_window_alone():
+    w = windows()
+    fill(w, range(100))
+    assert not w.add(packet(99, status=2))  # a repeat
+    assert not w.add(packet(98, status=2))  # late
+    assert w.size(1) == 100
+    assert w.without_imu(1) == 0
+
+
+def test_the_model_gets_only_the_six_imu_channels():
+    rec = Recording()
+    w = windows(rec)
+    for seq in range(100):
+        msg = packet(seq, imu=(1, 2, 3, 4, 5, 6))
+        msg["imu"]["temp"] = 99  # an extra value, if the firmware ever sends one
+        msg.update(fields=[1, 2, 3, 4, 5, 6, 1, 0, 0, 0, 0], crc=0, timestamp=1.0)
+        assert w.add(msg)
+    w.classify(1)
+    assert all(s == dict(zip(gesture.CHANNELS, (1, 2, 3, 4, 5, 6))) for s in rec.samples)
 
 
 # --- what Windows hands the API ----------------------------------------------

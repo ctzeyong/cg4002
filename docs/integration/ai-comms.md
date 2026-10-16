@@ -145,6 +145,14 @@ the DMA or reload the bitstream before the next inference.
 
 1. `gesture.Windows` keeps the latest `WINDOW` valid samples separately for each player and ignores
    malformed, repeated, or backwards SENSOR messages.
+   **Only real IMU readings enter a window.** A real reading is a SENSOR message whose
+   `reserved[0]` IMU status is `1`. Any other status empties that player's window: `2` or `3`
+   (the zeros sent while the IMU is missing or recovering), `0` (old firmware's dummy ramp), an
+   unknown value, or no status at all. The window then refills with the next `WINDOW` readings.
+   So a window never mixes readings from before and after an outage, and an unplugged IMU's
+   zeros are never classified. Until the window is full again, a trigger logs `no AI event: node
+   N has K of 100 samples; the last M had no IMU reading`. The model is given only the six
+   channels in `CHANNELS`.
 2. `--sensor-trigger N` selects a packet after roughly `N/2` to `1.5N` packets from that player.
    This is a test stand-in for a gesture boundary, not production segmentation.
 3. A selected player is classified only after its history is full. The returned label becomes

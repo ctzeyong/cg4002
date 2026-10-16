@@ -1,7 +1,7 @@
 """Gesture windows on the Ultra96, handed to AI's API to classify.
 
 Keeps each node's last samples and asks AI's ai_api.py what gesture they are,
-so a new model changes nothing here.
+so a new model changes nothing here. Only real IMU readings go into a window.
 """
 
 import collections
@@ -23,6 +23,11 @@ ClassifierError = ai_api.ClassifyError
 # same rule as the laptop's ble_client, a jump of 128 or more means the seq went backwards
 SEQ_BACKWARD_THRESHOLD = 128
 
+# The IMU status in a SENSOR message's reserved[0], as in firebeetle/imu.h. Only IMU_OK
+# carries a sensor reading: 0 is old firmware's dummy ramp, and 2 and 3 are the zeros sent
+# while the IMU is missing or recovering
+IMU_OK = 1
+
 # result of classifying one window, missing is the number of packets lost inside it
 Result = collections.namedtuple("Result", "label confidence t_infer_ms missing")
 
@@ -32,6 +37,14 @@ FPGA_MANAGER = pathlib.Path("/sys/class/fpga_manager/fpga0")  # only exists on t
 
 def _is_int(value):
     return isinstance(value, int) and not isinstance(value, bool)
+
+
+def imu_status(msg):
+    """Return the IMU status in a SENSOR message's reserved[0], or None if it has none."""
+    reserved = msg.get("reserved")
+    if isinstance(reserved, list) and reserved and _is_int(reserved[0]):
+        return reserved[0]
+    return None
 
 
 def log_fields(result):
@@ -51,11 +64,12 @@ class Windows:
         self.classifier = classifier
         self._samples = {}  # node -> deque of (sample, packets missing just before it)
         self._last_seq = {}
+        self._without_imu = {}  # node -> packets in a row that carried no IMU reading
 
     def add(self, msg):
         """Add one SENSOR message to its node's window.
 
-        Returns False if it was malformed, a repeat or late.
+        Returns False if it was malformed, a repeat or late, or carried no IMU reading.
         """
         node, seq, imu = msg.get("node"), msg.get("seq"), msg.get("imu")
         if not (_is_int(node) and _is_int(seq) and isinstance(imu, dict)):
@@ -70,11 +84,22 @@ class Windows:
             return False  # repeat or late packet
         self._last_seq[node] = seq
         window = self._samples.setdefault(node, collections.deque(maxlen=WINDOW))
+        if imu_status(msg) != IMU_OK:
+            # restart the window so the window doesnt join readings from both sides 
+            # of an outage or classifies the old ones again
+            window.clear()
+            self._without_imu[node] = self._without_imu.get(node, 0) + 1
+            return False
+        self._without_imu[node] = 0
         window.append((sample, delta - 1))
         return True
 
     def size(self, node):
         return len(self._samples.get(node, ()))
+
+    def without_imu(self, node):
+        """How many packets in a row from `node` have carried no IMU reading."""
+        return self._without_imu.get(node, 0)
 
     def classify(self, node):
         """Classify a node's window. Returns None until the window is full."""
