@@ -31,14 +31,17 @@ class Recording:
         return "0", 1.0
 
 
-def packet(seq, node=1, imu=(0, 0, 0, 0, 0, 0), status=gesture.IMU_OK):
-    return {
+def packet(seq, node=1, imu=(0, 0, 0, 0, 0, 0), status=gesture.IMU_OK, t=None):
+    msg = {
         "type": "SENSOR",
         "node": node,
         "seq": seq & 0xFF,
         "imu": dict(zip(gesture.CHANNELS, imu)),
         "reserved": [status, 0, 0, 0, 0],
     }
+    if t is not None:
+        msg["timestamp"] = t
+    return msg
 
 
 def windows(classifier=None):
@@ -122,6 +125,90 @@ def test_malformed_packets_are_skipped():
     ]
     assert [w.add(msg) for msg in bad] == [False] * len(bad)
     assert w.size(1) == 0
+
+
+# --- a stream that stopped starts a new window -------------------------------
+# The firmware's seq only moves while it streams, and restarts at 0 on a reboot, so after a
+# BLE reconnect seq alone can't tell old samples from new. The laptop's receive time can.
+
+
+def stream(w, seqs, t0, node=1, ax0=0):
+    """Add packets 10 ms apart from t0, with ax counting up from ax0. Returns the next time."""
+    for i, seq in enumerate(seqs):
+        w.add(packet(seq, node, imu=(ax0 + i, 1, 1, 1, 1, 1), t=t0 + i * 0.01))
+    return t0 + len(seqs) * 0.01
+
+
+def window_ax(w, node=1):
+    rec = Recording()
+    w.classifier = rec
+    result = w.classify(node)
+    return None if result is None else ([s["ax"] for s in rec.samples], result.missing)
+
+
+@pytest.mark.parametrize(
+    "before, after",
+    [
+        (range(0, 100), range(100, 200)),  # reconnect: seq carries on as if nothing happened
+        (range(50, 150), range(0, 100)),  # reboot after seq 149: 0 would pass as a forward gap
+        (range(0, 100), range(0, 100)),  # reboot after seq 99: 0 would be dropped as late
+    ],
+    ids=["reconnect", "reboot-looks-like-a-gap", "reboot-looks-late"],
+)
+def test_after_a_gap_the_window_holds_only_the_new_stream(before, after):
+    w = windows()
+    t = stream(w, before, 10.0, ax0=1000)
+    stream(w, after, t + 3.0, ax0=5000)  # 3 s with nothing, as in a BLE reconnect
+    assert window_ax(w) == (list(range(5000, 5100)), 0)
+
+
+def test_right_after_a_gap_there_is_no_full_window_to_classify():
+    w = windows()
+    t = stream(w, range(100), 10.0)
+    stream(w, [100], t + 3.0)
+    assert w.size(1) == 1
+    assert w.classify(1) is None
+
+
+def test_a_gap_under_the_limit_keeps_the_window():
+    w = windows()
+    t = stream(w, range(100), 10.0, ax0=0)
+    last = t - 0.01
+    w.add(packet(100, imu=(100, 1, 1, 1, 1, 1), t=last + gesture.RESET_GAP_S - 0.01))
+    assert window_ax(w) == (list(range(1, 101)), 0)
+
+
+def test_a_gap_on_one_node_leaves_the_other_alone():
+    w = windows()
+    stream(w, range(100), 10.0, node=1)
+    stream(w, range(100), 10.0, node=2)
+    w.add(packet(100, node=1, t=20.0))
+    assert w.size(1) == 1
+    assert w.size(2) == 100
+
+
+@pytest.mark.parametrize("bad", [None, "11.0", float("nan"), float("inf"), True, 0.5])
+def test_an_unusable_or_earlier_time_neither_resets_nor_moves_the_clock(bad):
+    w = windows()
+    t = stream(w, range(100), 0.0)  # times 0.00 .. 0.99
+    msg = packet(100)
+    msg["timestamp"] = bad
+    assert w.add(msg)  # judged on seq alone
+    assert w.size(1) == 100
+    w.add(packet(101, t=t + 0.01))  # 20 ms after the last good time: no reset
+    assert w.size(1) == 100
+    w.add(packet(102, t=t + 3.0))  # but a real gap after it still resets
+    assert w.size(1) == 1
+
+
+def test_a_gap_also_restarts_the_count_of_packets_without_a_reading():
+    w = windows()
+    stream(w, range(3), 10.0)
+    for seq in range(3, 6):
+        w.add(packet(seq, status=2, t=10.0 + seq * 0.01))
+    assert w.without_imu(1) == 3
+    w.add(packet(6, status=2, t=15.0))
+    assert w.without_imu(1) == 1
 
 
 # --- only IMU readings reach the model ---------------------------------------

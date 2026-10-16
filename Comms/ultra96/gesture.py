@@ -5,6 +5,7 @@ so a new model changes nothing here. Only real IMU readings go into a window.
 """
 
 import collections
+import math
 import pathlib
 import sys
 import time
@@ -22,6 +23,12 @@ ClassifierError = ai_api.ClassifyError
 
 # same rule as the laptop's ble_client, a jump of 128 or more means the seq went backwards
 SEQ_BACKWARD_THRESHOLD = 128
+
+# A gap this long between a node's packets, in the laptop's receive time, means its stream
+# stopped: a BLE reconnect or a reboot. seq can't show either, since it carries on after a
+# reconnect and restarts at 0 after a reboot, so the node's window starts again. At 100 Hz it
+# is 50 missing samples, so the old window was no use anyway.
+RESET_GAP_S = 0.5
 
 # The IMU status in a SENSOR message's reserved[0], as in firebeetle/imu.h. Only IMU_OK
 # carries a sensor reading: 0 is old firmware's dummy ramp, and 2 and 3 are the zeros sent
@@ -47,6 +54,14 @@ def imu_status(msg):
     return None
 
 
+def receive_time(msg):
+    """Return the laptop's receive time of a message, or None if it has no usable one."""
+    t = msg.get("timestamp")
+    if isinstance(t, (int, float)) and not isinstance(t, bool) and math.isfinite(t):
+        return float(t)
+    return None
+
+
 def log_fields(result):
     """Return the extra AI event log fields for a classified event, or nothing for a dummy one."""
     if result is None:
@@ -65,6 +80,7 @@ class Windows:
         self._samples = {}  # node -> deque of (sample, packets missing just before it)
         self._last_seq = {}
         self._without_imu = {}  # node -> packets in a row that carried no IMU reading
+        self._last_time = {}  # node -> laptop receive time of its latest packet
 
     def add(self, msg):
         """Add one SENSOR message to its node's window.
@@ -78,11 +94,20 @@ class Windows:
         if not all(_is_int(value) for value in sample.values()):
             return False
 
+        # before the seq rule, because after a reboot the new seq can look like a late packet
+        t = receive_time(msg)
+        last_t = self._last_time.get(node)
+        if t is not None and last_t is not None and t - last_t > RESET_GAP_S:
+            self._forget(node)
+            last_t = None
+
         last = self._last_seq.get(node)
         delta = 1 if last is None else (seq - last) & 0xFF
         if delta == 0 or delta >= SEQ_BACKWARD_THRESHOLD:
             return False  # repeat or late packet
         self._last_seq[node] = seq
+        if t is not None:
+            self._last_time[node] = t if last_t is None else max(last_t, t)
         window = self._samples.setdefault(node, collections.deque(maxlen=WINDOW))
         if imu_status(msg) != IMU_OK:
             # restart the window so the window doesnt join readings from both sides 
@@ -93,6 +118,11 @@ class Windows:
         self._without_imu[node] = 0
         window.append((sample, delta - 1))
         return True
+
+    def _forget(self, node):
+        """Drop everything about a node, so its next packet starts a new window."""
+        for state in (self._samples, self._last_seq, self._without_imu, self._last_time):
+            state.pop(node, None)
 
     def size(self, node):
         return len(self._samples.get(node, ()))

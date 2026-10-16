@@ -206,6 +206,21 @@ async def test_a_node_with_no_imu_reading_says_so_and_sends_nothing(caplog):
 
 
 @pytest.mark.asyncio
+async def test_after_a_ble_reconnect_the_old_window_is_not_classified(caplog):
+    """seq carries on across a reconnect, so only the 10 s gap shows the window is stale."""
+    frames = [sensor(1, 0, t=60.0)]  # the full window ended at seq 255, at t=50
+    frames.append({"type": "ECHO", "node": 2, "seq": 0, "timestamp": 1.0, "fields": [-99]})
+    windows = full_windows({1: 0})
+
+    await _run_receiver(
+        frames, caplog, lambda log: _ai_events(log), tcp_client.SensorTrigger(1), windows
+    )
+
+    assert "no AI event: node 1 has 1 of 100 samples" in caplog.messages
+    assert [m.split(" player=")[1][:1] for m in _ai_events(caplog)] == ["2"]
+
+
+@pytest.mark.asyncio
 async def test_a_failed_inference_skips_that_window_and_the_next_one_still_works(caplog):
     class FailsOnce:
         calls = 0
