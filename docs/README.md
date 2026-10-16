@@ -18,6 +18,7 @@ details owned by one subsystem.
 | Integration | Documentation |
 |---|---|
 | Hardware ↔ Comms | [Single-MPU6050 interface, ownership, and change contract](integration/hardware-comms.md) |
+| AI ↔ Comms | [FPGA classifier in the board client](integration/ai-comms.md) |
 
 When adding documentation:
 

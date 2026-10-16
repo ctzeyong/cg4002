@@ -576,7 +576,7 @@ async def test_session_ends_when_the_receiver_dies_without_setting_stop(monkeypa
     never got its chance to reconnect. The deadline below is the whole test.
     """
 
-    async def exploding_receiver(reader, writer, stop, events, sensor_trigger=None):
+    async def exploding_receiver(reader, writer, stop, events, sensor_trigger=None, windows=None):
         raise RuntimeError("receiver blew up")
 
     monkeypatch.setattr(tcp_client, "receiver", exploding_receiver)
@@ -699,7 +699,7 @@ async def test_run_retries_after_a_refused_connection(monkeypatch):
     monkeypatch.setattr(tcp_client, "RECONNECT_BACKOFF_S", 0.01)
     attempts = []
 
-    async def failing_session(host, port, event_every=0.0, sensor_every=0):
+    async def failing_session(host, port, event_every=0.0, sensor_every=0, classifier=None):
         attempts.append((host, port))
         raise OSError("connection refused")
 
@@ -721,7 +721,7 @@ async def test_run_survives_an_unexpected_error(monkeypatch):
     monkeypatch.setattr(tcp_client, "RECONNECT_BACKOFF_S", 0.01)
     attempts = []
 
-    async def exploding_session(host, port, event_every=0.0, sensor_every=0):
+    async def exploding_session(host, port, event_every=0.0, sensor_every=0, classifier=None):
         attempts.append((host, port))
         raise RuntimeError("something nobody predicted")
 

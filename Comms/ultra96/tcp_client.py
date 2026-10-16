@@ -10,8 +10,8 @@ a CMD to a FireBeetle, the board negates the fields and returns them as an ECHO,
 the laptop forwards it here, and this generates one random AI event and sends it
 back for the laptop to publish to the visualiser.
 
-For latency runs, `--sensor-trigger N` also makes an event from the SENSOR stream,
-standing in for the last packet of a gesture window. notes/latency.md 3.9.
+`--sensor-trigger N` also makes AI events from the SENSOR stream. The picked packet is
+treated as the end of a gesture, and that node's last 100 samples are classified.
 
 Auto-reconnects on any disconnect, per Comms Initial Design Report Table 4.3.
 The protocol decisions behind this file are in notes/tcp_leg.md.
@@ -24,6 +24,7 @@ import random
 import time
 
 import ai_events
+import gesture
 from framing import FramingError, recv_message, send_message
 from board_logging import PROGRESS, setup_logging
 
@@ -170,30 +171,32 @@ class EventSource:
         self.seq = 0
         self.sent = 0
 
-    async def emit(self, writer, player, key=None):
-        """Build one dummy AI event for `player` and send it to the laptop.
+    async def emit(self, writer, player, key=None, result=None):
+        """Build one AI event for `player` and send it to the laptop.
 
-        `key`, when there was one, picks the gesture.
+        `result` is the classifier's answer. If there is none, the event is a dummy and
+        `key` (if any) picks the gesture.
 
         Raises:
             OSError: the transport failed.
             FramingError: the event would not serialise. Neither is handled here;
                 the caller ends the session and `run` re-dials.
         """
-        event = ai_events.random_event(player, self.seq, key)
+        event = ai_events.make_event(player, self.seq, key, result)
         await send_message(writer, event)
         self.seq += 1
         self.sent += 1
         # t_event is the event's own timestamp, not this line's time: this line comes
         # after the TCP send, B's after a queue put. notes/latency.md 3.2.
         log.info(
-            "AI event seq=%d player=%s key=%r gesture=%s mana=%d t_event=%s",
+            "AI event seq=%d player=%s key=%r gesture=%s mana=%d t_event=%s%s",
             event["seq"],
             event["player"],
             key,
             event["gesture"],
             event["mana_cost"],
             time_field(event["timestamp"]),
+            gesture.log_fields(result),
         )
         return event
 
@@ -230,6 +233,7 @@ async def receiver(
     stop: asyncio.Event,
     events: EventSource,
     sensor_trigger: SensorTrigger = None,
+    windows: gesture.Windows = None,
 ) -> None:
     """Receive messages from the laptop and handle AI event triggers.
 
@@ -238,8 +242,9 @@ async def receiver(
     reconnect is requested. AI event triggers are processed and the
     resulting events are sent back to the laptop.
 
-    An ECHO is always a trigger. A SENSOR packet is one only when `sensor_trigger`
-    picks it, and then the event gets a random gesture.
+    An ECHO is always a trigger and gets a dummy gesture. A SENSOR packet is only a
+    trigger when `sensor_trigger` picks it, and then its node's window in `windows` is
+    classified, so both have to be passed together.
     """
     count = 0
     window_count = 0
@@ -296,6 +301,8 @@ async def receiver(
 
         if not isinstance(msg, dict):
             continue
+        if windows is not None and msg.get("type") == SENSOR:
+            windows.add(msg)
         if msg.get("type") == AI_EVENT_TRIGGER:
             try:
                 player, key = parse_echo(msg)
@@ -320,8 +327,23 @@ async def receiver(
             time_field(msg.get("timestamp")),
             time_field(received_at),
         )
+        result = None
+        if msg.get("type") == SENSOR:
+            try:
+                result = windows.classify(player)
+            except gesture.ClassifierError as exc:
+                log.warning("no AI event: classifier failed on node %d (%s)", player, exc)
+                continue
+            if result is None:
+                log.info(
+                    "no AI event: node %d has %d of %d samples",
+                    player,
+                    windows.size(player),
+                    gesture.WINDOW,
+                )
+                continue
         try:
-            await events.emit(writer, player, key)
+            await events.emit(writer, player, key, result)
         except (OSError, FramingError) as exc:
             log.warning("AI event send failed (%s); signalling reconnect", exc)
             stop.set()
@@ -358,7 +380,7 @@ async def event_ticker(
 
 
 async def one_session(
-    host: str, port: int, event_every: float = 0.0, sensor_every: int = 0
+    host: str, port: int, event_every: float = 0.0, sensor_every: int = 0, classifier=None
 ) -> None:
     """Run one TCP connection start to finish: dial, pump heartbeats, tear down.
 
@@ -380,9 +402,13 @@ async def one_session(
     # Fresh per session, so a reconnect restarts the AI event sequence
     events = EventSource()
     sensor_trigger = SensorTrigger(sensor_every) if sensor_every > 0 else None
+    # new per session, so a reconnect starts with empty gesture windows
+    windows = None
+    if sensor_every > 0:
+        windows = gesture.Windows(classifier or gesture.load_classifier())
     tasks = [
         asyncio.create_task(sender(writer, stop)),
-        asyncio.create_task(receiver(reader, writer, stop, events, sensor_trigger)),
+        asyncio.create_task(receiver(reader, writer, stop, events, sensor_trigger, windows)),
     ]
     if event_every > 0:
         tasks.append(asyncio.create_task(event_ticker(writer, stop, events, event_every)))
@@ -409,9 +435,12 @@ async def run(host: str, port: int, event_every: float = 0.0, sensor_every: int 
     """Maintain the Ultra96 TCP connection, reconnecting automatically after failures, 
     waiting RECONNECT_BACKOFF_S between attempts.
     """
+    classifier = gesture.load_classifier() if sensor_every > 0 else None
+    if classifier is not None:
+        log.info("classifier: %s", type(classifier).__name__)
     while True:
         try:
-            await one_session(host, port, event_every, sensor_every)
+            await one_session(host, port, event_every, sensor_every, classifier)
         except (OSError, asyncio.TimeoutError) as exc:
             log.warning("connect failed: %s", exc)
         except Exception:

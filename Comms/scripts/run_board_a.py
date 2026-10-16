@@ -24,6 +24,9 @@ import asyncssh
 
 import run_board
 from run_board import (
+    AS_ROOT,
+    DAY_FOLDER,
+    PKILL,
     REPO,
     STOP_TIMEOUT_S,
     VENV_PYTHON,
@@ -51,19 +54,19 @@ def remote_command(port, client_args, restart):
     extra = (" " + " ".join(client_args)) if client_args else ""
     launch = (
         f"cap=~/comms/logs/{CAPTURE_PREFIX}$(date -u +%Y%m%dT%H%M%SZ).log; "
-        f"nohup {VENV_PYTHON} {CLIENT} --host 127.0.0.1 --port {port}{extra} "
+        f"nohup {AS_ROOT} {VENV_PYTHON} {CLIENT} --host 127.0.0.1 --port {port}{extra} "
         f'> "$cap" 2>&1 &'
     )
     steps = [
-        f'pkill -f "{run_board.PROCESS_PATTERN}" && echo "STOPPED: configuration B client killed"',
+        f'{PKILL} -f "{run_board.PROCESS_PATTERN}" && echo "STOPPED: configuration B client killed"',
     ]
     if restart:
-        steps.append(f'pkill -f "{PROCESS_PATTERN}" && echo "STOPPED: previous client killed"')
+        steps.append(f'{PKILL} -f "{PROCESS_PATTERN}" && echo "STOPPED: previous client killed"')
     steps += [
         "sleep 1",
         f"if ! ss -ltn | grep -q '127.0.0.1:{port} '; then "
         f"echo 'WARN: nothing listening on 127.0.0.1:{port} -- is the laptop tunnel up?'; fi",
-        "mkdir -p ~/comms/logs",
+        DAY_FOLDER,
         f'if pgrep -f "{PROCESS_PATTERN}" >/dev/null; then echo "ATTACH: client already running"; '
         f'pgrep -af "{PROCESS_PATTERN}"; '
         f"latest=$(ls -t ~/comms/logs/{CAPTURE_PREFIX}*.log 2>/dev/null | head -1); "
@@ -83,7 +86,7 @@ def remote_command(port, client_args, restart):
 def stop_command():
     """Kill the client and say whether there was one."""
     return (
-        f'pkill -f "{PROCESS_PATTERN}" && echo "STOPPED" '
+        f'{PKILL} -f "{PROCESS_PATTERN}" && echo "STOPPED" '
         '|| echo "nothing to stop: no client was running"'
     )
 

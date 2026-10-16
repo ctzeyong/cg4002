@@ -20,6 +20,7 @@ import logging
 
 import ai_events
 import envelope
+import gesture
 import mqtt_publisher
 from board_logging import DEFAULT_LOG_FILE, setup_logging
 from tcp_client import (
@@ -52,12 +53,13 @@ class MqttEventSource:
         self.seq = 0
         self.sent = 0
 
-    async def emit(self, writer, player, key=None):
-        """Make one dummy AI event for `player` and queue it to publish.
+    async def emit(self, writer, player, key=None, result=None):
+        """Make one AI event for `player` and queue it to publish.
 
+        `result` is the classifier's answer. If there is none, the event is a dummy.
         Never blocks or raises, so a broker outage cannot stall the TCP side.
         """
-        event = ai_events.random_event(player, self.seq, key)
+        event = ai_events.make_event(player, self.seq, key, result)
 
         # The player goes in the topic. An event with no player gets a default one.
         player_id = player if player is not None else TICKER_PLAYER
@@ -70,19 +72,20 @@ class MqttEventSource:
         self.sent += 1
         # t_event: the event's own timestamp, as in tcp_client.EventSource.
         log.info(
-            "AI event seq=%d player=%s key=%r gesture=%s mana=%d t_event=%s -> %s",
+            "AI event seq=%d player=%s key=%r gesture=%s mana=%d t_event=%s%s -> %s",
             event["seq"],
             event["player"],
             key,
             event["gesture"],
             event["mana_cost"],
             time_field(event["timestamp"]),
+            gesture.log_fields(result),
             topic,
         )
         return event
 
 
-async def one_session(host, port, events, event_every=0.0, sensor_every=0):
+async def one_session(host, port, events, event_every=0.0, sensor_every=0, classifier=None):
     """Run one TCP connection until it ends.
 
     MQTT is not in here; `run` keeps it separate, so one failing leaves the other up.
@@ -94,10 +97,14 @@ async def one_session(host, port, events, event_every=0.0, sensor_every=0):
     log.info("connected")
     stop = asyncio.Event()
     sensor_trigger = SensorTrigger(sensor_every) if sensor_every > 0 else None
+    # new per session, so a reconnect starts with empty gesture windows
+    windows = None
+    if sensor_every > 0:
+        windows = gesture.Windows(classifier or gesture.load_classifier())
 
     tasks = [
         asyncio.create_task(sender(writer, stop)),
-        asyncio.create_task(receiver(reader, writer, stop, events, sensor_trigger)),
+        asyncio.create_task(receiver(reader, writer, stop, events, sensor_trigger, windows)),
     ]
     if event_every > 0:
         tasks.append(asyncio.create_task(event_ticker(writer, stop, events, event_every)))
@@ -107,7 +114,7 @@ async def one_session(host, port, events, event_every=0.0, sensor_every=0):
         for task in done:
             task.result()  # re-raise the error, if there was one
     finally:
-        stop.set()  # always before cancelling; see CLAUDE.md
+        stop.set()  # always before cancelling
         for task in tasks:
             task.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)
@@ -124,9 +131,13 @@ async def run_tcp(host, port, outbound, stats, event_every=0.0, sensor_every=0):
     # One source for the whole run: a new one would restart seq at 0, and the phone
     # would drop the repeated event_ids as duplicates.
     events = MqttEventSource(outbound, stats)
+
+    classifier = gesture.load_classifier() if sensor_every > 0 else None
+    if classifier is not None:
+        log.info("classifier: %s", type(classifier).__name__)
     while True:
         try:
-            await one_session(host, port, events, event_every, sensor_every)
+            await one_session(host, port, events, event_every, sensor_every, classifier)
         except (OSError, asyncio.TimeoutError) as exc:
             log.warning("connect failed: %s", exc)
         except asyncio.CancelledError:
