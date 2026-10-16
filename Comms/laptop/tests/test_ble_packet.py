@@ -21,6 +21,7 @@ from ble_packet import (
     calculate_crc,
     decode,
     format_packet,
+    imu_status,
     packet_to_message,
     unpack_crc,
     unpack_fields,
@@ -181,3 +182,11 @@ def test_packet_to_message_names_imu_reserved_fields_and_crc():
         "reserved": [6, 7, 8, 9, 10],
         "crc": int.from_bytes(raw[CRC_OFFSET:], "little"),
     }
+
+
+def test_imu_status_is_read_from_the_first_reserved_field():
+    # the fields either side (gz=6, reserved[1]=-1) must not leak in
+    fields = [1, 2, 3, 4, 5, 6, 3, -1, 0, 0, 0]
+    _, _, payload = decode(build_fixed_packet(TYPE_SENSOR, 0, fields))
+
+    assert imu_status(payload) == 3

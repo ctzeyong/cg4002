@@ -5,7 +5,8 @@
 //
 // Every packet starts with type and sequence. SENSOR, CMD and ECHO packets then carry 11
 // int16 fields (six IMU readings, five reserved) and a CRC, 26 bytes in all; file packets
-// carry a uint64 size/offset followed by raw bytes, and no CRC.
+// carry a uint64 size/offset followed by raw bytes, and no CRC. In a SENSOR packet the
+// first reserved field carries the IMU status (imu.h).
 //
 // Nothing is transmitted until the link is both MTU-capable and encrypted. Both gates
 // are polled at the top of loop().
@@ -16,6 +17,12 @@
 #include <Arduino.h>
 #include <NimBLEDevice.h>
 #include <string.h>
+
+#include "imu.h"
+
+// the laptop and the AI model read the six values at these ranges
+static_assert(IMU_ACCEL_RANGE_G == 4 && IMU_GYRO_RANGE_DPS == 500,
+              "IMU range changed in imu.h: this is a data contract change, agree it with Comms and AI first");
 
 #define PLAYER_ID 2 // change accordingly
 
@@ -44,6 +51,7 @@ static constexpr uint8_t TYPE_FILE_END   = 0x12;
 static constexpr size_t HEADER_LEN = 2;
 static constexpr size_t IMU_FIELD_COUNT = 6;
 static constexpr size_t RESERVED_FIELD_COUNT = 5;
+static constexpr size_t IMU_STATUS_FIELD = IMU_FIELD_COUNT;  // reserved[0] of a SENSOR packet
 static constexpr size_t DATA_FIELD_COUNT = IMU_FIELD_COUNT + RESERVED_FIELD_COUNT;
 static constexpr size_t FIELD_LEN = 2;
 static constexpr size_t CRC_LEN = 2;
@@ -54,6 +62,7 @@ static constexpr uint16_t PREFERRED_MTU = 128;
 static constexpr size_t FILE_HEADER_LEN = 10;  // type + seq + uint64 size/offset
 static constexpr size_t FILE_MAX_PACKET_LEN = PREFERRED_MTU - 3;
 static constexpr uint32_t PACKET_PERIOD_MS = 10;  // 10 = 100 Hz, the validated two-node rate; 6 = ~167 Hz, two-board maximum
+static constexpr uint32_t IMU_TIMING_REPORT_MS = 5000;
 
 // Requested BLE connection parameters.
 // Intervals use 1.25 ms units: 12 × 1.25 ms = 15 ms.
@@ -75,6 +84,9 @@ static uint32_t g_encryptedAt = 0;
 
 static uint8_t g_seq = 0;
 static uint32_t g_lastTx = 0;
+
+static uint32_t g_slowestImuReadUs = 0;  // since the last timing report
+static uint32_t g_imuTimingReportedAt = 0;
 
 // Downlink hand-off. onWrite runs on the NimBLE host task; loop() drains it. Going
 // through a buffer rather than notifying straight from onWrite keeps every notify()
@@ -232,19 +244,42 @@ class DownlinkCallbacks : public NimBLECharacteristicCallbacks {
 };
 
 /**
- * Fills buf with one PACKET_LEN dummy SENSOR packet.
+ * Calls imuRead() and prints the slowest call to serial every IMU_TIMING_REPORT_MS,
+ * so the time I2C takes out of loop() can be checked.
+ */
+static ImuStatus timedImuRead(int16_t *imu) {
+    const uint32_t started = micros();
+    const ImuStatus status = imuRead(imu);
+    const uint32_t took = micros() - started;
+    if (took > g_slowestImuReadUs) {
+        g_slowestImuReadUs = took;
+    }
+
+    const uint32_t now = millis();
+    if (now - g_imuTimingReportedAt >= IMU_TIMING_REPORT_MS) {
+        Serial.printf("[IMU] status=%d, slowest imuRead since last report: %u us\n",
+                      static_cast<int>(status), static_cast<unsigned>(g_slowestImuReadUs));
+        g_slowestImuReadUs = 0;
+        g_imuTimingReportedAt = now;
+    }
+    return status;
+}
+
+/**
+ * Fills buf with one PACKET_LEN SENSOR packet: the IMU reading, then its status.
  **/
 static void buildPacket(uint8_t *buf) {
     buf[0] = TYPE_SENSOR;
     buf[1] = g_seq;
 
-    const int16_t base = static_cast<int16_t>(g_seq) * 100;
+    int16_t imu[IMU_FIELD_COUNT];
+    const ImuStatus status = timedImuRead(imu);
 
-    // Dummy ax, ay, az, gx, gy and gz values until the real IMU is connected.
     for (size_t i = 0; i < IMU_FIELD_COUNT; i++) {
-        writeField(buf, i, static_cast<int16_t>(base + static_cast<int16_t>(i)));
+        writeField(buf, i, imu[i]);
     }
-    for (size_t i = IMU_FIELD_COUNT; i < DATA_FIELD_COUNT; i++) {
+    writeField(buf, IMU_STATUS_FIELD, status);
+    for (size_t i = IMU_STATUS_FIELD + 1; i < DATA_FIELD_COUNT; i++) {
         writeField(buf, i, 0);  // reserved for later sensor expansion
     }
     writePacketCrc(buf);
@@ -258,6 +293,14 @@ void setup() {
     Serial.begin(115200);
     delay(200);
     Serial.printf("\n[BLE] boot: B16 Player-%d peripheral\n", PLAYER_ID);
+
+    // if the IMU is missing, BLE still starts and the board sends zeros with IMU_MISSING
+    // until the IMU answers
+    if (imuBegin(PLAYER_ID)) {
+        Serial.println("[IMU] ready");
+    } else {
+        Serial.println("[IMU] not found");
+    }
 
     NimBLEDevice::init(DEVICE_NAME);
     NimBLEDevice::setMTU(PREFERRED_MTU); // negotiate MTU

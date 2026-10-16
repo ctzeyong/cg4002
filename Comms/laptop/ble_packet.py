@@ -5,6 +5,9 @@
     bytes 2-23  11 x int16 little-endian: ax ay az gx gy gz, then 5 reserved
     bytes 24-25 CRC-16/CCITT-FALSE of bytes 0-23, little-endian
 
+In a SENSOR packet the first reserved field is the IMU status (firebeetle/imu.h),
+which ImuCheck turns into warnings.
+
 No bleak or asyncio here, so the format can be tested without Bluetooth.
 """
 
@@ -39,6 +42,18 @@ CRC_INIT = 0xFFFF
 
 # EVENT is left out: the firmware does not send it yet and its size is not decided.
 FIXED_LEN_TYPES = (TYPE_SENSOR, TYPE_ECHO, TYPE_CMD)
+
+# IMU status values, the same as ImuStatus in firebeetle/imu.h
+IMU_UNREPORTED = 0  # firmware from before the IMU
+IMU_OK = 1
+IMU_MISSING = 2
+IMU_RECOVERING = 3
+IMU_STATUS_OFFSET = IMU_FIELD_COUNT * FIELD_LEN  # reserved[0], counted from the payload start
+
+IMU_PROBLEMS = {
+    IMU_MISSING: "IMU missing, sending zeros",
+    IMU_RECOVERING: "IMU recovering after a reset",
+}
 
 
 class PacketLengthError(ValueError):
@@ -117,6 +132,38 @@ def unpack_crc(payload):
             f"invalid fixed payload length: {len(payload)} != {DATA_LEN + CRC_LEN}"
         )
     return int.from_bytes(payload[DATA_LEN:], "little")
+
+
+def imu_status(payload):
+    """Return the IMU status a SENSOR payload carries in reserved[0]."""
+    status = payload[IMU_STATUS_OFFSET : IMU_STATUS_OFFSET + FIELD_LEN]
+    return int.from_bytes(status, "little", signed=True)
+
+
+class ImuCheck:
+    """Warn once when a node's IMU stops giving real readings, and log when it is back.
+
+    Make one per connection. Status 0 means old firmware with nothing to report, so it
+    never warns.
+    """
+
+    def __init__(self, node_id, log):
+        self.node_id = node_id
+        self.log = log
+        self.problem_since = None  # when the current problem started, None while healthy
+
+    def update(self, status, now):
+        """Take the status of one SENSOR packet received at `now`, in seconds."""
+        healthy = status in (IMU_UNREPORTED, IMU_OK)
+        if not healthy and self.problem_since is None:
+            self.problem_since = now
+            problem = IMU_PROBLEMS.get(status, f"unknown IMU status {status}")
+            self.log.warning("node %d: %s", self.node_id, problem)
+        elif healthy and self.problem_since is not None:
+            self.log.info(
+                "node %d: IMU OK again after %.1fs", self.node_id, now - self.problem_since
+            )
+            self.problem_since = None
 
 
 def build_fixed_packet(packet_type, seq, fields):

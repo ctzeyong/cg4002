@@ -26,6 +26,8 @@ from ble_packet import (
     CRC_OFFSET,
     DATA_FIELD_COUNT,
     IMU_FIELD_COUNT,
+    IMU_MISSING,
+    IMU_RECOVERING,
     RESERVED_FIELD_COUNT,
     TYPE_ECHO,
     TYPE_SENSOR,
@@ -835,3 +837,102 @@ async def test_backoff_escalates_immediately_after_a_link_has_existed(monkeypatc
         ble_module.MIN_BACKOFF_S * 2,
         ble_module.MIN_BACKOFF_S * 4,
     ]
+
+
+# --- IMU status (reserved[0]) ------------------------------------------------
+
+
+def with_status(packet_type, seq, status):
+    """A packet with plausible IMU values and `status` in reserved[0]."""
+    return make_packet(packet_type, seq, [120, -45, 8192, 3, -2, 1, status, 0, 0, 0, 0])
+
+
+def feed(handler, statuses, first_seq=0):
+    """Send one SENSOR packet per status, with consecutive seqs."""
+    for i, status in enumerate(statuses):
+        handler(None, with_status(TYPE_SENSOR, (first_seq + i) & 0xFF, status))
+
+
+def imu_lines(caplog):
+    return [(r.levelname, r.getMessage()) for r in caplog.records if "IMU" in r.getMessage()]
+
+
+@pytest.mark.asyncio
+async def test_old_firmware_and_a_healthy_imu_say_nothing(caplog):
+    """Status 0 is firmware from before the IMU, so it must stay quiet like status 1."""
+    handler = make_notify_handler(NODES[0], asyncio.Queue(maxsize=1000), NodeStats())
+
+    with caplog.at_level("INFO", logger="ble_client"):
+        feed(handler, [0] * 150 + [1] * 150)
+
+    assert imu_lines(caplog) == []
+
+
+@pytest.mark.parametrize(
+    "status, warning",
+    [
+        (IMU_MISSING, "IMU missing, sending zeros"),
+        (IMU_RECOVERING, "IMU recovering after a reset"),
+        (7, "unknown IMU status 7"),
+    ],
+)
+@pytest.mark.asyncio
+async def test_an_imu_problem_warns_once_not_per_packet(caplog, status, warning):
+    handler = make_notify_handler(NODES[0], asyncio.Queue(maxsize=1000), NodeStats())
+
+    with caplog.at_level("INFO", logger="ble_client"):
+        feed(handler, [1] * 5 + [status] * 200)
+
+    assert imu_lines(caplog) == [("WARNING", f"node 1: {warning}")]
+
+
+@pytest.mark.asyncio
+async def test_the_imu_coming_back_logs_once_how_long_it_was_out(monkeypatch, caplog):
+    clock = itertools.count(1000.0, 0.01)  # 100 Hz
+    monkeypatch.setattr(ble_module.time, "perf_counter", lambda: next(clock))
+    handler = make_notify_handler(NODES[0], asyncio.Queue(maxsize=1000), NodeStats())
+
+    with caplog.at_level("INFO", logger="ble_client"):
+        feed(handler, [1] * 10 + [IMU_MISSING] * 250 + [1] * 100)
+
+    assert imu_lines(caplog) == [
+        ("WARNING", "node 1: IMU missing, sending zeros"),
+        ("INFO", "node 1: IMU OK again after 2.5s"),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_an_imu_unplug_and_replug_is_one_warning_and_one_info(caplog):
+    """Missing then recovering is one problem, so a replug must not warn a second time."""
+    handler = make_notify_handler(NODES[0], asyncio.Queue(maxsize=1000), NodeStats())
+
+    with caplog.at_level("INFO", logger="ble_client"):
+        feed(handler, [1] * 5 + [IMU_MISSING] * 100 + [IMU_RECOVERING] + [1] * 5)
+        assert [level for level, _ in imu_lines(caplog)] == ["WARNING", "INFO"]
+
+        feed(handler, [IMU_MISSING], first_seq=111)  # a later problem is a new one
+
+    assert [level for level, _ in imu_lines(caplog)] == ["WARNING", "INFO", "WARNING"]
+
+
+@pytest.mark.asyncio
+async def test_an_echo_is_not_read_for_imu_status(caplog):
+    """An ECHO's reserved fields are copied from its CMD, not set by the IMU."""
+    handler = make_notify_handler(NODES[0], asyncio.Queue(maxsize=1000), NodeStats())
+
+    with caplog.at_level("INFO", logger="ble_client"):
+        handler(None, with_status(TYPE_ECHO, 7, IMU_MISSING))
+
+    assert imu_lines(caplog) == []
+
+
+@pytest.mark.asyncio
+async def test_a_reconnect_starts_with_a_fresh_imu_check(caplog):
+    """The board may have been fixed or swapped while the link was down, so warn again."""
+    stats = NodeStats()
+
+    with caplog.at_level("INFO", logger="ble_client"):
+        feed(make_notify_handler(NODES[0], asyncio.Queue(maxsize=1000), stats), [IMU_MISSING] * 3)
+        feed(make_notify_handler(NODES[0], asyncio.Queue(maxsize=1000), stats), [IMU_MISSING] * 3)
+
+    assert [level for level, _ in imu_lines(caplog)] == ["WARNING", "WARNING"]

@@ -30,11 +30,13 @@ from ble_packet import (
     TYPE_EVENT,
     TYPE_SENSOR,
     BlePacket,
+    ImuCheck,
     PacketCrcError,
     PacketLengthError,
     build_cmd_packet,
     decode,
     format_packet,
+    imu_status,
     unpack_fields,
 )
 from logging_setup import PROGRESS, setup_logging
@@ -232,10 +234,12 @@ def seq_anomaly_suffix(stats, now):
 def make_notify_handler(node, queue, stats):
     """Build the function bleak calls for every notification from `node`.
 
-    It checks the packet (length, CRC, type), tracks the sequence number, and puts
-    good packets on the shared queue. Bad packets are counted and dropped.
+    It checks the packet (length, CRC, type), tracks the sequence number, watches the
+    IMU status, and puts good packets on the shared queue. Bad packets are counted and
+    dropped.
     """
     nlog = node_log(node)
+    imu_check = ImuCheck(node.node_id, nlog)  # one per connection, so a reconnect starts fresh
 
     def on_notify(_char, data):
         try:
@@ -268,6 +272,10 @@ def make_notify_handler(node, queue, stats):
 
             stats.received += 1
             forward = True
+
+            # only SENSOR, because an ECHO's reserved fields are copied from its CMD
+            if packet_type == TYPE_SENSOR:
+                imu_check.update(imu_status(payload), now)
 
             if packet_type == TYPE_ECHO:
                 # An ECHO reuses its CMD's seq, not the sensor stream's, so skip the gap check.
