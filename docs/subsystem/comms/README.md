@@ -106,12 +106,12 @@ every 10 ms, giving a target rate of 100 Hz per FireBeetle.
 | `8–9` | 2 | `gx` | Signed `int16`, little-endian. |
 | `10–11` | 2 | `gy` | Signed `int16`, little-endian. |
 | `12–13` | 2 | `gz` | Signed `int16`, little-endian. |
-| `14–23` | 10 | Reserved | Five signed `int16` values; currently zero in SENSOR packets. |
+| `14–23` | 10 | Reserved | Five signed `int16` values. In a SENSOR packet, the first is the IMU status (`0` legacy, `1` OK, `2` missing, `3` recovering); the remaining four are zero. |
 | `24–25` | 2 | CRC | CRC-16/CCITT-FALSE over bytes `0–23`, stored little-endian. Polynomial `0x1021`, initial value `0xFFFF`. |
 
 | Type | Hex | Direction | Current behaviour |
 |---|---:|---|---|
-| `SENSOR` | `0x01` | FireBeetle → laptop | Free-running 100 Hz stream. Current firmware uses dummy values `seq × 100 + 0..5`; the real IMU is not connected yet. |
+| `SENSOR` | `0x01` | FireBeetle → laptop | Free-running 100 Hz stream from one MPU6050 per player. It carries raw ±4 g / ±500 °/s counts, or zeros with an explicit missing/recovering status. |
 | `EVENT` | `0x02` | Reserved uplink | Reserved for a hall-sensor event. Its payload and length are not defined and current firmware does not emit it. |
 | `CMD` | `0x03` | Laptop → FireBeetle | A keypress creates 11 fields. Field 0 contains the masked key code; the remaining IMU fields are random test data and the reserved fields are zero. |
 | `ECHO` | `0x04` | FireBeetle → laptop | Reply to one CMD. It keeps the CMD sequence, changes the type, negates the first six fields, leaves the five reserved fields unchanged, and recomputes the CRC. |
@@ -153,10 +153,10 @@ Example decoded SENSOR message:
   "node": 1,
   "seq": 42,
   "timestamp": 12345.678,
-  "fields": [4200, 4201, 4202, 4203, 4204, 4205, 0, 0, 0, 0, 0],
-  "imu": {"ax": 4200, "ay": 4201, "az": 4202, "gx": 4203, "gy": 4204, "gz": 4205},
-  "reserved": [0, 0, 0, 0, 0],
-  "crc": 65408
+  "fields": [120, -4, 8190, 7, -2, 1, 1, 0, 0, 0, 0],
+  "imu": {"ax": 120, "ay": -4, "az": 8190, "gx": 7, "gy": -2, "gz": 1},
+  "reserved": [1, 0, 0, 0, 0],
+  "crc": 18695
 }
 ```
 
