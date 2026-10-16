@@ -3,10 +3,9 @@
 The visualiser for the configuration where Mosquitto runs on the **Ultra96's loopback**
 instead of the laptop. Reaches it through a two-hop SSH nest owned by the phone.
 
-**All reasoning, the test ladder (T0-T3) and the board-side prerequisites are in
-`comms/notes/tunnelled_visualiser.md`. Read that first.**
-
-Status: compiles clean, never run.
+Setup (network, credentials, fingerprints) is in [`Comms/README.md`](../../README.md#phone).
+It is the Configuration B test client and has run end to end on a phone; it is separate
+from the team's `SW_Visualiser`.
 
 ## What is a copy and what is not
 

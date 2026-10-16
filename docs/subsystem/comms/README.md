@@ -234,7 +234,9 @@ Before starting, check that:
 - `Comms/.env` exists and contains the jump-host and Ultra96 details from `.env.example`;
 - `Comms/.venv` has the packages in `laptop/requirements.txt`;
 - the Ultra96 has loopback-only Mosquitto and `~/comms-venv` configured;
-- the laptop and phone can reach `stujump` (normally NUS Wi-Fi with the VPN off);
+- the laptop and phone can reach `stujump`. Without a registered SSH key a device needs the NUS
+  VPN on any network, so the phone uses the VPN (and for consistency, NUS Wi-Fi), while the laptop (key registered) uses NUS Wi-Fi
+  with the VPN off. Setup steps are in [`Comms/README.md`](../../../Comms/README.md);
 - the FireBeetles are powered; and
 - the tunnelled visualiser is installed and configured on the phone.
 
