@@ -27,9 +27,15 @@ import re
 import pytest
 
 _COMMS = pathlib.Path(__file__).resolve().parents[2]
-_CONFIG = (
-    _COMMS / "phone" / "tunnelled-visualiser" / "Assets" / "Scripts" / "TunnelConfig.cs"
-)
+
+# Both copies: the tunnelled visualiser's and the one the Vis app imports
+# (phone/comms-visualiser). test_unity_shared_scripts.py keeps them byte-identical; this
+# checks each anyway, so the rule holds while a copy is mid-change.
+CONFIGS = [
+    _COMMS / "phone" / "tunnelled-visualiser" / "Assets" / "Scripts" / "TunnelConfig.cs",
+    _COMMS / "phone" / "comms-visualiser" / "Transport" / "TunnelConfig.cs",
+]
+_IDS = ["tunnelled-visualiser", "comms-visualiser"]
 
 ALLOWED_SECRET = "BoardPassword"
 
@@ -39,7 +45,7 @@ ALLOWED_SECRET = "BoardPassword"
 _FIELD = re.compile(r"^\s*public\s+(?:const\s+|static\s+|readonly\s+)*[\w<>\[\]?.]+\s+(\w+)\s*(?:=(?!>)|;)")
 
 
-def _public_fields():
+def _public_fields(config):
     """Public field names declared on TunnelConfig, comments stripped.
 
     Comments have to go first: the class doc-comment discusses the jump-host
@@ -47,7 +53,7 @@ def _public_fields():
     file's text would fail on the very prose that documents the rule.
     """
     names = []
-    for line in _CONFIG.read_text(encoding="utf-8").splitlines():
+    for line in config.read_text(encoding="utf-8").splitlines():
         stripped = line.strip()
         if stripped.startswith(("//", "/*", "*", "///")):
             continue
@@ -57,23 +63,26 @@ def _public_fields():
     return names
 
 
-def test_config_file_exists():
-    assert _CONFIG.exists(), f"{_CONFIG} is missing"
+@pytest.mark.parametrize("config", CONFIGS, ids=_IDS)
+def test_config_file_exists(config):
+    assert config.exists(), f"{config} is missing"
 
 
-def test_board_password_is_persisted():
+@pytest.mark.parametrize("config", CONFIGS, ids=_IDS)
+def test_board_password_is_persisted(config):
     """The half of the decision that is easy to lose in a refactor."""
-    assert ALLOWED_SECRET in _public_fields(), (
+    assert ALLOWED_SECRET in _public_fields(config), (
         f"{ALLOWED_SECRET} is gone from TunnelConfig. It is deliberately persisted so "
         "the board hop needs no typing at bring-up; see the class doc comment."
     )
 
 
-def test_no_other_secret_is_persisted():
+@pytest.mark.parametrize("config", CONFIGS, ids=_IDS)
+def test_no_other_secret_is_persisted(config):
     """Anything password- or passphrase-shaped besides the board password is a leak."""
     offenders = [
         name
-        for name in _public_fields()
+        for name in _public_fields(config)
         if name != ALLOWED_SECRET
         and ("password" in name.lower() or "passphrase" in name.lower())
     ]

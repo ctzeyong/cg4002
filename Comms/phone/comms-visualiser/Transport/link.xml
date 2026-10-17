@@ -1,0 +1,26 @@
+<!--
+  IL2CPP managed stripping removes types it cannot see being used. SSH.NET picks its
+  cipher, MAC, key-exchange and host-key algorithms by name at runtime, so the concrete
+  implementations (most of them in BouncyCastle) have no visible reference anywhere.
+  Stripping them produces a handshake that fails on the phone with an
+  algorithm-negotiation error while the Editor, which does not strip, connects.
+
+  Unity merges every link.xml under Assets, so this file sits beside the DLLs it covers
+  and the project's own link.xml, if any, stays untouched. Newtonsoft is here because
+  Envelope and TunnelConfig resolve types through it by reflection.
+
+  Copied from phone/tunnelled-visualiser/Assets/link.xml, minus MQTTnet, which this app
+  does not use. Its M2Mqtt already runs on iOS without an entry.
+
+  NOTE: keep two consecutive hyphens out of this comment. XML forbids that sequence
+  inside a comment, and UnityLinker aborts the whole build on it with
+  "Fatal error in Unity CIL Linker" and an XmlException naming the line.
+-->
+<linker>
+  <assembly fullname="Newtonsoft.Json" preserve="all" />
+  <assembly fullname="Renci.SshNet" preserve="all" />
+  <assembly fullname="BouncyCastle.Cryptography" preserve="all" />
+  <assembly fullname="System.Formats.Asn1" preserve="all" />
+  <assembly fullname="Microsoft.Extensions.Logging.Abstractions" preserve="all" />
+  <assembly fullname="Microsoft.Extensions.DependencyInjection.Abstractions" preserve="all" />
+</linker>
