@@ -3,19 +3,20 @@
 import random
 import time
 
-GESTURES = ("circle", "triangle", "square", "zigzag", "arc", "line")
-
-MANA_COST_RANGE = (10, 40)  # dummy game-state value, picked at random per event
+# The Vis game's seven gestures: its GestureSymbol enum, lowercased, in order. The enum
+# is the only list; test_vis_vocabulary.py fails if this one drifts from it.
+GESTURES = ("circle", "caret", "arc", "z", "infinity", "triangle", "star")
 
 # Pressed key -> gesture. The only copy of this table; see notes/tcp_leg.md.
 # Any other key (including 1 and 2) gets a random gesture.
 KEY_GESTURES = {
     "c": "circle",
-    "t": "triangle",
-    "s": "square",
-    "z": "zigzag",
+    "k": "caret",
     "a": "arc",
-    "l": "line",
+    "z": "z",
+    "i": "infinity",
+    "t": "triangle",
+    "s": "star",
 }
 
 
@@ -30,7 +31,6 @@ def random_event(player, seq, key=None):
         "player": player,
         "seq": seq,
         "gesture": KEY_GESTURES.get(key) or random.choice(GESTURES),
-        "mana_cost": random.randint(*MANA_COST_RANGE),
         # Board wall clock. Hop 4 of the latency measurement: taken before A and B's
         # emits diverge, so it marks the same moment in both. notes/latency.md 3.2.
         "timestamp": time.time(),

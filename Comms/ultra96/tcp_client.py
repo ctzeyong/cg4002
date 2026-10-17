@@ -187,12 +187,11 @@ class EventSource:
         # t_event is the event's own timestamp, not this line's time: this line comes
         # after the TCP send, B's after a queue put. notes/latency.md 3.2.
         log.info(
-            "AI event seq=%d player=%s key=%r gesture=%s mana=%d t_event=%s",
+            "AI event seq=%d player=%s key=%r gesture=%s t_event=%s",
             event["seq"],
             event["player"],
             key,
             event["gesture"],
-            event["mana_cost"],
             time_field(event["timestamp"]),
         )
         return event
