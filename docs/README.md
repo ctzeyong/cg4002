@@ -17,6 +17,7 @@ details owned by one subsystem.
 
 | Integration | Documentation |
 |---|---|
+| Full pipeline | [Merged Hardware -> Comms -> AI flow and Configuration B runbook](integration/full-pipeline.md) |
 | Hardware ↔ Comms | [Single-MPU6050 interface, ownership, and change contract](integration/hardware-comms.md) |
 | AI ↔ Comms | [FPGA classifier in the board client](integration/ai-comms.md) |
 
