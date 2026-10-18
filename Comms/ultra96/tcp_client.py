@@ -12,6 +12,8 @@ back for the laptop to publish to the visualiser.
 
 `--sensor-trigger N` also makes AI events from the SENSOR stream. The picked packet is
 treated as the end of a gesture, and that node's last 100 samples are classified.
+`--gesture-flag` instead passes every SENSOR sample to AI, which classifies each gesture the
+glove flags. It replaces `--sensor-trigger` once the gloves have a detector.
 
 Auto-reconnects on any disconnect, per Comms Initial Design Report Table 4.3.
 The protocol decisions behind this file are in notes/tcp_leg.md.
@@ -244,7 +246,8 @@ async def receiver(
 
     An ECHO is always a trigger and gets a dummy gesture. A SENSOR packet is only a
     trigger when `sensor_trigger` picks it, and then its node's window in `windows` is
-    classified, so both have to be passed together.
+    classified. With `windows` but no `sensor_trigger`, every SENSOR packet goes to AI,
+    and a packet is a trigger when AI answers with a gesture.
     """
     count = 0
     window_count = 0
@@ -301,9 +304,21 @@ async def receiver(
 
         if not isinstance(msg, dict):
             continue
+        result = None
         if windows is not None and msg.get("type") == SENSOR:
-            windows.add(msg)
-        if msg.get("type") == AI_EVENT_TRIGGER:
+            if sensor_trigger is not None:
+                windows.add(msg)
+            else:
+                try:
+                    result = windows.feed(msg)
+                except gesture.ClassifierError as exc:
+                    log.warning(
+                        "no AI event: classifier failed on node %s (%s)", msg.get("node"), exc
+                    )
+                    continue
+        if result is not None:
+            player, key = msg["node"], None
+        elif msg.get("type") == AI_EVENT_TRIGGER:
             try:
                 player, key = parse_echo(msg)
             except ValueError as exc:
@@ -327,8 +342,7 @@ async def receiver(
             time_field(msg.get("timestamp")),
             time_field(received_at),
         )
-        result = None
-        if msg.get("type") == SENSOR:
+        if result is None and msg.get("type") == SENSOR:
             try:
                 result = windows.classify(player)
             except gesture.ClassifierError as exc:
@@ -382,7 +396,12 @@ async def event_ticker(
 
 
 async def one_session(
-    host: str, port: int, event_every: float = 0.0, sensor_every: int = 0, classifier=None
+    host: str,
+    port: int,
+    event_every: float = 0.0,
+    sensor_every: int = 0,
+    classifier=None,
+    gesture_flag: bool = False,
 ) -> None:
     """Run one TCP connection start to finish: dial, pump heartbeats, tear down.
 
@@ -406,7 +425,7 @@ async def one_session(
     sensor_trigger = SensorTrigger(sensor_every) if sensor_every > 0 else None
     # new per session, so a reconnect starts with empty gesture windows
     windows = None
-    if sensor_every > 0:
+    if sensor_every > 0 or gesture_flag:
         windows = gesture.Windows(classifier or gesture.load_classifier())
     tasks = [
         asyncio.create_task(sender(writer, stop)),
@@ -433,22 +452,49 @@ async def one_session(
         log.info("session ended")
 
 
-async def run(host: str, port: int, event_every: float = 0.0, sensor_every: int = 0) -> None:
-    """Maintain the Ultra96 TCP connection, reconnecting automatically after failures, 
+async def run(
+    host: str,
+    port: int,
+    event_every: float = 0.0,
+    sensor_every: int = 0,
+    gesture_flag: bool = False,
+) -> None:
+    """Maintain the Ultra96 TCP connection, reconnecting automatically after failures,
     waiting RECONNECT_BACKOFF_S between attempts.
     """
-    classifier = gesture.load_classifier() if sensor_every > 0 else None
+    classifier = gesture.load_classifier() if sensor_every > 0 or gesture_flag else None
     if classifier is not None:
         log.info("classifier: %s", type(classifier).__name__)
     while True:
         try:
-            await one_session(host, port, event_every, sensor_every, classifier)
+            await one_session(
+                host, port, event_every, sensor_every, classifier, gesture_flag=gesture_flag
+            )
         except (OSError, asyncio.TimeoutError) as exc:
             log.warning("connect failed: %s", exc)
         except Exception:
             log.exception("unexpected session error")
         log.info("retrying in %.1fs ...", RECONNECT_BACKOFF_S)
         await asyncio.sleep(RECONNECT_BACKOFF_S)
+
+
+def add_sensor_triggers(parser):
+    """Add the two ways SENSOR packets make AI events, which can't be used together."""
+    triggers = parser.add_mutually_exclusive_group()
+    triggers.add_argument(
+        "--sensor-trigger",
+        type=int,
+        default=0,
+        metavar="PACKETS",
+        help="latency runs: also emit an AI event every ~PACKETS SENSOR packets per node, "
+        "drawn at random between half and 1.5x (default: off). notes/latency.md 3.9",
+    )
+    triggers.add_argument(
+        "--gesture-flag",
+        action="store_true",
+        help="pass every SENSOR packet to AI and emit an AI event for each gesture the "
+        "glove flags (default: off)",
+    )
 
 
 def main() -> None:
@@ -468,19 +514,20 @@ def main() -> None:
         help="standalone test: emit an AI event this often instead of waiting for an "
         "ECHO from a FireBeetle (default: off)",
     )
-    parser.add_argument(
-        "--sensor-trigger",
-        type=int,
-        default=0,
-        metavar="PACKETS",
-        help="latency runs: also emit an AI event every ~PACKETS SENSOR packets per node, "
-        "drawn at random between half and 1.5x (default: off). notes/latency.md 3.9",
-    )
+    add_sensor_triggers(parser)
     args = parser.parse_args()
     log_file = setup_logging(args.verbose)
     log.info("logging to %s", log_file)
     try:
-        asyncio.run(run(args.host, args.port, args.event_every, args.sensor_trigger))
+        asyncio.run(
+            run(
+                args.host,
+                args.port,
+                args.event_every,
+                args.sensor_trigger,
+                gesture_flag=args.gesture_flag,
+            )
+        )
     except KeyboardInterrupt:
         pass
 

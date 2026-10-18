@@ -4,6 +4,7 @@ A mistake here gives wrong predictions with no error anywhere. notes/ai_integrat
 """
 
 import csv
+import logging
 import math
 import re
 import sys
@@ -33,13 +34,13 @@ class Recording:
         return "0", 1.0
 
 
-def packet(seq, node=1, imu=(0, 0, 0, 0, 0, 0), status=gesture.IMU_OK, t=None):
+def packet(seq, node=1, imu=(0, 0, 0, 0, 0, 0), status=gesture.IMU_OK, t=None, flag=0):
     msg = {
         "type": "SENSOR",
         "node": node,
         "seq": seq & 0xFF,
         "imu": dict(zip(gesture.CHANNELS, imu)),
-        "reserved": [status, 0, 0, 0, 0],
+        "reserved": [status, flag, 0, 0, 0],
     }
     if t is not None:
         msg["timestamp"] = t
@@ -358,6 +359,180 @@ def test_gyro_full_scale_fits_but_acceleration_clips_above_3_26_g():
 
     assert ax_input(3.2) < 32767
     assert ax_input(3.3) == 32767
+
+
+# --- --gesture-flag: what reaches AI ----------------------------------------
+
+
+class FakeAI:
+    """Stands in for ai_api.Gestures, keeping every call in order."""
+
+    def __init__(self, answers=()):
+        self.calls = []
+        self.answers = list(answers)
+
+    def on_sample(self, player, record, timeout=None):
+        self.calls.append(("sample", player, record, timeout))
+        return self.answers.pop(0) if self.answers else None
+
+    def reset(self, player):
+        self.calls.append(("reset", player))
+
+
+def fed(answers=()):
+    w = windows()
+    w.ai = FakeAI(answers)
+    return w
+
+
+def seqs_seen(w):
+    return [call[2]["ax"] for call in w.ai.calls if call[0] == "sample"]
+
+
+def test_each_sample_reaches_ai_as_its_record_with_comms_deadline():
+    w = fed()
+    w.feed(packet(0, node=2, imu=(1, 2, 3, 4, 5, 6), t=12.5, flag=1))
+    record = dict(zip(gesture.CHANNELS, (1, 2, 3, 4, 5, 6)), in_gesture=1, timestamp=12.5)
+    assert w.ai.calls == [("sample", 2, record, gesture.TIMEOUT_S)]
+
+
+@pytest.mark.parametrize(
+    "reserved, flag",
+    [
+        ([1, 1, 0, 0, 0], 1),
+        ([1, 0, 0, 0, 0], 0),
+        ([1], 0),  # no flag field at all
+        ([1, None, 0, 0, 0], 0),
+        ([1, True, 0, 0, 0], 0),
+    ],
+)
+def test_the_flag_is_read_from_reserved_1(reserved, flag):
+    w = fed()
+    w.feed({**packet(0), "reserved": reserved})
+    assert w.ai.calls[0][2]["in_gesture"] == flag
+
+
+def test_the_record_has_no_timestamp_when_the_message_has_none():
+    w = fed()
+    w.feed(packet(0))
+    assert w.ai.calls[0][2]["timestamp"] is None
+
+
+def test_a_repeat_or_late_packet_never_reaches_ai():
+    w = fed()
+    for seq in (10, 11, 11, 9, 12):
+        w.feed(packet(seq, imu=(seq, 0, 0, 0, 0, 0)))
+    assert seqs_seen(w) == [10, 11, 12]
+
+
+def test_an_outage_resets_ai_once_and_its_packets_never_reach_it():
+    w = fed()
+    for seq, status in enumerate((1, 1, 2, 2, 3, 1)):
+        w.feed(packet(seq, imu=(seq, 0, 0, 0, 0, 0), status=status))
+    assert [c[:2] if c[0] == "reset" else c[2]["ax"] for c in w.ai.calls] == [
+        0, 1, ("reset", 1), 5,
+    ]
+
+
+@pytest.mark.parametrize("after", [range(10, 13), range(0, 3)], ids=["reconnect", "reboot"])
+def test_a_gap_resets_ai_before_the_next_sample(after):
+    w = fed()
+    for i, seq in enumerate(range(7, 10)):
+        w.feed(packet(seq, imu=(seq, 0, 0, 0, 0, 0), t=10.0 + i * 0.01, flag=1))
+    for i, seq in enumerate(after):
+        w.feed(packet(seq, imu=(100 + seq, 0, 0, 0, 0, 0), t=13.0 + i * 0.01, flag=1))
+    assert [c[:2] if c[0] == "reset" else c[2]["ax"] for c in w.ai.calls] == [
+        7, 8, 9, ("reset", 1), *[100 + seq for seq in after],
+    ]
+
+
+def test_a_gap_on_one_node_resets_only_that_node():
+    w = fed()
+    w.feed(packet(0, node=1, t=10.0))
+    w.feed(packet(0, node=2, t=10.0))
+    w.feed(packet(1, node=2, t=10.4))
+    w.feed(packet(1, node=1, t=13.0))
+    assert [c[:2] for c in w.ai.calls if c[0] == "reset"] == [("reset", 1)]
+
+
+def test_ais_answer_becomes_a_result_with_the_time_it_took():
+    w = fed(answers=[None, ("3", 0.5)])
+    assert w.feed(packet(0, flag=1)) is None
+    result = w.feed(packet(1))
+    assert (result.label, result.confidence, result.missing) == ("3", 0.5, 0)
+    assert 0 <= result.t_infer_ms < 1000
+
+
+def test_missing_counts_only_the_packets_lost_inside_the_gesture():
+    w = windows(Recording())
+    seqs = [0, 5]  # 4 lost before the gesture starts at 5, which don't count
+    seqs += list(range(6, 20)) + list(range(22, 30))  # 20 and 21 lost inside it
+    for seq in seqs:
+        assert w.feed(packet(seq, flag=int(seq >= 5))) is None
+    result = w.feed(packet(31))  # 30, the last flagged one, lost too
+    assert result.missing == 3
+
+
+def no_result_lines(caplog):
+    return [r.getMessage() for r in caplog.records if r.name == "gesture"]
+
+
+def test_a_flagged_gesture_ai_gives_nothing_for_is_logged_once(caplog):
+    w = fed()
+    with caplog.at_level(logging.INFO, logger="gesture"):
+        for seq in range(5):
+            w.feed(packet(seq, flag=1))
+        w.feed(packet(5))
+        w.feed(packet(6))
+    assert no_result_lines(caplog) == ["no AI event: node 1's flagged gesture of 5 samples gave no result"]
+    assert caplog.records[0].levelno == logging.INFO
+
+
+def test_nothing_is_logged_for_an_answer_or_an_unflagged_stream(caplog):
+    w = fed(answers=[None, None, ("3", 0.5)])
+    with caplog.at_level(logging.INFO, logger="gesture"):
+        for seq in range(2):
+            w.feed(packet(seq, flag=1))
+        assert w.feed(packet(2)) is not None
+        for seq in range(10, 30):
+            w.feed(packet(seq, node=2))  # never flagged
+    assert no_result_lines(caplog) == []
+
+
+def test_nothing_is_logged_for_a_gesture_cut_by_a_reset(caplog):
+    w = fed()
+    with caplog.at_level(logging.INFO, logger="gesture"):
+        for seq in range(5):
+            w.feed(packet(seq, flag=1, t=10.0 + seq * 0.01))
+        w.feed(packet(5, t=13.0))  # after a reconnect: AI was reset, the gesture didn't end
+        for seq in range(6, 10):
+            w.feed(packet(seq, flag=1, status=2 if seq == 7 else 1, t=13.0 + seq * 0.01))
+        w.feed(packet(10, t=13.1))  # the outage at 7 cut the first part off
+    assert no_result_lines(caplog) == ["no AI event: node 1's flagged gesture of 2 samples gave no result"]
+
+
+def test_a_failed_gesture_is_not_also_logged_as_no_result(caplog):
+    class Fails:
+        def classify(self, samples, timeout=None):
+            raise gesture.ClassifierError("DMA busy")
+
+    w = windows(Fails())
+    with caplog.at_level(logging.INFO, logger="gesture"):
+        for seq in range(30):
+            w.feed(packet(seq, flag=1))
+        with pytest.raises(gesture.ClassifierError):
+            w.feed(packet(30))
+    assert no_result_lines(caplog) == []
+
+
+def test_a_new_session_starts_with_no_gesture_in_progress():
+    model = Recording()  # the model lives for the whole run, the windows per session
+    first = windows(model)
+    for seq in range(30):
+        first.feed(packet(seq, flag=1))
+    second = windows(model)
+    assert second.feed(packet(30)) is None  # the old session's gesture would end here
+    assert model.samples is None
 
 
 # --- the stub and the log fields ---------------------------------------------

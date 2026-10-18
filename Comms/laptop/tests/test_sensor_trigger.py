@@ -32,10 +32,17 @@ import latency_report  # noqa: E402
 PREFIX = "2026-10-02 12:00:00,000Z [x] "
 
 
-def sensor(node, seq, t=50.0, status=gesture.IMU_OK):
+def sensor(node, seq, t=50.0, status=gesture.IMU_OK, flag=0):
     imu = dict(zip(gesture.CHANNELS, (seq * 100, 1, 2, 3, 4, 5)))
-    reserved = [status, 0, 0, 0, 0]
+    reserved = [status, flag, 0, 0, 0]
     return {"type": "SENSOR", "node": node, "seq": seq & 0xFF, "timestamp": t, "imu": imu, "reserved": reserved}
+
+
+def flagged_gesture(node, first_seq, n, t0):
+    """n flagged SENSOR packets 10 ms apart, then the unflagged one that ends the gesture."""
+    frames = [sensor(node, first_seq + i, t0 + i * 0.01, flag=1) for i in range(n)]
+    frames.append(sensor(node, first_seq + n, t0 + n * 0.01))
+    return frames
 
 
 def full_windows(next_seqs):
@@ -261,6 +268,133 @@ async def test_a_sensor_without_an_integer_node_is_skipped_not_fatal(caplog):
     assert len(_ai_events(caplog)) == 1
 
 
+# --- --gesture-flag: AI gets every sample ------------------------------------
+
+ECHO = {"type": "ECHO", "node": 1, "seq": 0, "timestamp": 1.0, "fields": [-99]}
+
+
+@pytest.mark.asyncio
+async def test_with_the_gesture_flag_each_flagged_gesture_makes_one_joinable_event(caplog):
+    """The ECHO at the end is the sync point: once its event is logged, every SENSOR before
+    it has been read, so the unflagged packets around the gesture made nothing."""
+    frames = [sensor(2, seq, 10.0 + seq * 0.01) for seq in range(5)]
+    frames += flagged_gesture(2, 5, 30, 10.05)  # ends at seq 35, at t=10.35
+    frames += [sensor(2, seq, 10.0 + seq * 0.01) for seq in range(36, 40)]
+    frames.append(ECHO)
+    windows = gesture.Windows(gesture.StubClassifier())
+
+    await _run_receiver(frames, caplog, lambda log: len(_ai_events(log)) == 2, None, windows)
+
+    counts = latency_report.Counts()
+    events = latency_report.parse_board([PREFIX + m for m in caplog.messages], "A", counts)
+    assert [(e.player, e.node, e.ble_seq) for e in events][0] == ("2", 2, "35")
+    assert events[0].t_laptop_rx == pytest.approx(10.35)
+    assert [e.player for e in events] == ["2", "1"]  # and the ECHO's
+    assert counts.triggers_without_event == counts.events_without_trigger == 0
+    assert " conf=" in _ai_events(caplog)[0] and " missing=0" in _ai_events(caplog)[0]
+    assert sum(m.startswith("trigger ") for m in caplog.messages) == 2
+
+
+@pytest.mark.asyncio
+async def test_with_the_gesture_flag_a_failed_gesture_is_skipped_and_the_next_works(caplog):
+    class FailsOnce:
+        calls = 0
+
+        def classify(self, samples, timeout=None):
+            self.calls += 1
+            if self.calls == 1:
+                raise gesture.ClassifierError("DMA still busy after 50 ms")
+            return "5", 0.9
+
+    frames = flagged_gesture(1, 0, 30, 10.0) + flagged_gesture(1, 31, 30, 10.31)
+    windows = gesture.Windows(FailsOnce())
+
+    task = await _run_receiver(frames, caplog, lambda log: _ai_events(log), None, windows)
+
+    assert not task.done() or task.cancelled(), "a failed gesture ended the receiver"
+    assert "no AI event: classifier failed on node 1 (DMA still busy after 50 ms)" in caplog.messages
+    assert len(_ai_events(caplog)) == 1 and "gesture=5" in _ai_events(caplog)[0]
+
+
+@pytest.mark.asyncio
+async def test_configuration_a_session_sends_a_flagged_gesture():
+    received = []
+
+    async def laptop(reader, writer):
+        for frame in flagged_gesture(2, 0, 30, 10.0):
+            await send_message(writer, frame)
+        while True:
+            msg = await recv_message(reader)
+            if msg.get("type") == "AI_EVENT":
+                received.append(msg)
+                writer.close()
+                return
+
+    async with serving(laptop) as port:
+        await asyncio.wait_for(
+            tcp_client.one_session("127.0.0.1", port, gesture_flag=True), timeout=DEADLINE_S
+        )
+
+    assert [e["player"] for e in received] == [2]
+    assert received[0]["gesture"] in gesture.LABELS
+
+
+@pytest.mark.asyncio
+async def test_configuration_b_session_queues_a_flagged_gesture():
+    outbound = asyncio.Queue(maxsize=8)
+    events = tcp_client_mqtt.MqttEventSource(outbound, mqtt_publisher.PublishStats())
+    done = asyncio.Event()
+
+    async def laptop(reader, writer):
+        for frame in flagged_gesture(1, 0, 30, 10.0):
+            await send_message(writer, frame)
+        await done.wait()
+        writer.close()
+
+    async with serving(laptop) as port:
+        session = asyncio.create_task(
+            tcp_client_mqtt.one_session("127.0.0.1", port, events, gesture_flag=True)
+        )
+        try:
+            await wait_until(lambda: not outbound.empty())
+        finally:
+            done.set()
+            await asyncio.wait_for(session, timeout=DEADLINE_S)
+
+    topic, envelope = outbound.get_nowait()[:2]
+    assert topic.endswith("1")
+    assert envelope["payload"]["gesture"] in gesture.LABELS
+
+
+@pytest.mark.asyncio
+async def test_with_the_gesture_flag_a_reconnect_starts_every_gesture_again(caplog):
+    """Session 1 sends half a gesture; session 2's unflagged packet must not end it."""
+    sessions = []
+
+    async def laptop(reader, writer):
+        sessions.append(writer)
+        if len(sessions) == 1:
+            for seq in range(30):
+                await send_message(writer, sensor(2, seq, 10.0 + seq * 0.01, flag=1))
+        else:
+            await send_message(writer, sensor(2, 30, 10.30))  # seq and time carry straight on
+            await send_message(writer, ECHO)
+            while (await recv_message(reader)).get("type") != "AI_EVENT":
+                pass
+        writer.close()
+
+    classifier = gesture.StubClassifier()  # one for the whole run, as run() does
+    with caplog.at_level(logging.INFO, logger="tcp_client"):
+        async with serving(laptop) as port:
+            for _ in range(2):
+                await asyncio.wait_for(
+                    tcp_client.one_session("127.0.0.1", port, 0.0, 0, classifier, gesture_flag=True),
+                    timeout=DEADLINE_S,
+                )
+
+    assert [m.split(" player=")[1][:1] for m in _ai_events(caplog)] == ["1"]  # the ECHO's only
+
+
 # --- both configurations' clients are wired ----------------------------------
 
 
@@ -388,51 +522,73 @@ async def test_both_configurations_emit_the_classifiers_answer_alike(caplog):
         (tcp_client_mqtt, ["tcp_client_mqtt.py"]),
     ],
 )
-def test_the_flag_reaches_run_and_defaults_off(module, argv, monkeypatch):
+def test_the_flags_reach_run_and_default_off(module, argv, monkeypatch):
     seen = []
 
-    async def fake_run(*args):
-        seen.append(args[-1])
+    async def fake_run(*args, gesture_flag=False):
+        seen.append((args[-1], gesture_flag))
 
     monkeypatch.setattr(module, "run", fake_run)
     monkeypatch.setattr(module, "setup_logging", lambda *a: "log")
-    for extra in ([], ["--sensor-trigger", "100"]):
+    for extra in ([], ["--sensor-trigger", "100"], ["--gesture-flag"]):
         monkeypatch.setattr(sys, "argv", argv + extra)
         module.main()
 
-    assert seen == [0, 100]
+    assert seen == [(0, False), (100, False), (0, True)]
+
+
+@pytest.mark.parametrize("module", [tcp_client, tcp_client_mqtt])
+def test_the_two_sensor_triggers_cannot_be_used_together(module, monkeypatch):
+    async def fake_run(*args, **kwargs):
+        raise AssertionError("ran with both triggers")
+
+    monkeypatch.setattr(module, "run", fake_run)
+    monkeypatch.setattr(module, "setup_logging", lambda *a: "log")
+    monkeypatch.setattr(sys, "argv", ["x.py", "--sensor-trigger", "100", "--gesture-flag"])
+    with pytest.raises(SystemExit):
+        module.main()
 
 
 @pytest.mark.asyncio
-async def test_configuration_a_run_passes_the_flag_to_every_session(monkeypatch):
+@pytest.mark.parametrize("sensor_every, gesture_flag", [(7, False), (0, True)])
+async def test_configuration_a_run_passes_the_flag_to_every_session(
+    sensor_every, gesture_flag, monkeypatch
+):
     seen = []
 
-    async def failing_session(host, port, event_every=0.0, sensor_every=0, classifier=None):
-        seen.append((sensor_every, classifier))
+    async def failing_session(
+        host, port, event_every=0.0, sensor_every=0, classifier=None, gesture_flag=False
+    ):
+        seen.append(((sensor_every, gesture_flag), classifier))
         raise OSError("refused")
 
     monkeypatch.setattr(tcp_client, "one_session", failing_session)
     monkeypatch.setattr(tcp_client, "RECONNECT_BACKOFF_S", 0.01)
-    task = asyncio.create_task(tcp_client.run("127.0.0.1", 1, 0.0, 7))
+    task = asyncio.create_task(
+        tcp_client.run("127.0.0.1", 1, 0.0, sensor_every, gesture_flag=gesture_flag)
+    )
     try:
         await wait_until(lambda: len(seen) >= 2)
     finally:
         task.cancel()
         await asyncio.gather(task, return_exceptions=True)
     # One classifier, loaded once before the first dial, for every session.
-    assert {flag for flag, _ in seen} == {7}
+    assert {flags for flags, _ in seen} == {(sensor_every, gesture_flag)}
     assert len({id(classifier) for _, classifier in seen}) == 1
     assert seen[0][1] is not None
 
 
 @pytest.mark.asyncio
-async def test_configuration_b_run_passes_the_flag_to_every_session(monkeypatch):
+@pytest.mark.parametrize("sensor_every, gesture_flag", [(7, False), (0, True)])
+async def test_configuration_b_run_passes_the_flag_to_every_session(
+    sensor_every, gesture_flag, monkeypatch
+):
     seen = []
 
     async def failing_session(
-        host, port, events, event_every=0.0, sensor_every=0, classifier=None
+        host, port, events, event_every=0.0, sensor_every=0, classifier=None, gesture_flag=False
     ):
-        seen.append((sensor_every, classifier))
+        seen.append(((sensor_every, gesture_flag), classifier))
         raise OSError("refused")
 
     async def idle_publisher(host, port, outbound, stop, stats):
@@ -441,12 +597,16 @@ async def test_configuration_b_run_passes_the_flag_to_every_session(monkeypatch)
     monkeypatch.setattr(tcp_client_mqtt, "one_session", failing_session)
     monkeypatch.setattr(tcp_client_mqtt, "RECONNECT_BACKOFF_S", 0.01)
     monkeypatch.setattr(mqtt_publisher, "run_publisher", idle_publisher)
-    task = asyncio.create_task(tcp_client_mqtt.run("127.0.0.1", 1, "127.0.0.1", 1883, 0.0, 7))
+    task = asyncio.create_task(
+        tcp_client_mqtt.run(
+            "127.0.0.1", 1, "127.0.0.1", 1883, 0.0, sensor_every, gesture_flag=gesture_flag
+        )
+    )
     try:
         await wait_until(lambda: len(seen) >= 2)
     finally:
         task.cancel()
         await asyncio.gather(task, return_exceptions=True)
-    assert {flag for flag, _ in seen} == {7}
+    assert {flags for flags, _ in seen} == {(sensor_every, gesture_flag)}
     assert len({id(classifier) for _, classifier in seen}) == 1
     assert seen[0][1] is not None

@@ -704,7 +704,9 @@ async def test_run_retries_after_a_refused_connection(monkeypatch):
     monkeypatch.setattr(tcp_client, "RECONNECT_BACKOFF_S", 0.01)
     attempts = []
 
-    async def failing_session(host, port, event_every=0.0, sensor_every=0, classifier=None):
+    async def failing_session(
+        host, port, event_every=0.0, sensor_every=0, classifier=None, gesture_flag=False
+    ):
         attempts.append((host, port))
         raise OSError("connection refused")
 
@@ -726,7 +728,9 @@ async def test_run_survives_an_unexpected_error(monkeypatch):
     monkeypatch.setattr(tcp_client, "RECONNECT_BACKOFF_S", 0.01)
     attempts = []
 
-    async def exploding_session(host, port, event_every=0.0, sensor_every=0, classifier=None):
+    async def exploding_session(
+        host, port, event_every=0.0, sensor_every=0, classifier=None, gesture_flag=False
+    ):
         attempts.append((host, port))
         raise RuntimeError("something nobody predicted")
 

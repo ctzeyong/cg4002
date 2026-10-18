@@ -1,10 +1,13 @@
-"""Gesture windows on the Ultra96, handed to AI's API to classify.
+"""The transport rules for the SENSOR stream on the Ultra96, in front of AI's API.
 
-Keeps each node's last samples and asks AI's ai_api.py what gesture they are,
-so a new model changes nothing here. Only real IMU readings go into a window.
+Repeats, late packets and samples with no IMU reading never reach AI, and AI is told when
+a node's stream broke. With --gesture-flag every other sample goes to AI's ai_api.py, which
+decides where a gesture is, so a new model changes nothing here. --sensor-trigger keeps
+each node's last samples in a window instead, until the flag path replaces it.
 """
 
 import collections
+import logging
 import math
 import pathlib
 import sys
@@ -35,11 +38,16 @@ RESET_GAP_S = 0.5
 # while the IMU is missing or recovering
 IMU_OK = 1
 
-# result of classifying one window, missing is the number of packets lost inside it
+# reserved[1] carries the glove's gesture flag, 1 for every sample of a possible gesture.
+FLAG_FIELD = 1
+
+# result of classifying one window or gesture, missing is the number of packets lost inside it
 Result = collections.namedtuple("Result", "label confidence t_infer_ms missing")
 
 TIMEOUT_S = 0.05  # most a classification may block the event loop; it normally takes ~1 ms
 FPGA_MANAGER = pathlib.Path("/sys/class/fpga_manager/fpga0")  # only exists on the board
+
+log = logging.getLogger("gesture")
 
 
 def _is_int(value):
@@ -62,6 +70,19 @@ def receive_time(msg):
     return None
 
 
+def gesture_flag(msg):
+    """Return the gesture flag in a SENSOR message's reserved fields, or 0 if it has none."""
+    reserved = msg.get("reserved")
+    if isinstance(reserved, list) and len(reserved) > FLAG_FIELD and _is_int(reserved[FLAG_FIELD]):
+        return reserved[FLAG_FIELD]
+    return 0
+
+
+def to_record(sample, msg):
+    """Return AI's record for one sample: its six counts, the gesture flag and receive time."""
+    return {**sample, "in_gesture": gesture_flag(msg), "timestamp": receive_time(msg)}
+
+
 def log_fields(result):
     """Return the extra AI event log fields for a classified event, or nothing for a dummy one."""
     if result is None:
@@ -73,26 +94,33 @@ def log_fields(result):
 
 
 class Windows:
-    """Keep the last WINDOW samples from each node. A new one is made every TCP session."""
+    """Apply the transport rules per node, then window or pass on its samples.
+
+    A new one is made every TCP session.
+    """
 
     def __init__(self, classifier):
         self.classifier = classifier
+        # new per session like everything here, so a reconnect also starts AI's gestures again
+        self.ai = ai_api.Gestures(classifier)
         self._samples = {}  # node -> deque of (sample, packets missing just before it)
         self._last_seq = {}
         self._without_imu = {}  # node -> packets in a row that carried no IMU reading
         self._last_time = {}  # node -> laptop receive time of its latest packet
+        self._flagged = {}  # node -> (samples, packets lost) of its flagged gesture so far
 
-    def add(self, msg):
-        """Add one SENSOR message to its node's window.
+    def _accept(self, msg):
+        """Apply the transport rules to one SENSOR message.
 
-        Returns False if it was malformed, a repeat or late, or carried no IMU reading.
+        Returns (node, sample, packets lost just before it), or None if it was malformed,
+        a repeat or late, or carried no IMU reading.
         """
         node, seq, imu = msg.get("node"), msg.get("seq"), msg.get("imu")
         if not (_is_int(node) and _is_int(seq) and isinstance(imu, dict)):
-            return False
+            return None
         sample = {name: imu.get(name) for name in CHANNELS}
         if not all(_is_int(value) for value in sample.values()):
-            return False
+            return None
 
         # before the seq rule, because after a reboot the new seq can look like a late packet
         t = receive_time(msg)
@@ -104,24 +132,69 @@ class Windows:
         last = self._last_seq.get(node)
         delta = 1 if last is None else (seq - last) & 0xFF
         if delta == 0 or delta >= SEQ_BACKWARD_THRESHOLD:
-            return False  # repeat or late packet
+            return None  # repeat or late packet
         self._last_seq[node] = seq
         if t is not None:
             self._last_time[node] = t if last_t is None else max(last_t, t)
-        window = self._samples.setdefault(node, collections.deque(maxlen=WINDOW))
         if imu_status(msg) != IMU_OK:
-            # restart the window so the window doesnt join readings from both sides 
-            # of an outage or classifies the old ones again
-            window.clear()
+            # restart once per outage so neither the window nor AI joins readings from
+            # both sides of it or classifies the old ones again
+            if not self._without_imu.get(node):
+                self._restart(node)
             self._without_imu[node] = self._without_imu.get(node, 0) + 1
-            return False
+            return None
         self._without_imu[node] = 0
-        window.append((sample, delta - 1))
+        return node, sample, delta - 1
+
+    def add(self, msg):
+        """Add one SENSOR message to its node's window, for --sensor-trigger.
+
+        Returns False if it was malformed, a repeat or late, or carried no IMU reading.
+        """
+        accepted = self._accept(msg)
+        if accepted is None:
+            return False
+        node, sample, gap = accepted
+        self._samples.setdefault(node, collections.deque(maxlen=WINDOW)).append((sample, gap))
         return True
 
+    def feed(self, msg):
+        """Pass one SENSOR message to AI, for --gesture-flag.
+
+        Returns a Result when AI classifies a gesture, otherwise None. Raises ClassifierError
+        if AI fails.
+        """
+        accepted = self._accept(msg)
+        if accepted is None:
+            return None
+        node, sample, gap = accepted
+        record = to_record(sample, msg)
+        flagged = self._flagged.pop(node, None)
+        if record["in_gesture"]:
+            # don't count the first flagged sample's gap since it happened before the gesture
+            self._flagged[node] = (1, 0) if flagged is None else (flagged[0] + 1, flagged[1] + gap)
+        started = time.perf_counter()
+        answer = self.ai.on_sample(node, record, timeout=TIMEOUT_S)
+        if answer is None:
+            if flagged is not None and not record["in_gesture"]:
+                # so a detector that only fires briefly still shows in the log
+                log.info("no AI event: node %d's flagged gesture of %d samples gave no result",
+                         node, flagged[0])
+            return None
+        t_infer_ms = (time.perf_counter() - started) * 1000
+        label, confidence = answer
+        return Result(label, confidence, t_infer_ms, 0 if flagged is None else flagged[1] + gap)
+
+    def _restart(self, node):
+        """Empty a node's window and tell AI to forget its gesture in progress."""
+        self._samples.pop(node, None)
+        self._flagged.pop(node, None)
+        self.ai.reset(node)
+
     def _forget(self, node):
-        """Drop everything about a node, so its next packet starts a new window."""
-        for state in (self._samples, self._last_seq, self._without_imu, self._last_time):
+        """Drop everything about a node, so its next packet starts again."""
+        self._restart(node)
+        for state in (self._last_seq, self._without_imu, self._last_time):
             state.pop(node, None)
 
     def size(self, node):
