@@ -22,3 +22,8 @@ bool imuBegin(uint8_t player);
 
 // Reads one sample into out (ax ay az gx gy gz). out is all zeros unless it returns IMU_OK.
 ImuStatus imuRead(int16_t out[6]);
+
+// The gesture detector (to be replaced). Called with every sample imuRead() gives,
+// it returns 1 while the hand may be making a gesture and 0 otherwise, and is sent in
+// packet's reserved[1]
+int16_t gestureFlag(const int16_t sample[6], ImuStatus status);

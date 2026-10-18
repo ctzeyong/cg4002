@@ -168,3 +168,12 @@ ImuStatus imuRead(int16_t out[6]) {
     out[5] = bigEndian(raw + 12);
     return IMU_OK;
 }
+
+// --- gesture detector ---------------------------------------------------------------------
+
+// placeholder for hardware gesture detector
+int16_t gestureFlag(const int16_t sample[6], ImuStatus status) {
+    (void)sample;
+    (void)status;
+    return 0;
+}

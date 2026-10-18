@@ -6,7 +6,7 @@
 // Every packet starts with type and sequence. SENSOR, CMD and ECHO packets then carry 11
 // int16 fields (six IMU readings, five reserved) and a CRC, 26 bytes in all; file packets
 // carry a uint64 size/offset followed by raw bytes, and no CRC. In a SENSOR packet the
-// first reserved field carries the IMU status (imu.h).
+// first reserved field carries the IMU status and the second the gesture flag (imu.h).
 //
 // Nothing is transmitted until the link is both MTU-capable and encrypted. Both gates
 // are polled at the top of loop().
@@ -52,6 +52,8 @@ static constexpr size_t HEADER_LEN = 2;
 static constexpr size_t IMU_FIELD_COUNT = 6;
 static constexpr size_t RESERVED_FIELD_COUNT = 5;
 static constexpr size_t IMU_STATUS_FIELD = IMU_FIELD_COUNT;  // reserved[0] of a SENSOR packet
+// reserved[1], ASSUMED until hardware confirms it (gesture detection G0)
+static constexpr size_t GESTURE_FLAG_FIELD = IMU_STATUS_FIELD + 1;
 static constexpr size_t DATA_FIELD_COUNT = IMU_FIELD_COUNT + RESERVED_FIELD_COUNT;
 static constexpr size_t FIELD_LEN = 2;
 static constexpr size_t CRC_LEN = 2;
@@ -86,6 +88,7 @@ static uint8_t g_seq = 0;
 static uint32_t g_lastTx = 0;
 
 static uint32_t g_slowestImuReadUs = 0;  // since the last timing report
+static uint32_t g_slowestGestureFlagUs = 0;
 static uint32_t g_imuTimingReportedAt = 0;
 
 // Downlink hand-off. onWrite runs on the NimBLE host task; loop() drains it. Going
@@ -244,42 +247,53 @@ class DownlinkCallbacks : public NimBLECharacteristicCallbacks {
 };
 
 /**
- * Calls imuRead() and prints the slowest call to serial every IMU_TIMING_REPORT_MS,
- * so the time I2C takes out of loop() can be checked.
+ * Calls imuRead() then gestureFlag(), and prints the slowest of each to serial every
+ * IMU_TIMING_REPORT_MS, so the time they take out of loop() can be checked.
  */
-static ImuStatus timedImuRead(int16_t *imu) {
-    const uint32_t started = micros();
+static ImuStatus timedImuRead(int16_t *imu, int16_t *flag) {
+    uint32_t started = micros();
     const ImuStatus status = imuRead(imu);
-    const uint32_t took = micros() - started;
-    if (took > g_slowestImuReadUs) {
-        g_slowestImuReadUs = took;
+    const uint32_t readUs = micros() - started;
+    started = micros();
+    *flag = gestureFlag(imu, status);
+    const uint32_t flagUs = micros() - started;
+    if (readUs > g_slowestImuReadUs) {
+        g_slowestImuReadUs = readUs;
+    }
+    if (flagUs > g_slowestGestureFlagUs) {
+        g_slowestGestureFlagUs = flagUs;
     }
 
     const uint32_t now = millis();
     if (now - g_imuTimingReportedAt >= IMU_TIMING_REPORT_MS) {
-        Serial.printf("[IMU] status=%d, slowest imuRead since last report: %u us\n",
-                      static_cast<int>(status), static_cast<unsigned>(g_slowestImuReadUs));
+        Serial.printf("[IMU] status=%d, slowest imuRead since last report: %u us, gestureFlag: %u us\n",
+                      static_cast<int>(status), static_cast<unsigned>(g_slowestImuReadUs),
+                      static_cast<unsigned>(g_slowestGestureFlagUs));
         g_slowestImuReadUs = 0;
+        g_slowestGestureFlagUs = 0;
         g_imuTimingReportedAt = now;
     }
     return status;
 }
 
 /**
- * Fills buf with one PACKET_LEN SENSOR packet: the IMU reading, then its status.
+ * Fills buf with one PACKET_LEN SENSOR packet: the IMU reading, its status, then the
+ * gesture flag.
  **/
 static void buildPacket(uint8_t *buf) {
     buf[0] = TYPE_SENSOR;
     buf[1] = g_seq;
 
     int16_t imu[IMU_FIELD_COUNT];
-    const ImuStatus status = timedImuRead(imu);
+    int16_t flag = 0;
+    const ImuStatus status = timedImuRead(imu, &flag);
 
     for (size_t i = 0; i < IMU_FIELD_COUNT; i++) {
         writeField(buf, i, imu[i]);
     }
     writeField(buf, IMU_STATUS_FIELD, status);
-    for (size_t i = IMU_STATUS_FIELD + 1; i < DATA_FIELD_COUNT; i++) {
+    writeField(buf, GESTURE_FLAG_FIELD, flag);
+    for (size_t i = GESTURE_FLAG_FIELD + 1; i < DATA_FIELD_COUNT; i++) {
         writeField(buf, i, 0);  // reserved for later sensor expansion
     }
     writePacketCrc(buf);
