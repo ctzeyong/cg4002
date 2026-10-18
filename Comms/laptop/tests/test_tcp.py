@@ -97,12 +97,18 @@ async def test_receiver_excludes_heartbeat_acks_from_the_reported_rate(monkeypat
     process. With the bug it reported a steady ~1 msg/s of pure self-traffic.
     """
     monkeypatch.setattr(tcp_client, "PROGRESS_INTERVAL_S", 0.01)
+    done = asyncio.Event()
 
     async def sends_only_acks(reader, writer):
-        for seq in range(3):
+        # Until the test has its reports, not a fixed three: on Windows
+        # time.monotonic() ticks every 15.6 ms and asyncio fires a timer up to one
+        # tick early, so a 20 ms sleep can return in under a millisecond. Two acks
+        # then share a tick, the receiver sees elapsed=0 and skips that report.
+        seq = 0
+        while not done.is_set():
             await send_message(writer, {"type": "HEARTBEAT_ACK", "seq": seq})
-            await asyncio.sleep(0.02)  # > PROGRESS_INTERVAL_S, so each one reports
-        await asyncio.sleep(DEADLINE_S)  # hold the connection open
+            seq += 1
+            await asyncio.sleep(0.02)
 
     async with serving(sends_only_acks) as port:
         async with connected(port) as (reader, writer):
@@ -111,18 +117,17 @@ async def test_receiver_excludes_heartbeat_acks_from_the_reported_rate(monkeypat
             task = asyncio.create_task(tcp_client.receiver(reader, writer, stop, events))
             try:
                 with caplog.at_level("INFO", logger="tcp_client"):
-                    # 2, not 3: the first ack arrives before the interval has
-                    # elapsed, so it updates the counter without reporting.
                     await wait_until(lambda: caplog.text.count("uplink rx:") >= 2)
             finally:
+                done.set()
                 stop.set()
                 task.cancel()
                 with contextlib.suppress(asyncio.CancelledError):
                     await task
 
     reports = [r for r in caplog.messages if "uplink rx:" in r]
-    # Acks only, so the count must never leave zero. With the bug these read
-    # total=1, total=2, total=3.
+    # Acks only, so the count must never leave zero. With the bug every report
+    # reads total>=1, since the ack that triggers a report is counted first.
     assert reports
     assert all("total=0" in r for r in reports), reports
 
