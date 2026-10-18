@@ -184,22 +184,26 @@ window is no longer a useful continuous gesture window.
 | Sensor rate | FireBeetle target: 100 Hz; AI window: 100 samples | Hardware, Comms, and AI coordinate any change |
 | IMU validity | `reserved[0] == 1` means real data | Hardware defines status; Comms enforces it |
 | Gyroscope range | Firmware: +/-500 degrees/s; AI: `65.5` counts/(degree/s) | Currently aligned |
-| Accelerometer range | Firmware: +/-4 g and `8192` counts/g; AI: `16384` counts/g | **Not aligned; fix before judging real gestures** |
+| Accelerometer range | Firmware: +/-4 g and `8192` counts/g; AI: `8192` counts/g | Aligned; a Comms test checks `ai_api.py` against `firebeetle/imu.h` |
 | AI deployment | `ai_api.BITSTREAM` and `run_board.py` both name `gesture_min_q.xsa` | AI and Comms update together |
 | Model input | `WINDOW`, `CHANNELS`, scaling, and quantisation come from `ai_api.py` | AI owns implementation; interface changes require coordination |
 | Event route | QoS 1 MQTT on `game/gesture/<player>` | Comms owns transport; Game/Vis own consumption |
 
-### Current acceleration blocker
+### Acceleration range
 
 The firmware configures the MPU6050 for +/-4 g, where `1 g` is approximately `8192` counts.
-`ai_api.py` currently assumes +/-2 g and divides by `16384`, so it gives the model half the real
-acceleration magnitude. For example, a stationary `az` near `8192` becomes about `4.90 m/s^2`
-instead of `9.81 m/s^2`.
+`ai_api.py` decodes at `8192` counts/g as well, so a stationary `az` near `8192` reaches the model
+as about `9.81 m/s^2`. It used to divide by `16384`, which gave the model half the real
+acceleration (`4.90 m/s^2` at rest). `test_ai_api_decodes_counts_at_the_ranges_the_firmware_sets`
+reads both ranges from `firebeetle/imu.h` and fails if `ai_api.py` disagrees with them.
 
-Do not use the current merged path as evidence of real gesture accuracy until Hardware and AI
-agree on the sensor range, training assumptions, and quantised input range. Simply changing the
-scale to `8192` also means the current signed Q6.10 input clips acceleration above approximately
-`3.26 g`, so AI must decide whether that is acceptable for the trained model.
+Do not use the current merged path as evidence of real gesture accuracy yet:
+- The signed Q6.10 input clips acceleration above approximately `3.26 g`. AI decides whether
+  that is acceptable for the model.
+- The model on the board (`gesture_min_q.xsa`) was trained before Hardware's dataset existed,
+  on a different dataset. Meaningful predictions need a model trained on Hardware's data, with
+  live data prepared the same way: the same IMU settings and mounting, and the same gesture
+  segmentation and resampling.
 
 ## What has and has not been verified
 

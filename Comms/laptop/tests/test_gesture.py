@@ -5,6 +5,7 @@ A mistake here gives wrong predictions with no error anywhere. notes/ai_integrat
 
 import csv
 import math
+import re
 import sys
 import time
 import types
@@ -17,6 +18,7 @@ import gesture  # noqa: E402 - ultra96/, on sys.path via conftest
 ai_api = gesture.ai_api  # imported via gesture, which knows where to find it
 
 AI_TEST_CSV = Path(__file__).resolve().parents[3] / "AI" / "laptop" / "gestures_test.csv"
+IMU_H = Path(__file__).resolve().parents[2] / "firebeetle" / "imu.h"
 ZERO = dict.fromkeys(gesture.CHANNELS, 0)
 
 
@@ -314,9 +316,22 @@ def test_the_api_gets_the_window_oldest_first_and_comms_deadline():
 # --- AI's API: counts in, the model's inputs ---------------------------------
 
 
+# MPU6050 datasheet: counts per unit at each full-scale range
+ACCEL_LSB_PER_G_AT = {2: 16384, 4: 8192, 8: 4096, 16: 2048}
+GYRO_LSB_PER_DPS_AT = {250: 131, 500: 65.5, 1000: 32.8, 2000: 16.4}
+
+
+def test_ai_api_decodes_counts_at_the_ranges_the_firmware_sets():
+    """A range mismatch hands the model values at the wrong size, with no error."""
+    ranges = dict(re.findall(r"constexpr int16_t (IMU_\w+_RANGE_\w+) = (\d+);", IMU_H.read_text()))
+    assert ai_api.ACCEL_LSB_PER_G == ACCEL_LSB_PER_G_AT[int(ranges["IMU_ACCEL_RANGE_G"])]
+    assert ai_api.GYRO_LSB_PER_DPS == GYRO_LSB_PER_DPS_AT[int(ranges["IMU_GYRO_RANGE_DPS"])]
+
+
 def test_one_g_and_two_degrees_per_second_give_hand_computed_inputs():
-    # 1 g = 9.80665 m/s², x1024 = 10042.01. 131 counts = 2 °/s = 0.034907 rad/s, x1024 = 35.74.
-    sample = dict(zip(ai_api.CHANNELS, (16384, -16384, 0, 131, -131, 0)))
+    # 1 g = 8192 counts = 9.80665 m/s², x1024 = 10042.01. 131 counts = 2 °/s = 0.034907 rad/s,
+    # x1024 = 35.74.
+    sample = dict(zip(ai_api.CHANNELS, (8192, -8192, 0, 131, -131, 0)))
     assert ai_api.to_inputs([sample]) == [10042, -10042, 0, 36, -36, 0]
 
 
@@ -327,11 +342,22 @@ def test_to_fixed_saturates_at_the_int16_ends():
     assert ai_api.to_fixed(-40.0) == -32768
 
 
-def test_full_scale_counts_fit_without_saturating():
-    """±2 g and ±500 °/s both stay inside Q6.10's ±32."""
+def test_gyro_full_scale_fits_but_acceleration_clips_above_3_26_g():
+    """Q6.10 holds ±32: ±500 °/s (±8.7 rad/s) fits, ±4 g (±39.2 m/s²) does not.
+
+    Acceleration saturates above 32 / 9.80665 = 3.26 g. Whether that is acceptable is AI's
+    call; this pins today's behaviour so a change to it is seen.
+    """
     top = ai_api.to_inputs([dict.fromkeys(ai_api.CHANNELS, 32767)])
     bottom = ai_api.to_inputs([dict.fromkeys(ai_api.CHANNELS, -32768)])
-    assert max(top) < 32767 and min(bottom) > -32768
+    assert max(top[3:]) < 32767 and min(bottom[3:]) > -32768
+
+    def ax_input(g):
+        sample = {**dict.fromkeys(ai_api.CHANNELS, 0), "ax": round(g * ai_api.ACCEL_LSB_PER_G)}
+        return ai_api.to_inputs([sample])[0]
+
+    assert ax_input(3.2) < 32767
+    assert ax_input(3.3) == 32767
 
 
 # --- the stub and the log fields ---------------------------------------------

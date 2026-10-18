@@ -27,8 +27,8 @@ LABELS = tuple(str(i) for i in range(7))         # "0".."6" until the gestures a
 BITSTREAM = pathlib.Path(__file__).with_name("gesture_min_q.xsa")
 
 # Counts -> m/s² and rad/s, the units the model was trained on.
-# Assumes the ±2 g and ±500 °/s ranges set in the hardware sketch.
-ACCEL_LSB_PER_G = 16384
+# At the ±4 g and ±500 °/s ranges the FireBeetle firmware sets (Comms/firebeetle/imu.h).
+ACCEL_LSB_PER_G = 8192
 GYRO_LSB_PER_DPS = 65.5
 STANDARD_GRAVITY = 9.80665
 SCALES = (STANDARD_GRAVITY / ACCEL_LSB_PER_G,) * 3 + (math.radians(1) / GYRO_LSB_PER_DPS,) * 3
