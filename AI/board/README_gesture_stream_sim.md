@@ -26,15 +26,17 @@ clf = GestureClassifier(bitstream="xsa/baseline_improved.xsa")
 res = clf.feed(IMUSample(ax=msg["ax"], ay=msg["ay"], az=msg["az"],
                          gx=msg["gx"], gy=msg["gy"], gz=msg["gz"],
                          end_of_gesture=msg["eog"],
-                         timestamp=msg.get("timestamp")))
+                         timestamp=msg.get("timestamp")),
+               player=player)
 if res is not None:                       # None = mid-gesture, nothing to send
     event = ai_event_from_result(res, player, seq)
     await send_message(writer, event)
     seq += 1
 ```
 
-The ring buffer rolls continuously — **no reset between gestures**. Feed every
-sample; a result comes back only on the packet whose `end_of_gesture` is True.
+Each player has their own ring buffer, which rolls continuously — **no reset
+between gestures**. Feed every sample with its player; a result comes back only on
+the packet whose `end_of_gesture` is True.
 
 ## Input contract — `IMUSample` (comms fills this)
 
@@ -79,22 +81,23 @@ Label map (`class_id` → `gesture`):
 ## Exposed API
 
 ### `GestureClassifier(bitstream="xsa/baseline_improved.xsa", config=ModelConfig(), mock=False)`
-Build **once** at startup. Loads the overlay + DMA, allocates the DMA buffers, and
-creates the 150-step ring buffer.
+Build **once** at startup. Loads the overlay + DMA and allocates the DMA buffers.
+Each player's 150-step ring buffer is made on their first sample.
 - `bitstream` — path to the `.xsa` (relative to the working dir, or absolute).
 - `mock=True` — off-board stand-in (no pynq); returns a uniform softmax. For
   testing comms wiring on a laptop.
 
-### `feed(sample: IMUSample) -> GestureResult | None`
-**The one method comms calls per packet.** Decodes the sample, appends it to the
-ring buffer, and — if `sample.end_of_gesture` — runs inference and returns the
+### `feed(sample: IMUSample, player=None) -> GestureResult | None`
+**The one method comms calls per packet.** Decodes the sample, appends it to that
+player's ring buffer, and — if `sample.end_of_gesture` — runs inference on that
+buffer and returns the
 `GestureResult`. Returns `None` on every non-EOG packet, and on an EOG packet if
 the buffer isn't full yet or confidence is below threshold.
 
-### `reset() -> None`
-Clears the ring buffer. **Comms normally never calls this** — the buffer is meant
-to roll continuously. Use it only to deliberately drop history (e.g. after a long
-stall).
+### `reset(player=None) -> None`
+Clears one player's ring buffer, or every player's when `player` is None. The
+buffer is meant to roll continuously, so use it only to drop history that would
+join two unrelated stretches of samples (e.g. after a long stall or a reconnect).
 
 ### `last_result` *(attribute)*
 The most recent `GestureResult` (or `None`). For a caller that prefers to poll
@@ -109,15 +112,15 @@ Shapes a `GestureResult` into the `AI_EVENT` dict comms sends over TCP:
 `mana_cost` is `0` — set it here if the game needs a real value.
 
 ### Advanced (comms usually won't need these)
-- `infer() -> GestureResult | None` — classify the current buffer on demand (what
-  `feed` calls internally on EOG).
+- `infer(player=None) -> GestureResult | None` — classify a player's current buffer
+  on demand (what `feed` calls internally on EOG).
 - `infer_window(samples) -> GestureResult | None` — classify a caller-owned
   `(150, 6)` block of already-decoded physical units; bypasses the ring buffer.
 
 ## One board, two players
 
-`feed()` uses one shared ring buffer. If **two players** stream interleaved IMU
-packets into the same classifier, their samples mix and the window is garbage. One
-physical accelerator can't back two `GestureClassifier` instances (each would
-re-flash the PL), so the fix is a shared hardware backend with a ring buffer per
-player. Ask the AI side to add per-player buffers if you need this.
+One physical accelerator can't back two `GestureClassifier` instances (each would
+re-flash the PL), so one instance serves both players: the backend is shared and
+each `player` gets their own ring buffer. Interleaved packets from two players never
+mix, as long as each `feed()` passes the right `player`. `player=None` is a buffer
+like any other; the test harness uses it.
