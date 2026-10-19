@@ -3,7 +3,9 @@
 A mistake here gives wrong predictions with no error anywhere. notes/ai_integration.md 3.2.
 """
 
+import ast
 import csv
+import dataclasses
 import logging
 import math
 import re
@@ -365,23 +367,24 @@ def test_gyro_full_scale_fits_but_acceleration_clips_above_3_26_g():
 
 
 class FakeAI:
-    """Stands in for ai_api.Gestures, keeping every call in order."""
+    """Stands in for gesture.AI, keeping every call in order. Gives `answer` at a gesture's end."""
 
-    def __init__(self, answers=()):
+    def __init__(self, answer=None):
         self.calls = []
-        self.answers = list(answers)
+        self.answer = answer
 
-    def on_sample(self, player, record, timeout=None):
-        self.calls.append(("sample", player, record, timeout))
-        return self.answers.pop(0) if self.answers else None
+    def on_sample(self, player, record):
+        self.calls.append(("sample", player, record))
+        return self.answer if record["end_of_gesture"] else None
 
-    def reset(self, player):
+    def reset(self, player=None):
         self.calls.append(("reset", player))
 
 
-def fed(answers=()):
-    w = windows()
-    w.ai = FakeAI(answers)
+def fed(answer=None, ai=None):
+    ai = ai or FakeAI(answer)
+    w = gesture.Windows(ai, per_sample=True)
+    ai.calls.clear()  # the session's first reset has its own test
     return w
 
 
@@ -389,27 +392,48 @@ def seqs_seen(w):
     return [call[2]["ax"] for call in w.ai.calls if call[0] == "sample"]
 
 
-def test_each_sample_reaches_ai_as_its_record_with_comms_deadline():
+def ends_seen(w):
+    return [call[2]["end_of_gesture"] for call in w.ai.calls if call[0] == "sample"]
+
+
+def test_each_sample_reaches_ai_as_its_imu_sample_fields_with_the_player():
     w = fed()
     w.feed(packet(0, node=2, imu=(1, 2, 3, 4, 5, 6), t=12.5, flag=1))
-    record = dict(zip(gesture.CHANNELS, (1, 2, 3, 4, 5, 6)), in_gesture=1, timestamp=12.5)
-    assert w.ai.calls == [("sample", 2, record, gesture.TIMEOUT_S)]
+    record = dict(zip(gesture.CHANNELS, (1, 2, 3, 4, 5, 6)), end_of_gesture=False, timestamp=12.5)
+    assert w.ai.calls == [("sample", 2, record)]
+
+
+def test_end_of_gesture_is_set_on_the_first_sample_after_the_flag_drops():
+    w = fed()
+    for seq, flag in enumerate((0, 1, 1, 1, 0, 0, 1, 0)):
+        w.feed(packet(seq, flag=flag))
+    assert ends_seen(w) == [False, False, False, False, True, False, False, True]
+
+
+def test_each_node_ends_its_own_gesture():
+    w = fed()
+    w.feed(packet(0, node=1, flag=1))
+    w.feed(packet(0, node=2))  # node 2 was never flagged
+    w.feed(packet(1, node=1))
+    ends = [(c[1], c[2]["end_of_gesture"]) for c in w.ai.calls]
+    assert ends == [(1, False), (2, False), (1, True)]
 
 
 @pytest.mark.parametrize(
-    "reserved, flag",
+    "reserved, ends",
     [
-        ([1, 1, 0, 0, 0], 1),
-        ([1, 0, 0, 0, 0], 0),
-        ([1], 0),  # no flag field at all
-        ([1, None, 0, 0, 0], 0),
-        ([1, True, 0, 0, 0], 0),
+        ([1, 1, 0, 0, 0], True),
+        ([1, 0, 0, 0, 0], False),
+        ([1], False),  # no flag field at all
+        ([1, None, 0, 0, 0], False),
+        ([1, True, 0, 0, 0], False),
     ],
 )
-def test_the_flag_is_read_from_reserved_1(reserved, flag):
+def test_the_flag_is_read_from_reserved_1(reserved, ends):
     w = fed()
     w.feed({**packet(0), "reserved": reserved})
-    assert w.ai.calls[0][2]["in_gesture"] == flag
+    w.feed(packet(1))
+    assert ends_seen(w) == [False, ends]
 
 
 def test_the_record_has_no_timestamp_when_the_message_has_none():
@@ -455,8 +479,17 @@ def test_a_gap_on_one_node_resets_only_that_node():
     assert [c[:2] for c in w.ai.calls if c[0] == "reset"] == [("reset", 1)]
 
 
+def test_a_gesture_cut_by_a_reset_never_ends():
+    """After a reset AI has none of the gesture, so the flag dropping must not end it."""
+    w = fed()
+    for seq in range(3):
+        w.feed(packet(seq, flag=1, t=10.0 + seq * 0.01))
+    w.feed(packet(3, t=13.0))  # a reconnect, and the flag dropped while it was away
+    assert ends_seen(w) == [False] * 4
+
+
 def test_ais_answer_becomes_a_result_with_the_time_it_took():
-    w = fed(answers=[None, ("3", 0.5)])
+    w = fed(answer=("3", 0.5))
     assert w.feed(packet(0, flag=1)) is None
     result = w.feed(packet(1))
     assert (result.label, result.confidence, result.missing) == ("3", 0.5, 0)
@@ -464,7 +497,7 @@ def test_ais_answer_becomes_a_result_with_the_time_it_took():
 
 
 def test_missing_counts_only_the_packets_lost_inside_the_gesture():
-    w = windows(Recording())
+    w = fed(answer=("0", 1.0))
     seqs = [0, 5]  # 4 lost before the gesture starts at 5, which don't count
     seqs += list(range(6, 20)) + list(range(22, 30))  # 20 and 21 lost inside it
     for seq in seqs:
@@ -489,7 +522,7 @@ def test_a_flagged_gesture_ai_gives_nothing_for_is_logged_once(caplog):
 
 
 def test_nothing_is_logged_for_an_answer_or_an_unflagged_stream(caplog):
-    w = fed(answers=[None, None, ("3", 0.5)])
+    w = fed(answer=("3", 0.5))
     with caplog.at_level(logging.INFO, logger="gesture"):
         for seq in range(2):
             w.feed(packet(seq, flag=1))
@@ -512,11 +545,12 @@ def test_nothing_is_logged_for_a_gesture_cut_by_a_reset(caplog):
 
 
 def test_a_failed_gesture_is_not_also_logged_as_no_result(caplog):
-    class Fails:
-        def classify(self, samples, timeout=None):
-            raise gesture.ClassifierError("DMA busy")
+    class Fails(FakeAI):
+        def on_sample(self, player, record):
+            if record["end_of_gesture"]:
+                raise gesture.ClassifierError("DMA busy")
 
-    w = windows(Fails())
+    w = fed(ai=Fails())
     with caplog.at_level(logging.INFO, logger="gesture"):
         for seq in range(30):
             w.feed(packet(seq, flag=1))
@@ -525,14 +559,134 @@ def test_a_failed_gesture_is_not_also_logged_as_no_result(caplog):
     assert no_result_lines(caplog) == []
 
 
-def test_a_new_session_starts_with_no_gesture_in_progress():
-    model = Recording()  # the model lives for the whole run, the windows per session
-    first = windows(model)
+def test_a_new_session_empties_ais_buffers_and_has_no_gesture_in_progress():
+    ai = FakeAI(answer=("0", 1.0))  # the model lives for the whole run, the windows per session
+    first = gesture.Windows(ai, per_sample=True)
     for seq in range(30):
         first.feed(packet(seq, flag=1))
-    second = windows(model)
+    ai.calls.clear()
+    second = gesture.Windows(ai, per_sample=True)
+    assert ai.calls == [("reset", None)]
     assert second.feed(packet(30)) is None  # the old session's gesture would end here
-    assert model.samples is None
+    assert ai.calls[-1][2]["end_of_gesture"] is False
+
+
+def test_the_sensor_trigger_path_never_resets_its_classifier():
+    """StubClassifier and ai_api's model have no reset(), so an outage must not call one."""
+    w = windows()
+    for seq, status in enumerate((1, 2, 1)):
+        w.add(packet(seq, status=status))
+    w.add(packet(3, t=10.0))
+    w.add(packet(4, t=13.0))  # and a gap
+
+
+# --- AI's per-sample model, through gesture.AI -------------------------------
+
+AI_STREAM = Path(__file__).resolve().parents[3] / "AI" / "board" / f"{gesture.AI_MODULE}.py"
+
+
+@dataclasses.dataclass
+class FakeSample:
+    ax: int
+    ay: int
+    az: int
+    gx: int
+    gy: int
+    gz: int
+    end_of_gesture: bool = False
+    timestamp: float = None
+
+
+class FakeModel:
+    """Stands in for wk10_integration.GestureClassifier."""
+
+    def __init__(self, result=None, error=None):
+        self.calls, self.result, self.error = [], result, error
+
+    def feed(self, sample, player=None):
+        self.calls.append(("feed", sample, player))
+        if self.error:
+            raise self.error
+        return self.result
+
+    def reset(self, player=None):
+        self.calls.append(("reset", player))
+
+
+def adapter(model):
+    return gesture.AI(types.SimpleNamespace(IMUSample=FakeSample), model)
+
+
+def test_the_adapter_feeds_ais_imu_sample_with_the_player_and_returns_label_and_confidence():
+    model = FakeModel(result=types.SimpleNamespace(gesture="circle", confidence=0.75))
+    record = gesture.to_record(dict(zip(gesture.CHANNELS, range(6))), {"timestamp": 3.5}, True)
+    assert adapter(model).on_sample(2, record) == ("circle", 0.75)
+    assert model.calls == [("feed", FakeSample(0, 1, 2, 3, 4, 5, True, 3.5), 2)]
+
+
+def test_no_result_from_ai_is_none():
+    record = gesture.to_record(dict(ZERO), {}, False)
+    assert adapter(FakeModel()).on_sample(1, record) is None
+
+
+def test_a_dma_stall_in_ai_becomes_a_classifier_error_so_the_session_survives():
+    ai = adapter(FakeModel(error=RuntimeError("DMA RECV stalled after 3.0s")))
+    with pytest.raises(gesture.ClassifierError, match="DMA RECV stalled"):
+        ai.on_sample(1, gesture.to_record(dict(ZERO), {}, True))
+
+
+def test_reset_reaches_ai_for_one_player_or_all():
+    model = FakeModel()
+    ai = adapter(model)
+    ai.reset(2)
+    ai.reset()
+    assert model.calls == [("reset", 2), ("reset", None)]
+
+
+def test_the_stub_ai_answers_only_at_the_end_of_a_gesture():
+    stub = gesture.StubAI()
+    record = gesture.to_record(dict(zip(gesture.CHANNELS, range(6))), {}, False)
+    assert stub.on_sample(1, record) is None
+    assert stub.on_sample(1, {**record, "end_of_gesture": True})[0] in gesture.LABELS
+
+
+def ai_class(name):
+    tree = ast.parse(AI_STREAM.read_text(encoding="utf-8"))
+    return next(n for n in ast.walk(tree) if isinstance(n, ast.ClassDef) and n.name == name)
+
+
+def test_comms_fills_exactly_ais_imu_sample_fields():
+    """AI's file needs numpy, which the laptop lacks, so its contract is read from the source."""
+    fields = {n.target.id for n in ai_class("IMUSample").body if isinstance(n, ast.AnnAssign)}
+    assert set(gesture.to_record(dict(ZERO), {}, False)) == fields
+
+
+def test_ais_feed_and_reset_take_a_player():
+    body = ai_class("GestureClassifier").body
+    methods = {n.name: n for n in body if isinstance(n, ast.FunctionDef)}
+    for name in ("feed", "reset"):
+        assert "player" in [a.arg for a in methods[name].args.args], name
+
+
+def test_the_bitstream_comms_loads_is_beside_ais_module():
+    assert (AI_STREAM.parent / gesture.AI_BITSTREAM).exists()
+
+
+def test_off_the_board_the_flag_path_gets_the_stub(monkeypatch, tmp_path):
+    monkeypatch.setattr(gesture, "FPGA_MANAGER", tmp_path / "absent")
+    assert isinstance(gesture.load_classifier(per_sample=True), gesture.StubAI)
+
+
+def test_on_the_board_the_flag_path_loads_ais_model_with_its_bitstream(monkeypatch, tmp_path):
+    built = []
+    module = types.ModuleType(gesture.AI_MODULE)
+    module.__file__ = str(tmp_path / f"{gesture.AI_MODULE}.py")
+    module.GestureClassifier = lambda bitstream: built.append(bitstream) or "model"
+    monkeypatch.setitem(sys.modules, gesture.AI_MODULE, module)
+    monkeypatch.setattr(gesture, "FPGA_MANAGER", tmp_path)
+    ai = gesture.load_classifier(per_sample=True)
+    assert isinstance(ai, gesture.AI) and (ai.module, ai.model) == (module, "model")
+    assert built == [str(tmp_path / gesture.AI_BITSTREAM)]
 
 
 # --- the stub and the log fields ---------------------------------------------

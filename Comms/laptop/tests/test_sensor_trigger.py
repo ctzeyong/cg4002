@@ -281,7 +281,7 @@ async def test_with_the_gesture_flag_each_flagged_gesture_makes_one_joinable_eve
     frames += flagged_gesture(2, 5, 30, 10.05)  # ends at seq 35, at t=10.35
     frames += [sensor(2, seq, 10.0 + seq * 0.01) for seq in range(36, 40)]
     frames.append(ECHO)
-    windows = gesture.Windows(gesture.StubClassifier())
+    windows = gesture.Windows(gesture.StubAI(), per_sample=True)
 
     await _run_receiver(frames, caplog, lambda log: len(_ai_events(log)) == 2, None, windows)
 
@@ -297,17 +297,19 @@ async def test_with_the_gesture_flag_each_flagged_gesture_makes_one_joinable_eve
 
 @pytest.mark.asyncio
 async def test_with_the_gesture_flag_a_failed_gesture_is_skipped_and_the_next_works(caplog):
-    class FailsOnce:
+    class FailsOnce(gesture.StubAI):
         calls = 0
 
-        def classify(self, samples, timeout=None):
+        def on_sample(self, player, record):
+            if not record["end_of_gesture"]:
+                return None
             self.calls += 1
             if self.calls == 1:
                 raise gesture.ClassifierError("DMA still busy after 50 ms")
             return "5", 0.9
 
     frames = flagged_gesture(1, 0, 30, 10.0) + flagged_gesture(1, 31, 30, 10.31)
-    windows = gesture.Windows(FailsOnce())
+    windows = gesture.Windows(FailsOnce(), per_sample=True)
 
     task = await _run_receiver(frames, caplog, lambda log: _ai_events(log), None, windows)
 
@@ -383,7 +385,7 @@ async def test_with_the_gesture_flag_a_reconnect_starts_every_gesture_again(capl
                 pass
         writer.close()
 
-    classifier = gesture.StubClassifier()  # one for the whole run, as run() does
+    classifier = gesture.StubAI()  # one for the whole run, as run() does
     with caplog.at_level(logging.INFO, logger="tcp_client"):
         async with serving(laptop) as port:
             for _ in range(2):
@@ -575,7 +577,8 @@ async def test_configuration_a_run_passes_the_flag_to_every_session(
     # One classifier, loaded once before the first dial, for every session.
     assert {flags for flags, _ in seen} == {(sensor_every, gesture_flag)}
     assert len({id(classifier) for _, classifier in seen}) == 1
-    assert seen[0][1] is not None
+    # off the board: the per-sample stub for the flag, the window stub for the trigger
+    assert type(seen[0][1]) is (gesture.StubAI if gesture_flag else gesture.StubClassifier)
 
 
 @pytest.mark.asyncio
@@ -609,4 +612,4 @@ async def test_configuration_b_run_passes_the_flag_to_every_session(
         await asyncio.gather(task, return_exceptions=True)
     assert {flags for flags, _ in seen} == {(sensor_every, gesture_flag)}
     assert len({id(classifier) for _, classifier in seen}) == 1
-    assert seen[0][1] is not None
+    assert type(seen[0][1]) is (gesture.StubAI if gesture_flag else gesture.StubClassifier)

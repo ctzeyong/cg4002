@@ -1,28 +1,19 @@
-"""The gesture classifier, as an API for the Comms board client.
+"""The gesture classifier, as an API for the Comms board client's --sensor-trigger.
 
     model = GestureClassifier()     # loads the bitstream, once per run
-    gestures = Gestures(model)      # new every TCP session
-    result = gestures.on_sample(player, record, timeout=0.05)  # every sample
-    gestures.reset(player)          # the player's stream broke
+    label, confidence = model.classify(samples, timeout=0.05)
 
-on_sample() gets each player's samples in order, e.g.
-{"ax": 120, ..., "gz": 7, "in_gesture": 1, "timestamp": 812.25}, and returns
-(label, confidence) once a gesture is classified, otherwise None. Comms passes only real IMU
-readings, and calls reset() after an IMU outage or a reconnect.
---sensor-trigger calls model.classify() directly, with the last WINDOW samples.
+classify() takes a node's last WINDOW samples as raw-count dicts. --gesture-flag uses AI's
+per-sample model in wk10_integration.py instead.
 
 The model can change here without Comms changing. Comms runs this in its event loop, so:
-- on_sample() and classify() return or raise within `timeout`. No sleeps.
+- classify() returns or raises within `timeout`. No sleeps.
 - Failures raise ClassifyError. Never exit or print.
 - Importing does nothing. Import pynq inside functions, and don't use numpy, since the
   laptop has neither.
 
-Gestures and resample() are a placeholder by Comms, so the flag path can be tested now.
-Replace their insides as the model needs, but keep on_sample() and reset().
-
 Board check against test_accuracy.py: python3 ai_api.py CSV [BITSTREAM]
 """
-import collections
 import math
 import pathlib
 import sys
@@ -38,10 +29,6 @@ ACCEL_LSB_PER_G = 8192
 GYRO_LSB_PER_DPS = 65.5
 STANDARD_GRAVITY = 9.80665
 SCALES = (STANDARD_GRAVITY / ACCEL_LSB_PER_G,) * 3 + (math.radians(1) / GYRO_LSB_PER_DPS,) * 3
-
-# placeholder gesture lengths at 100 Hz using the 15 Oct dataset
-MIN_SAMPLES = 20    # shorter than 0.2 s gives no result
-MAX_SAMPLES = 400   # a stuck flag keeps only the last 4 s
 
 FRAC_BITS = 10      # inputs are ap_fixed<16,6>
 OUT_FRAC = 10       # so are the outputs; use 8 if they are widened to <16,8>
@@ -62,51 +49,6 @@ def to_inputs(samples):
     return [to_fixed(sample[name] * scale)
             for sample in samples
             for name, scale in zip(CHANNELS, SCALES)]
-
-
-# placeholder by Comms, down to the end of Gestures
-
-
-def round_counts(x):
-    """Round to whole counts, ties away from zero, like the training set."""
-    return int(math.floor(abs(x) + 0.5)) * (1 if x >= 0 else -1)
-
-
-def resample(samples, steps=WINDOW):
-    """Stretch or squeeze samples to `steps` with straight lines (training used hann-sinc4-v1)."""
-    last = len(samples) - 1
-    out = []
-    for step in range(steps):
-        x = step * last / (steps - 1)
-        i = min(int(x), last - 1) if last else 0
-        frac = x - i
-        a, b = samples[i], samples[min(i + 1, last)]
-        out.append({name: round_counts(a[name] + (b[name] - a[name]) * frac) for name in CHANNELS})
-    return out
-
-
-class Gestures:
-    """Collect each player's flagged samples and classify a gesture when its flag drops."""
-
-    def __init__(self, model):
-        self.model = model
-        self._gestures = {}  # player -> flagged samples so far
-
-    def on_sample(self, player, record, timeout=3.0):
-        """Take one sample. Return (label, confidence) when it ends a gesture, otherwise None."""
-        if record["in_gesture"]:
-            gesture = self._gestures.setdefault(player, collections.deque(maxlen=MAX_SAMPLES))
-            gesture.append(record)
-            return None
-        # popped first so a failed gesture isn't retried
-        gesture = self._gestures.pop(player, None)
-        if gesture is None or len(gesture) < MIN_SAMPLES:
-            return None
-        return self.model.classify(resample(list(gesture)), timeout=timeout)
-
-    def reset(self, player):
-        """Forget the player's gesture in progress."""
-        self._gestures.pop(player, None)
 
 
 class GestureClassifier:

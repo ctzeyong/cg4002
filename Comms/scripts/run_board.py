@@ -40,6 +40,10 @@ BOARD_SOURCES = REPO / "ultra96"
 AI_MODULE = REPO.parent / "AI" / "board" / "ai_api.py"
 # the bitstream ai_api.py loads, also copied next to it. must match ai_api.BITSTREAM
 BITSTREAM = REPO.parent / "AI" / "board" / "gesture_min_q.xsa"
+# AI's per-sample model for --gesture-flag and its bitstream, the same way.
+# must match gesture.AI_MODULE and gesture.AI_BITSTREAM
+AI_STREAM_MODULE = REPO.parent / "AI" / "board" / "wk10_integration.py"
+AI_STREAM_BITSTREAM = REPO.parent / "AI" / "board" / "baseline_improved.xsa"
 
 # Call the venv's python directly rather than relying on an activated venv.
 VENV_PYTHON = "~/comms-venv/bin/python"
@@ -138,14 +142,14 @@ def relog(line):
 
 
 async def sync_sources(conn):
-    """Copy every ultra96/*.py, plus AI's ai_api.py and bitstream, to ~/comms/ on the board.
+    """Copy every ultra96/*.py, plus AI's two modules and bitstreams, to ~/comms/ on the board.
 
     The whole folder, not a list of names, so a new file is never left behind.
     """
     files = sorted(BOARD_SOURCES.glob("*.py"))
     if not files:
         raise SystemExit(f"no sources found in {BOARD_SOURCES}")
-    for needed in (AI_MODULE, BITSTREAM):
+    for needed in (AI_MODULE, BITSTREAM, AI_STREAM_MODULE, AI_STREAM_BITSTREAM):
         if not needed.exists():
             raise SystemExit(f"missing {needed}, which gesture.py needs on the board")
         files.append(needed)

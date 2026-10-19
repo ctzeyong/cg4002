@@ -1,12 +1,14 @@
 """The transport rules for the SENSOR stream on the Ultra96, in front of AI's API.
 
 Repeats, late packets and samples with no IMU reading never reach AI, and AI is told when
-a node's stream broke. With --gesture-flag every other sample goes to AI's ai_api.py, which
-decides where a gesture is, so a new model changes nothing here. --sensor-trigger keeps
-each node's last samples in a window instead, until the flag path replaces it.
+a node's stream broke. With --gesture-flag every other sample goes to AI's
+wk10_integration.py, which buffers and classifies, so a new model changes nothing here.
+--sensor-trigger keeps each node's last samples in a window for ai_api.py instead, until
+the flag path replaces it.
 """
 
 import collections
+import importlib
 import logging
 import math
 import pathlib
@@ -40,6 +42,10 @@ IMU_OK = 1
 
 # reserved[1] carries the glove's gesture flag, 1 for every sample of a possible gesture.
 FLAG_FIELD = 1
+
+# AI's per-sample model for --gesture-flag and the bitstream it loads
+AI_MODULE = "wk10_integration"
+AI_BITSTREAM = "baseline_improved.xsa"
 
 # result of classifying one window or gesture, missing is the number of packets lost inside it
 Result = collections.namedtuple("Result", "label confidence t_infer_ms missing")
@@ -78,9 +84,9 @@ def gesture_flag(msg):
     return 0
 
 
-def to_record(sample, msg):
-    """Return AI's record for one sample: its six counts, the gesture flag and receive time."""
-    return {**sample, "in_gesture": gesture_flag(msg), "timestamp": receive_time(msg)}
+def to_record(sample, msg, end_of_gesture):
+    """Return AI's IMUSample fields for one sample: its six counts, end_of_gesture, receive time."""
+    return {**sample, "end_of_gesture": end_of_gesture, "timestamp": receive_time(msg)}
 
 
 def log_fields(result):
@@ -96,13 +102,16 @@ def log_fields(result):
 class Windows:
     """Apply the transport rules per node, then window or pass on its samples.
 
-    A new one is made every TCP session.
+    A new one is made every TCP session. `classifier` classifies a window for --sensor-trigger,
+    or with per_sample=True it is AI's model that takes every sample, for --gesture-flag.
     """
 
-    def __init__(self, classifier):
+    def __init__(self, classifier, per_sample=False):
         self.classifier = classifier
-        # new per session like everything here, so a reconnect also starts AI's gestures again
-        self.ai = ai_api.Gestures(classifier)
+        self.ai = classifier if per_sample else None
+        if self.ai is not None:
+            # AI's buffers live as long as the model, so a reconnect empties them here
+            self.ai.reset()
         self._samples = {}  # node -> deque of (sample, packets missing just before it)
         self._last_seq = {}
         self._without_imu = {}  # node -> packets in a row that carried no IMU reading
@@ -168,15 +177,17 @@ class Windows:
         if accepted is None:
             return None
         node, sample, gap = accepted
-        record = to_record(sample, msg)
+        in_gesture = gesture_flag(msg)
         flagged = self._flagged.pop(node, None)
-        if record["in_gesture"]:
+        if in_gesture:
             # don't count the first flagged sample's gap since it happened before the gesture
             self._flagged[node] = (1, 0) if flagged is None else (flagged[0] + 1, flagged[1] + gap)
+        # AI classifies on end_of_gesture, so it goes on the first sample after the flag drops
+        ended = flagged is not None and not in_gesture
         started = time.perf_counter()
-        answer = self.ai.on_sample(node, record, timeout=TIMEOUT_S)
+        answer = self.ai.on_sample(node, to_record(sample, msg, ended))
         if answer is None:
-            if flagged is not None and not record["in_gesture"]:
+            if ended:
                 # so a detector that only fires briefly still shows in the log
                 log.info("no AI event: node %d's flagged gesture of %d samples gave no result",
                          node, flagged[0])
@@ -189,7 +200,8 @@ class Windows:
         """Empty a node's window and tell AI to forget its gesture in progress."""
         self._samples.pop(node, None)
         self._flagged.pop(node, None)
-        self.ai.reset(node)
+        if self.ai is not None:
+            self.ai.reset(node)
 
     def _forget(self, node):
         """Drop everything about a node, so its next packet starts again."""
@@ -226,5 +238,45 @@ class StubClassifier:
         return LABELS[total % len(LABELS)], 1.0
 
 
-def load_classifier():
-    return ai_api.GestureClassifier() if FPGA_MANAGER.exists() else StubClassifier()
+class AI:
+    """AI's per-sample model in wk10_integration.py."""
+
+    def __init__(self, module, model):
+        self.module = module  # for its IMUSample
+        self.model = model
+
+    def on_sample(self, player, record):
+        """Feed one sample. Returns (label, confidence) when it ends a gesture, otherwise None."""
+        try:
+            result = self.model.feed(self.module.IMUSample(**record), player=player)
+        except RuntimeError as exc:  # its DMA stall, so the session survives it
+            raise ClassifierError(str(exc)) from exc
+        return None if result is None else (result.gesture, result.confidence)
+
+    def reset(self, player=None):
+        """Forget a player's samples, or every player's."""
+        self.model.reset(player)
+
+
+class StubAI:
+    """Used instead of AI's per-sample model where there is no FPGA (the laptop and tests)."""
+
+    def on_sample(self, player, record):
+        """Answer at the end of every gesture, with a class picked from the last sample's counts."""
+        if not record["end_of_gesture"]:
+            return None
+        return LABELS[sum(record[name] for name in CHANNELS) % len(LABELS)], 1.0
+
+    def reset(self, player=None):
+        pass
+
+
+def load_classifier(per_sample=False):
+    """AI's model on the board, a stub anywhere else. per_sample picks the --gesture-flag one."""
+    if not FPGA_MANAGER.exists():
+        return StubAI() if per_sample else StubClassifier()
+    if not per_sample:
+        return ai_api.GestureClassifier()
+    module = importlib.import_module(AI_MODULE)  # needs numpy, so only on the board
+    bitstream = pathlib.Path(module.__file__).with_name(AI_BITSTREAM)
+    return AI(module, module.GestureClassifier(bitstream=str(bitstream)))

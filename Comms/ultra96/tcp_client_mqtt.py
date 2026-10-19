@@ -103,7 +103,9 @@ async def one_session(
     # new per session, so a reconnect starts with empty gesture windows
     windows = None
     if sensor_every > 0 or gesture_flag:
-        windows = gesture.Windows(classifier or gesture.load_classifier())
+        windows = gesture.Windows(
+            classifier or gesture.load_classifier(gesture_flag), per_sample=gesture_flag
+        )
 
     tasks = [
         asyncio.create_task(sender(writer, stop)),
@@ -137,7 +139,7 @@ async def run_tcp(
     # would drop the repeated event_ids as duplicates.
     events = MqttEventSource(outbound, stats)
 
-    classifier = gesture.load_classifier() if sensor_every > 0 or gesture_flag else None
+    classifier = gesture.load_classifier(gesture_flag) if sensor_every > 0 or gesture_flag else None
     if classifier is not None:
         log.info("classifier: %s", type(classifier).__name__)
     while True:
