@@ -176,6 +176,27 @@ The Ultra96 applies these rules separately to each player:
 At 100 Hz, a `0.5 s` break already represents about 50 absent samples, so the old 100-sample
 window is no longer a useful continuous gesture window.
 
+## The gesture flag path (in progress)
+
+`--gesture-flag` is the replacement for `--sensor-trigger`'s fixed window. It is built and tested
+on the laptop, but no glove has a detector yet. Use one of the two flags, not both.
+
+- **Hardware:** `gestureFlag()` in [`imu.h`](../../Comms/firebeetle/imu.h) is your detector. It gets
+  every sample and returns `1` while the hand may be making a gesture, otherwise `0`. The version in
+  `imu.cpp` is a placeholder that always returns `0`. `buildPacket()` sends the flag in
+  `reserved[1]`, and the serial timing line now also prints the slowest `gestureFlag()` call.
+- **Comms:** the board applies the rules above, then passes every remaining sample to AI's
+  `feed(IMUSample(...), player)`: `ax`..`gz`, `end_of_gesture` and `timestamp` (the laptop's
+  receive time). `end_of_gesture` is `True` on the first sample after the flag drops from 1 to 0.
+  It calls `reset(player)` after an IMU outage or a gap of more than `0.5 s`, `reset()` for every
+  player at the start of each TCP session, and publishes whatever AI returns. A DMA stall in AI
+  logs a warning and skips that gesture rather than ending the session.
+- **AI:** [`wk10_integration.py`](../../AI/board/wk10_integration.py) owns the buffering and
+  inference, on `baseline_improved.xsa`. Its contract is
+  [`README_gesture_stream_sim.md`](../../AI/board/README_gesture_stream_sim.md). Each player has
+  their own 150-step ring buffer, and `feed()` classifies it when `end_of_gesture` is `True`.
+  `ai_api.py` stays for `--sensor-trigger` only.
+
 ## Contracts that must agree across teams
 
 | Contract | Current code | Owner/action |
@@ -185,8 +206,9 @@ window is no longer a useful continuous gesture window.
 | IMU validity | `reserved[0] == 1` means real data | Hardware defines status; Comms enforces it |
 | Gyroscope range | Firmware: +/-500 degrees/s; AI: `65.5` counts/(degree/s) | Currently aligned |
 | Accelerometer range | Firmware: +/-4 g and `8192` counts/g; AI: `8192` counts/g | Aligned; a Comms test checks `ai_api.py` against `firebeetle/imu.h` |
-| AI deployment | `ai_api.BITSTREAM` and `run_board.py` both name `gesture_min_q.xsa` | AI and Comms update together |
-| Model input | `WINDOW`, `CHANNELS`, scaling, and quantisation come from `ai_api.py` | AI owns implementation; interface changes require coordination |
+| AI deployment | `--sensor-trigger`: `ai_api.BITSTREAM` and `run_board.py` both name `gesture_min_q.xsa`. `--gesture-flag`: `gesture.AI_BITSTREAM` and `run_board.py` both name `baseline_improved.xsa` | AI and Comms update together |
+| Model input | `--sensor-trigger`: `WINDOW`, `CHANNELS`, scaling, and quantisation come from `ai_api.py`. `--gesture-flag`: all of it is inside `wk10_integration.py` | AI owns implementation; interface changes require coordination |
+| Per-sample API | `GestureClassifier.feed(IMUSample, player)` and `reset(player)`; Comms tests read `IMUSample`'s fields and both `player` arguments from the source | AI and Comms agree any change |
 | Event route | QoS 1 MQTT on `game/gesture/<player>` | Comms owns transport; Game/Vis own consumption |
 
 ### Acceleration range
@@ -222,7 +244,8 @@ evidence when the phone is added.
 1. Align the +/-4 g firmware with AI preprocessing and confirm the model's usable input range.
 2. Run both players with real MPU6050 readings through the FPGA and compare predictions with a
    trusted input/result set.
-3. Replace `--sensor-trigger` with the agreed production gesture boundary or segmentation logic.
+3. Replace `--sensor-trigger` with `--gesture-flag` once a glove has a real detector and
+   `wk10_integration.py` has run on the board.
 4. Map labels `"0"` to `"6"` to the final gesture/action names.
 5. Replace random `mana_cost` when the game engine owns that value.
 6. Confirm recovery after a real DMA timeout; the current API reports the error but does not
