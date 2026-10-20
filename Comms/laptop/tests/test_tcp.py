@@ -358,9 +358,9 @@ def test_parse_echo_accepts_a_well_formed_echo_with_no_readable_key(code):
 
 
 def test_a_mapped_key_always_picks_its_gesture():
-    """Repeated: the fallback is random, so one pass agrees by luck 1 time in 6."""
+    """Repeated: the fallback is random, so one pass agrees by luck 1 time in 7."""
     for _ in range(20):
-        assert ai_events.random_event(1, 0, "z")["gesture"] == "zigzag"
+        assert ai_events.random_event(1, 0, "z")["gesture"] == "z"
 
 
 def test_an_unmapped_key_falls_back_to_a_random_gesture():
@@ -493,7 +493,7 @@ async def test_a_malformed_echo_is_dropped_and_logged_not_answered(caplog):
                         await task
 
     assert [(e["player"], e["seq"]) for e in events] == [(2, 0)], events
-    assert events[0]["gesture"] == "zigzag"
+    assert events[0]["gesture"] == "z"
     dropped = [r.getMessage() for r in caplog.records if "malformed ECHO" in r.getMessage()]
     assert len(dropped) == 1 and "seq=4" in dropped[0], dropped
 

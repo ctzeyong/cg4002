@@ -145,7 +145,7 @@ longer be trusted.
 | `EVENT` | Laptop → Ultra96 if ever received | Same decoded shape, but its payload is not yet defined and current firmware never sends it. |
 | `HEARTBEAT` | Ultra96 → laptop every 1 s | `type`, `seq`, `ts`. Keeps the full-duplex session alive. |
 | `HEARTBEAT_ACK` | Laptop → Ultra96 | `type`, `seq`, `t1`, `t2`; `t1` echoes the heartbeat timestamp and `t2` is the laptop reply timestamp. |
-| `AI_EVENT` | Not sent over TCP in B | Configuration A only: dummy AI-shaped event with `type`, `player`, `seq`, `gesture`, `mana_cost`, and `timestamp`. In B the same event becomes the MQTT envelope payload directly on the Ultra96. |
+| `AI_EVENT` | Not sent over TCP in B | Configuration A only: dummy AI-shaped event with `type`, `player`, `seq`, `gesture`, and `timestamp`. In B the same event becomes the MQTT envelope payload directly on the Ultra96. |
 
 Example decoded SENSOR message:
 
@@ -202,16 +202,16 @@ Gesture message example:
     "player": 1,
     "seq": 17,
     "gesture": "circle",
-    "mana_cost": 23,
     "timestamp": 1792000000.0
   }
 }
 ```
 
 This standalone Comms implementation does not run the FPGA classifier. All `AI_EVENT` messages
-are transport stand-ins: `gesture` is one of `circle`, `triangle`, `square`, `zigzag`, `arc`, or
-`line`, while `mana_cost` is a random integer from 10 to 40. Neither value should be treated as
-the final AI-to-game-engine contract.
+are transport stand-ins: `gesture` is one of the Vis game's seven gestures, its `GestureSymbol`
+enum lowercased (`circle`, `caret`, `arc`, `z`, `infinity`, `triangle`, `star`), picked by the
+pressed key or at random. The game engine prices every action itself, so the event carries no
+game-state value.
 
 ### Current scope
 
@@ -297,14 +297,14 @@ of phone receipt; confirm the event in the phone's own `received` display/log.
 | Laptop | [`laptop/tunnel.py`](../../../Comms/laptop/tunnel.py) | Supervised reverse SSH tunnel to the Ultra96. |
 | Ultra96 | [`ultra96/tcp_client_mqtt.py`](../../../Comms/ultra96/tcp_client_mqtt.py) | Configuration B TCP client and MQTT event source. |
 | Ultra96 | [`ultra96/tcp_client.py`](../../../Comms/ultra96/tcp_client.py) | Shared receiver, heartbeat, dummy SENSOR/ECHO triggers, and reconnect logic; also Configuration A's entry point. |
-| Ultra96 | [`ultra96/ai_events.py`](../../../Comms/ultra96/ai_events.py) | Dummy gesture names, key mapping, random `mana_cost`, and the `AI_EVENT` schema. |
+| Ultra96 | [`ultra96/ai_events.py`](../../../Comms/ultra96/ai_events.py) | Dummy gesture names (the Vis enum's), key mapping, and the `AI_EVENT` schema. |
 | Ultra96 | [`ultra96/mqtt_publisher.py`](../../../Comms/ultra96/mqtt_publisher.py) | QoS 1 publishing, reconnects, bounded queue, and stale-event expiry. |
 | Ultra96 | [`ultra96/envelope.py`](../../../Comms/ultra96/envelope.py) | MQTT topic and stable message envelope. |
 | Phone | [`phone/tunnelled-visualiser`](../../../Comms/phone/tunnelled-visualiser/README.md) | Nested SSH tunnel, MQTT subscription, deduplication, and proof UI. |
 | Tests | [`laptop/tests`](../../../Comms/laptop/tests) | Software tests for BLE, TCP, MQTT, launchers, and transport behaviour. |
 
-The actual classifier and its label-to-game-action mapping must be integrated separately. Event
-fields such as `gesture` and `mana_cost` are currently dummy transport data.
+The actual classifier and its label-to-game-action mapping must be integrated separately. The
+`gesture` field is currently dummy transport data, though its names are already the game's.
 
 ## 4. Why Configuration B was selected
 

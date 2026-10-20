@@ -84,12 +84,11 @@ class MqttEventSource:
         self.sent += 1
         # t_event: the event's own timestamp, as in tcp_client.EventSource.
         log.info(
-            "AI event seq=%d player=%s key=%r gesture=%s mana=%d t_event=%s%s -> %s",
+            "AI event seq=%d player=%s key=%r gesture=%s t_event=%s%s -> %s",
             event["seq"],
             event["player"],
             key,
             event["gesture"],
-            event["mana_cost"],
             time_field(event["timestamp"]),
             gesture.log_fields(result),
             topic,
