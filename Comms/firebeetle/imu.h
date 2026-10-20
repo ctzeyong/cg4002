@@ -14,16 +14,23 @@ enum ImuStatus : int16_t {
     IMU_UNREPORTED = 0,  // firmware from before the IMU, never sent by this code
     IMU_OK = 1,
     IMU_MISSING = 2,     // no answer from the IMU, fields are zero
-    IMU_RECOVERING = 3,  // the IMU had reset and was just set up again, fields are zero
+    IMU_RECOVERING = 3,  // the readings just restarted after a reset or a gap, fields are zero
 };
 
 // Starts I2C and sets the IMU up. Returns false if it did not answer.
 bool imuBegin(uint8_t player);
 
-// Reads one sample into out (ax ay az gx gy gz). out is all zeros unless it returns IMU_OK.
+// Reads the IMU and runs the gesture detector. Call it on every pass of loop(), streaming or
+// not, so the detector gets every reading and the IMU's buffer never fills up.
+void imuService();
+
+// Gives the newest reading imuService() got (ax ay az gx gy gz). out is all zeros unless it
+// returns IMU_OK, which needs a reading newer than the last call.
 ImuStatus imuRead(int16_t out[6]);
 
-// The gesture detector (to be replaced). Called with every sample imuRead() gives,
-// it returns 1 while the hand may be making a gesture and 0 otherwise, and is sent in
-// packet's reserved[1]
+// 1 while Hardware's gesture detector says the hand may be making a gesture, else 0. Called
+// with every reading imuRead() gives, and sent in the packet's reserved[1]
 int16_t gestureFlag(const int16_t sample[6], ImuStatus status);
+
+// Prints the detector's counts since the last call to serial, then starts them again.
+void imuPrintStats();

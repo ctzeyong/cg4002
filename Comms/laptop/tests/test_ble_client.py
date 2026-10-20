@@ -894,7 +894,7 @@ async def test_old_firmware_and_a_healthy_imu_say_nothing(caplog):
     "status, warning",
     [
         (IMU_MISSING, "IMU missing, sending zeros"),
-        (IMU_RECOVERING, "IMU recovering after a reset"),
+        (IMU_RECOVERING, "IMU readings restarting after a reset or a gap"),
         (7, "unknown IMU status 7"),
     ],
 )

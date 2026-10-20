@@ -87,7 +87,8 @@ static uint32_t g_encryptedAt = 0;
 static uint8_t g_seq = 0;
 static uint32_t g_lastTx = 0;
 
-static uint32_t g_slowestImuReadUs = 0;  // since the last timing report
+static uint32_t g_slowestImuServiceUs = 0;  // since the last timing report
+static uint32_t g_slowestImuReadUs = 0;
 static uint32_t g_slowestGestureFlagUs = 0;
 static uint32_t g_imuTimingReportedAt = 0;
 
@@ -246,9 +247,19 @@ class DownlinkCallbacks : public NimBLECharacteristicCallbacks {
     }
 };
 
+/** Calls imuService() and keeps the slowest time for the timing report. */
+static void timedImuService() {
+    const uint32_t started = micros();
+    imuService();
+    const uint32_t serviceUs = micros() - started;
+    if (serviceUs > g_slowestImuServiceUs) {
+        g_slowestImuServiceUs = serviceUs;
+    }
+}
+
 /**
- * Calls imuRead() then gestureFlag(), and prints the slowest of each to serial every
- * IMU_TIMING_REPORT_MS, so the time they take out of loop() can be checked.
+ * Calls imuRead() then gestureFlag(), and prints the slowest of each, and of imuService(), to
+ * serial every IMU_TIMING_REPORT_MS, so the time they take out of loop() can be checked.
  */
 static ImuStatus timedImuRead(int16_t *imu, int16_t *flag) {
     uint32_t started = micros();
@@ -266,9 +277,12 @@ static ImuStatus timedImuRead(int16_t *imu, int16_t *flag) {
 
     const uint32_t now = millis();
     if (now - g_imuTimingReportedAt >= IMU_TIMING_REPORT_MS) {
-        Serial.printf("[IMU] status=%d, slowest imuRead since last report: %u us, gestureFlag: %u us\n",
-                      static_cast<int>(status), static_cast<unsigned>(g_slowestImuReadUs),
+        Serial.printf("[IMU] status=%d, slowest since last report: imuService %u us, imuRead %u us, gestureFlag %u us\n",
+                      static_cast<int>(status), static_cast<unsigned>(g_slowestImuServiceUs),
+                      static_cast<unsigned>(g_slowestImuReadUs),
                       static_cast<unsigned>(g_slowestGestureFlagUs));
+        imuPrintStats();
+        g_slowestImuServiceUs = 0;
         g_slowestImuReadUs = 0;
         g_slowestGestureFlagUs = 0;
         g_imuTimingReportedAt = now;
@@ -354,6 +368,9 @@ void setup() {
  * PACKET_PERIOD_MS while connected and no file transfer is active.
 **/
 void loop() {
+    // every pass, connected or not, so the gesture detector gets every 500 Hz reading
+    timedImuService();
+
     const uint32_t now = millis();
 
     // a notification carries at most MTU-3 bytes, so while the link is still on the
@@ -437,7 +454,9 @@ void loop() {
     // stack fails to send still uses up its seq and shows on the laptop as a gap
     if (g_mtuReady && g_encrypted && !g_fileTransferActive &&
         (now - g_lastTx >= PACKET_PERIOD_MS)) {
-        g_lastTx = now;
+        // stay on the 10 ms grid however long a pass of loop() takes, so the rate stays at
+        // 100 Hz, but start the grid again after a hold-up instead of sending a burst
+        g_lastTx = (now - g_lastTx >= 2 * PACKET_PERIOD_MS) ? now : g_lastTx + PACKET_PERIOD_MS;
         uint8_t buf[PACKET_LEN];
         buildPacket(buf);
         // setValue so a GATT read of the characteristic returns the latest sample;

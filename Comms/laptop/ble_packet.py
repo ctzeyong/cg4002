@@ -53,7 +53,7 @@ IMU_STATUS_OFFSET = IMU_FIELD_COUNT * FIELD_LEN  # reserved[0], counted from the
 
 IMU_PROBLEMS = {
     IMU_MISSING: "IMU missing, sending zeros",
-    IMU_RECOVERING: "IMU recovering after a reset",
+    IMU_RECOVERING: "IMU readings restarting after a reset or a gap",
 }
 
 # reserved[0] of a CMD says what kind it is, 0 for keystrokes
