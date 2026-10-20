@@ -3,6 +3,8 @@
 import pytest
 
 from ble_packet import (
+    CMD_KIND_FIELD,
+    CMD_VIBRATE,
     CRC_LEN,
     CRC_OFFSET,
     DATA_FIELD_COUNT,
@@ -14,14 +16,17 @@ from ble_packet import (
     TYPE_ECHO,
     TYPE_EVENT,
     TYPE_SENSOR,
+    VIBRATE_RECOGNISED,
     BlePacket,
     PacketCrcError,
     build_cmd_packet,
     build_fixed_packet,
+    build_vibrate_packet,
     calculate_crc,
     decode,
     format_packet,
     imu_status,
+    is_vibrate_echo,
     packet_to_message,
     unpack_crc,
     unpack_fields,
@@ -141,6 +146,32 @@ def test_echo_matches_firmware_transformation_and_crc_refresh():
     assert (packet_type, seq) == (TYPE_ECHO, 42)
     assert unpack_fields(payload) == echo_fields
     assert unpack_crc(payload) == calculate_crc(echo[:CRC_OFFSET])
+
+
+def firmware_echo(cmd):
+    """Return the payload the firmware sends back for `cmd`, with the IMU fields negated."""
+    _, seq, payload = decode(cmd)
+    fields = unpack_fields(payload)
+    echo_fields = [-value for value in fields[:IMU_FIELD_COUNT]] + fields[IMU_FIELD_COUNT:]
+    return decode(make_packet(TYPE_ECHO, seq, echo_fields))[2]
+
+
+def test_vibrate_packet_carries_the_pattern_and_its_kind():
+    packet_type, seq, payload = decode(build_vibrate_packet(3, VIBRATE_RECOGNISED))
+
+    assert (packet_type, seq) == (TYPE_CMD, 3)
+    fields = unpack_fields(payload)
+    assert fields[0] == VIBRATE_RECOGNISED
+    assert fields[CMD_KIND_FIELD] == CMD_VIBRATE
+    assert fields.count(0) == DATA_FIELD_COUNT - 2
+
+
+def test_only_a_vibrates_echo_is_recognised_as_one():
+    """The kind is in a reserved field, so the firmware's negation leaves it alone."""
+    assert is_vibrate_echo(firmware_echo(build_vibrate_packet(0, VIBRATE_RECOGNISED)))
+    # a keystroke CMD, as pipeline.keystroke_reader builds it
+    keystroke = build_cmd_packet(0, [ord("1")] + [0] * (DATA_FIELD_COUNT - 1))
+    assert not is_vibrate_echo(firmware_echo(keystroke))
 
 
 def test_format_packet_is_readable_and_shows_named_fields_and_crc():

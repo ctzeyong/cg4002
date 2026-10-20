@@ -434,6 +434,60 @@ async def test_event_ids_stay_unique_across_tcp_reconnects(monkeypatch):
     assert len(set(ids)) == 2, ids
 
 
+class FrameWriter:
+    """Fake StreamWriter that keeps every frame written to it."""
+
+    def __init__(self):
+        self.data = b""
+
+    def write(self, data):
+        self.data += data
+
+    async def drain(self):
+        pass
+
+    def frames(self):
+        out, rest = [], self.data
+        while rest:
+            length = int.from_bytes(rest[:4], "big")
+            out.append(json.loads(rest[4 : 4 + length]))
+            rest = rest[4 + length :]
+        return out
+
+
+@pytest.mark.asyncio
+async def test_a_classified_gesture_also_sends_a_vibrate_for_that_player():
+    import gesture
+
+    source = tcp_client_mqtt.MqttEventSource(asyncio.Queue(), mqtt_publisher.PublishStats())
+    writer = FrameWriter()
+
+    await asyncio.wait_for(
+        source.emit(writer, 2, None, gesture.Result("circle", 0.9, 1.0, 0)), timeout=DEADLINE_S
+    )
+
+    assert writer.frames() == [{"type": "VIBRATE", "node": 2, "pattern": 1}]
+
+
+@pytest.mark.asyncio
+async def test_a_dummy_event_sends_no_vibrate():
+    """Dummy events are not gestures, so the glove must not buzz."""
+    source = tcp_client_mqtt.MqttEventSource(asyncio.Queue(), mqtt_publisher.PublishStats())
+    writer = FrameWriter()
+
+    await asyncio.wait_for(source.emit(writer, 1, "c"), timeout=DEADLINE_S)
+    await asyncio.wait_for(source.emit(writer, None), timeout=DEADLINE_S)
+
+    assert writer.frames() == []
+
+
+def test_board_and_laptop_agree_on_the_vibrate_pattern():
+    """Check the board's and the laptop's copies of the pattern match."""
+    import ble_packet
+
+    assert tcp_client_mqtt.VIBRATE_RECOGNISED == ble_packet.VIBRATE_RECOGNISED
+
+
 # --------------------------------------------------------------------------
 # The laptop half of configuration B
 # --------------------------------------------------------------------------
@@ -461,7 +515,7 @@ async def test_laptop_warns_when_the_board_is_in_the_wrong_configuration(caplog)
     with caplog.at_level(logging.WARNING, logger="pipeline_board_broker"):
         await asyncio.wait_for(
             asyncio.gather(
-                pipeline_board_broker.drain_downlink(downlink, stop),
+                pipeline_board_broker.drain_downlink(downlink, {}, stop),
                 stop_when_drained(),
             ),
             timeout=DEADLINE_S,
@@ -469,6 +523,77 @@ async def test_laptop_warns_when_the_board_is_in_the_wrong_configuration(caplog)
 
     messages = " ".join(record.getMessage() for record in caplog.records)
     assert "tcp_client_mqtt" in messages
+
+
+async def drain(downlink, outboxes):
+    """Run drain_downlink until it has taken every message off `downlink`."""
+    import pipeline_board_broker
+
+    stop = asyncio.Event()
+
+    async def stop_when_drained():
+        while downlink.qsize():
+            await asyncio.sleep(0)
+        await asyncio.sleep(0)
+        stop.set()
+
+    await asyncio.wait_for(
+        asyncio.gather(
+            pipeline_board_broker.drain_downlink(downlink, outboxes, stop),
+            stop_when_drained(),
+        ),
+        timeout=DEADLINE_S,
+    )
+
+
+@pytest.mark.asyncio
+async def test_laptop_sends_a_vibrate_to_that_players_glove_only(caplog):
+    import ble_client
+    import ble_packet
+
+    outboxes = ble_client.make_outboxes(ble_client.NODES)
+    downlink = asyncio.Queue()
+    for _ in range(2):
+        downlink.put_nowait({"type": "VIBRATE", "node": 2, "pattern": 1})
+
+    with caplog.at_level(logging.WARNING, logger="pipeline_board_broker"):
+        await drain(downlink, outboxes)
+
+    assert outboxes[1].empty()
+    packets = [outboxes[2].get_nowait() for _ in range(2)]
+    decoded = [ble_packet.decode(packet) for packet in packets]
+    assert [(t, seq) for t, seq, _ in decoded] == [(ble_packet.TYPE_CMD, 0), (ble_packet.TYPE_CMD, 1)]
+    fields = ble_packet.unpack_fields(decoded[0][2])
+    assert fields[0] == ble_packet.VIBRATE_RECOGNISED
+    assert fields[ble_packet.CMD_KIND_FIELD] == ble_packet.CMD_VIBRATE
+    assert not caplog.records, "a VIBRATE is not a sign of the wrong configuration"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "msg",
+    [
+        {"type": "VIBRATE", "node": 3, "pattern": 1},  # no such glove
+        {"type": "VIBRATE", "node": True, "pattern": 1},
+        {"type": "VIBRATE", "node": 1, "pattern": "1"},
+        {"type": "VIBRATE", "node": 1},
+        {"type": "VIBRATE", "node": 1, "pattern": 40000},  # not an int16
+    ],
+)
+async def test_laptop_drops_a_malformed_vibrate_and_carries_on(msg, caplog):
+    import ble_client
+
+    outboxes = ble_client.make_outboxes(ble_client.NODES)
+    downlink = asyncio.Queue()
+    downlink.put_nowait(msg)
+    downlink.put_nowait({"type": "VIBRATE", "node": 1, "pattern": 1})
+
+    with caplog.at_level(logging.WARNING, logger="pipeline_board_broker"):
+        await drain(downlink, outboxes)
+
+    assert outboxes[1].qsize() == 1, "the valid one still gets through after the bad one"
+    assert outboxes[2].empty()
+    assert any("dropping VIBRATE" in record.getMessage() for record in caplog.records)
 
 
 def test_laptop_configuration_b_has_no_mqtt_leg():

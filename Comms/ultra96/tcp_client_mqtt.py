@@ -6,8 +6,9 @@ Use this or `tcp_client.py` (configuration A), never both.
     B   board --MQTT--> broker on this board --> phones
 
 In both, sensor data still comes up from the laptop over TCP. Under B the board
-publishes its own AI events, so they never go back down the tunnel. The TCP side is
-reused from `tcp_client.py` unchanged. Design and results: `notes/tunnelled_visualiser.md`.
+publishes its own AI events, so they never go back down the tunnel. Only a VIBRATE for
+the player's glove does, after each classified gesture. The TCP side is reused from
+`tcp_client.py` unchanged.
 
     python3 tcp_client_mqtt.py --host 127.0.0.1 --port 8888
 
@@ -23,6 +24,7 @@ import envelope
 import gesture
 import mqtt_publisher
 from board_logging import DEFAULT_LOG_FILE, setup_logging
+from framing import send_message
 from tcp_client import (
     CONNECT_TIMEOUT_S,
     RECONNECT_BACKOFF_S,
@@ -40,12 +42,17 @@ log = logging.getLogger("tcp_client_mqtt")
 # Separate from tcp_client.py's log, so you can tell which client was running.
 LOG_FILE = DEFAULT_LOG_FILE.with_name("tcp_client_mqtt.log")
 
+# sent to the laptop after each classified gesture, so it buzzes that player's glove
+VIBRATE = "VIBRATE"
+VIBRATE_RECOGNISED = 1  # must match VIBRATE_RECOGNISED in the laptop's ble_packet.py
+
 
 class MqttEventSource:
     """Makes AI events and queues them for MQTT.
 
     Drop-in for `tcp_client.EventSource`, so `receiver` and `event_ticker` work
-    unchanged. Keep `emit`'s signature the same; `writer` is accepted but not used.
+    unchanged. Keep `emit`'s signature the same. `writer` is only used to send the
+    VIBRATE after a classified gesture.
     """
 
     def __init__(self, outbound, stats):
@@ -58,7 +65,11 @@ class MqttEventSource:
         """Make one AI event for `player` and queue it to publish.
 
         `result` is the classifier's answer. If there is none, the event is a dummy.
-        Never blocks or raises, so a broker outage cannot stall the TCP side.
+        Queuing never blocks or raises, so a broker outage cannot stall the TCP side.
+        A classified gesture also sends a VIBRATE for `player` to the laptop.
+
+        Raises:
+            OSError, FramingError: sending the VIBRATE failed. `receiver` then ends the session.
         """
         event = ai_events.make_event(player, self.seq, key, result)
 
@@ -83,6 +94,11 @@ class MqttEventSource:
             gesture.log_fields(result),
             topic,
         )
+        if result is not None:
+            await send_message(
+                writer, {"type": VIBRATE, "node": player, "pattern": VIBRATE_RECOGNISED}
+            )
+            log.info("VIBRATE node=%d pattern=%d sent", player, VIBRATE_RECOGNISED)
         return event
 
 

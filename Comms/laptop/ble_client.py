@@ -37,6 +37,7 @@ from ble_packet import (
     decode,
     format_packet,
     imu_status,
+    is_vibrate_echo,
     unpack_fields,
 )
 from logging_setup import PROGRESS, setup_logging
@@ -280,12 +281,17 @@ def make_notify_handler(node, queue, stats):
             if packet_type == TYPE_ECHO:
                 # An ECHO reuses its CMD's seq, not the sensor stream's, so skip the gap check.
                 stats.echoed += 1
-                nlog.info(
-                    "node %d: ECHO seq=%d fields[:3]=%s",
-                    node.node_id,
-                    seq,
-                    unpack_fields(payload)[:3],
-                )
+                if is_vibrate_echo(payload):
+                    # not forwarded, so the board can't mistake it for a keypress
+                    forward = False
+                    nlog.info("node %d: VIBRATE seq=%d echoed, not forwarded", node.node_id, seq)
+                else:
+                    nlog.info(
+                        "node %d: ECHO seq=%d fields[:3]=%s",
+                        node.node_id,
+                        seq,
+                        unpack_fields(payload)[:3],
+                    )
             elif stats.last_seq is None:
                 stats.last_seq = seq
             else:

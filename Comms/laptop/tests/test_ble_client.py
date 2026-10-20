@@ -23,6 +23,8 @@ from ble_client import (
     setup_connection,
 )
 from ble_packet import (
+    CMD_KIND_FIELD,
+    CMD_VIBRATE,
     CRC_OFFSET,
     DATA_FIELD_COUNT,
     IMU_FIELD_COUNT,
@@ -31,10 +33,12 @@ from ble_packet import (
     RESERVED_FIELD_COUNT,
     TYPE_ECHO,
     TYPE_SENSOR,
+    VIBRATE_RECOGNISED,
     BlePacket,
     build_cmd_packet,
     build_fixed_packet,
     calculate_crc,
+    unpack_fields,
 )
 from logging_setup import LINK_COLOURS, NODE_COLOURS, ConsoleColourFormatter, _sgr
 
@@ -109,6 +113,24 @@ async def test_echo_does_not_disturb_seq_tracking():
     assert stats.received == 4
     assert stats.last_seq == 12
     assert queue.qsize() == 4  # the ECHO is forwarded like any other uplink packet
+
+
+@pytest.mark.asyncio
+async def test_a_vibrates_echo_is_not_forwarded_to_the_board():
+    """If forwarded, the board would treat it as a keypress and publish a fake gesture."""
+    queue = asyncio.Queue(maxsize=100)
+    stats = NodeStats()
+    handler = make_notify_handler(NODES[0], queue, stats)
+    vibrate = [-VIBRATE_RECOGNISED] + [0] * (DATA_FIELD_COUNT - 1)  # as the firmware echoes it
+    vibrate[CMD_KIND_FIELD] = CMD_VIBRATE
+    keystroke = [-ord("1")] + [0] * (DATA_FIELD_COUNT - 1)
+
+    handler(None, make_packet(TYPE_ECHO, 0, vibrate))
+    handler(None, make_packet(TYPE_ECHO, 0, keystroke))
+
+    assert stats.echoed == 2
+    assert queue.qsize() == 1
+    assert unpack_fields(queue.get_nowait().payload)[0] == -ord("1")
 
 
 @pytest.mark.asyncio

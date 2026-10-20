@@ -32,6 +32,7 @@ import logging
 from pathlib import Path
 
 import ble_client
+import ble_packet
 import tcp_server
 import tunnel
 from mqtt_config import port_number
@@ -48,23 +49,57 @@ LOG_FILE = Path(__file__).resolve().parent.parent / "logs" / "pipeline_board_bro
 
 log = logging.getLogger("pipeline_board_broker")
 
+VIBRATE = "VIBRATE"  # sent by the board after it classifies a gesture
 
-async def drain_downlink(downlink, stop):
-    """Log and discard whatever the board sends down the TCP leg.
+
+def _is_int(value):
+    """Return True for an int that is not a bool."""
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
+def post_vibrate(msg, outboxes, seq):
+    """Turn a VIBRATE from the board into a CMD in that player's outbox.
+
+    A malformed one is logged and dropped, since retrying would not fix it.
+    Returns True if a CMD was queued.
+    """
+    node, pattern = msg.get("node"), msg.get("pattern")
+    if not (_is_int(node) and node in outboxes and _is_int(pattern)):
+        log.warning("dropping VIBRATE with node=%.20r pattern=%.20r", node, pattern)
+        return False
+    try:
+        packet = ble_packet.build_vibrate_packet(seq, pattern)
+    except OverflowError:
+        log.warning("dropping VIBRATE for node %d: pattern %d is not an int16", node, pattern)
+        return False
+    if ble_client.post_command(outboxes[node], packet):
+        log.warning("node %d: outbox full, oldest CMD dropped to queue seq=%d", node, seq)
+    log.info("VIBRATE node=%d pattern=%d -> CMD seq=%d queued", node, pattern, seq)
+    return True
+
+
+async def drain_downlink(downlink, outboxes, stop):
+    """Pass each VIBRATE from the board on to its glove, and log and discard anything else.
 
     Under configuration A this queue carried AI events into `forward_downlink` and
-    on to MQTT. Under B the board publishes those itself, so anything arriving here
-    is unexpected.
+    on to MQTT. Under B the board publishes those itself, so the only thing it sends
+    down is a VIBRATE.
 
     HEARTBEATs never reach this queue: `tcp_server` answers them itself and they go
     no further, which is why omitting this leg's MQTT half does not make the tunnel
     flap.
     """
+    seq = 0  # counts VIBRATEs only, separate from the keystroke CMDs
     seen = 0
     while not stop.is_set():
         try:
             msg = await asyncio.wait_for(downlink.get(), timeout=1.0)
         except asyncio.TimeoutError:
+            continue
+
+        if isinstance(msg, dict) and msg.get("type") == VIBRATE:
+            if post_vibrate(msg, outboxes, seq):
+                seq = (seq + 1) & 0xFF
             continue
 
         seen += 1
@@ -92,7 +127,7 @@ async def run_pipeline(nodes, tcp_host, tcp_port, tunnel_config=None, tunnel_pas
         asyncio.create_task(ble_client.run_all(nodes, ble_queue, outboxes, stop)),
         asyncio.create_task(tcp_server.run(tcp_host, tcp_port, downlink)),
         asyncio.create_task(forward_uplink(ble_queue, stop)),
-        asyncio.create_task(drain_downlink(downlink, stop)),
+        asyncio.create_task(drain_downlink(downlink, outboxes, stop)),
         asyncio.create_task(keystroke_reader(nodes, outboxes, stop)),
     ]
     if tunnel_config is not None:

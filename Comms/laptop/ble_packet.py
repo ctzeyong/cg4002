@@ -6,7 +6,8 @@
     bytes 24-25 CRC-16/CCITT-FALSE of bytes 0-23, little-endian
 
 In a SENSOR packet the first reserved field is the IMU status (firebeetle/imu.h),
-which ImuCheck turns into warnings.
+which ImuCheck turns into warnings. In a CMD it says what kind of command it is, and a
+VIBRATE puts its pattern in field 0.
 
 No bleak or asyncio here, so the format can be tested without Bluetooth.
 """
@@ -54,6 +55,12 @@ IMU_PROBLEMS = {
     IMU_MISSING: "IMU missing, sending zeros",
     IMU_RECOVERING: "IMU recovering after a reset",
 }
+
+# reserved[0] of a CMD says what kind it is, 0 for keystrokes
+# the board only negates the IMU fields, so its ECHO brings the kind back unchanged
+CMD_KIND_FIELD = IMU_FIELD_COUNT
+CMD_VIBRATE = 1
+VIBRATE_RECOGNISED = 1  # field 0 of a VIBRATE, meaning the board classified a gesture
 
 
 class PacketLengthError(ValueError):
@@ -193,6 +200,23 @@ def build_cmd_packet(seq, fields):
         OverflowError: a field outside the signed 16-bit range.
     """
     return build_fixed_packet(TYPE_CMD, seq, fields)
+
+
+def build_vibrate_packet(seq, pattern):
+    """Build a VIBRATE, which is a CMD with `pattern` in field 0.
+
+    Raises:
+        OverflowError: `pattern` does not fit in an int16.
+    """
+    fields = [0] * DATA_FIELD_COUNT
+    fields[0] = pattern
+    fields[CMD_KIND_FIELD] = CMD_VIBRATE
+    return build_cmd_packet(seq, fields)
+
+
+def is_vibrate_echo(payload):
+    """Return True if this ECHO is the board's reply to a VIBRATE."""
+    return unpack_fields(payload)[CMD_KIND_FIELD] == CMD_VIBRATE
 
 
 def format_packet(packet):

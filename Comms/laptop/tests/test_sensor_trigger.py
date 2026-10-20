@@ -369,6 +369,32 @@ async def test_configuration_b_session_queues_a_flagged_gesture():
 
 
 @pytest.mark.asyncio
+async def test_configuration_b_session_sends_the_laptop_a_vibrate_for_a_flagged_gesture():
+    events = tcp_client_mqtt.MqttEventSource(
+        asyncio.Queue(maxsize=8), mqtt_publisher.PublishStats()
+    )
+    received = []
+
+    async def laptop(reader, writer):
+        for frame in flagged_gesture(2, 0, 30, 10.0):
+            await send_message(writer, frame)
+        while True:
+            msg = await recv_message(reader)
+            if msg.get("type") != "HEARTBEAT":
+                received.append(msg)
+                writer.close()
+                return
+
+    async with serving(laptop) as port:
+        await asyncio.wait_for(
+            tcp_client_mqtt.one_session("127.0.0.1", port, events, gesture_flag=True),
+            timeout=DEADLINE_S,
+        )
+
+    assert received == [{"type": "VIBRATE", "node": 2, "pattern": 1}]
+
+
+@pytest.mark.asyncio
 async def test_with_the_gesture_flag_a_reconnect_starts_every_gesture_again(caplog):
     """Session 1 sends half a gesture; session 2's unflagged packet must not end it."""
     sessions = []
@@ -503,7 +529,7 @@ async def test_both_configurations_emit_the_classifiers_answer_alike(caplog):
         logging.INFO, logger="tcp_client_mqtt"
     ):
         event_a = await tcp_client.EventSource().emit(Writer(), 1, None, result)
-        event_b = await source_b.emit(None, 1, None, result)
+        event_b = await source_b.emit(Writer(), 1, None, result)
 
     assert event_a["gesture"] == event_b["gesture"] == "4"
     assert set(event_a) == set(event_b) == set(ai_events.random_event(1, 0))
