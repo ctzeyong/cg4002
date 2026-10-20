@@ -1,0 +1,7 @@
+{
+  "sessions": [
+    {"csv": "sessions/p1_day1.csv", "group": "p1_day1", "split": "train"},
+    {"csv": "sessions/p1_day2.csv", "group": "p1_day2", "split": "validation"},
+    {"csv": "sessions/p1_day3.csv", "group": "p1_day3", "split": "test"}
+  ]
+}
