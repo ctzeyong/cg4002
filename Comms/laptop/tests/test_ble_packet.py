@@ -1,5 +1,8 @@
 """Pure wire-format tests for BLE SENSOR, CMD and ECHO packets."""
 
+import pathlib
+import re
+
 import pytest
 
 from ble_packet import (
@@ -172,6 +175,25 @@ def test_only_a_vibrates_echo_is_recognised_as_one():
     # a keystroke CMD, as pipeline.keystroke_reader builds it
     keystroke = build_cmd_packet(0, [ord("1")] + [0] * (DATA_FIELD_COUNT - 1))
     assert not is_vibrate_echo(firmware_echo(keystroke))
+
+
+def firmware_constants():
+    """Return the sketch's `static constexpr` integers, resolving one that names another."""
+    sketch = pathlib.Path(__file__).resolve().parents[2] / "firebeetle" / "firebeetle.ino"
+    found = re.findall(r"static constexpr \w+ (\w+) = (\w+);", sketch.read_text(encoding="utf-8"))
+    constants = {}
+    for name, value in found:
+        constants[name] = int(value, 0) if value[0].isdigit() else constants.get(value)
+    return constants
+
+
+def test_firmware_and_laptop_agree_on_the_vibrate_command():
+    """The glove only buzzes if it reads the kind and pattern where the laptop writes them."""
+    firmware = firmware_constants()
+
+    assert firmware["CMD_KIND_FIELD"] == CMD_KIND_FIELD
+    assert firmware["CMD_VIBRATE"] == CMD_VIBRATE
+    assert firmware["VIBRATE_RECOGNISED"] == VIBRATE_RECOGNISED
 
 
 def test_format_packet_is_readable_and_shows_named_fields_and_crc():

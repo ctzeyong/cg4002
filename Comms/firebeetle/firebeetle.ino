@@ -13,6 +13,9 @@
 //
 // Once the link is encrypted the board requests a 15 ms connection interval. Left alone
 // Windows settles at 60 ms, which is ~17 connection events/s shared between both boards.
+//
+// A CMD whose first reserved field is CMD_VIBRATE pulses the vibration motor. It is still
+// echoed like any other CMD, and the laptop drops that echo.
 
 #include <Arduino.h>
 #include <NimBLEDevice.h>
@@ -66,6 +69,21 @@ static constexpr size_t FILE_MAX_PACKET_LEN = PREFERRED_MTU - 3;
 static constexpr uint32_t PACKET_PERIOD_MS = 10;  // 10 = 100 Hz, the validated two-node rate; 6 = ~167 Hz, two-board maximum
 static constexpr uint32_t IMU_TIMING_REPORT_MS = 5000;
 
+// reserved[0] of a CMD is its kind, and field 0 a VIBRATE's pattern (ble_packet.py)
+static constexpr size_t CMD_KIND_FIELD = IMU_FIELD_COUNT;
+static constexpr int16_t CMD_VIBRATE = 1;
+static constexpr int16_t VIBRATE_RECOGNISED = 1;  // the board classified a gesture
+
+// Vibration motor, from hardware's bluetooth_mpu_motor_test.ino: GPIO 2 drives a transistor,
+// never the motor directly. GPIO 2 is a strapping pin, so the driver must not pull it high
+// at reset.
+static constexpr uint8_t MOTOR_PIN = 2;
+static constexpr uint8_t MOTOR_PWM_CHANNEL = 0;  // ESP32 core 2.x only
+static constexpr uint32_t MOTOR_PWM_FREQUENCY_HZ = 20000;
+static constexpr uint8_t MOTOR_PWM_RESOLUTION_BITS = 8;
+static constexpr uint8_t MOTOR_DUTY = 128;  // 50 % of 0-255
+static constexpr uint32_t MOTOR_PULSE_MS = 200;
+
 // Requested BLE connection parameters.
 // Intervals use 1.25 ms units: 12 × 1.25 ms = 15 ms.
 // Timeout uses 10 ms units: 200 × 10 ms = 2 seconds.
@@ -92,11 +110,14 @@ static uint32_t g_slowestImuReadUs = 0;
 static uint32_t g_slowestGestureFlagUs = 0;
 static uint32_t g_imuTimingReportedAt = 0;
 
+static bool g_motorOn = false;
+static uint32_t g_motorOffAt = 0;
+
 // Downlink hand-off. onWrite runs on the NimBLE host task; loop() drains it. Going
 // through a buffer rather than notifying straight from onWrite keeps every notify()
 // call on the one task, so sensor, command and file notifications stay serialised.
-// One slot is enough: CMD is keystroke-paced and file transfer is stop-and-wait, so
-// the laptop does not write the next packet until this one has been returned.
+// One slot is enough: CMD is keystroke- or gesture-paced and file transfer is stop-and-wait,
+// so the laptop does not write the next packet until this one has been returned.
 static volatile bool g_downlinkPending = false;
 static size_t g_downlinkLen = 0;
 static uint8_t g_downlinkBuf[FILE_MAX_PACKET_LEN];
@@ -153,6 +174,44 @@ static bool hasValidPacketCrc(const uint8_t *buf) {
     const uint16_t received = static_cast<uint16_t>(buf[CRC_OFFSET]) |
                               (static_cast<uint16_t>(buf[CRC_OFFSET + 1]) << 8);
     return received == calculateCrc(buf, CRC_OFFSET);
+}
+
+/** Sets the motor's PWM duty: 0 is off. */
+static void writeMotorDuty(uint8_t duty) {
+#if defined(ESP_ARDUINO_VERSION_MAJOR) && ESP_ARDUINO_VERSION_MAJOR >= 3
+    ledcWrite(MOTOR_PIN, duty);
+#else
+    ledcWrite(MOTOR_PWM_CHANNEL, duty);
+#endif
+}
+
+/** Attaches the motor pin to PWM and turns the motor off. */
+static void configureMotor() {
+#if defined(ESP_ARDUINO_VERSION_MAJOR) && ESP_ARDUINO_VERSION_MAJOR >= 3
+    if (!ledcAttach(MOTOR_PIN, MOTOR_PWM_FREQUENCY_HZ, MOTOR_PWM_RESOLUTION_BITS)) {
+        Serial.println("[MOTOR] PWM attach failed");
+    }
+#else
+    ledcSetup(MOTOR_PWM_CHANNEL, MOTOR_PWM_FREQUENCY_HZ, MOTOR_PWM_RESOLUTION_BITS);
+    ledcAttachPin(MOTOR_PIN, MOTOR_PWM_CHANNEL);
+#endif
+    writeMotorDuty(0);
+}
+
+/** Starts one MOTOR_PULSE_MS pulse, or restarts it if one is running. */
+static void startMotorPulse() {
+    writeMotorDuty(MOTOR_DUTY);
+    g_motorOn = true;
+    g_motorOffAt = millis() + MOTOR_PULSE_MS;
+}
+
+/** Ends the pulse once it is due. Called every pass of loop(), so nothing blocks. */
+static void updateMotor() {
+    if (!g_motorOn || static_cast<int32_t>(millis() - g_motorOffAt) < 0) {
+        return;
+    }
+    writeMotorDuty(0);
+    g_motorOn = false;
 }
 
 class ServerCallbacks : public NimBLEServerCallbacks {
@@ -322,6 +381,9 @@ void setup() {
     delay(200);
     Serial.printf("\n[BLE] boot: B16 Player-%d peripheral\n", PLAYER_ID);
 
+    configureMotor();
+    Serial.printf("[MOTOR] ready on GPIO %u\n", static_cast<unsigned>(MOTOR_PIN));
+
     // if the IMU is missing, BLE still starts and the board sends zeros with IMU_MISSING
     // until the IMU answers
     if (imuBegin(PLAYER_ID)) {
@@ -370,6 +432,7 @@ void setup() {
 void loop() {
     // every pass, connected or not, so the gesture detector gets every 500 Hz reading
     timedImuService();
+    updateMotor();
 
     const uint32_t now = millis();
 
@@ -425,6 +488,19 @@ void loop() {
         const size_t length = g_downlinkLen;
         memcpy(buf, g_downlinkBuf, length);  // copy received packet before marking as handled
         g_downlinkPending = false;
+
+        if (buf[0] == TYPE_CMD && readField(buf, CMD_KIND_FIELD) == CMD_VIBRATE) {
+            const int16_t pattern = readField(buf, 0);
+            if (pattern == VIBRATE_RECOGNISED) {
+                startMotorPulse();
+                Serial.printf("[MOTOR] VIBRATE seq=%u: %u ms pulse\n",
+                              static_cast<unsigned>(buf[1]),
+                              static_cast<unsigned>(MOTOR_PULSE_MS));
+            } else {
+                Serial.printf("[MOTOR] VIBRATE seq=%u: unknown pattern %d, not pulsed\n",
+                              static_cast<unsigned>(buf[1]), pattern);
+            }
+        }
 
         if (buf[0] == TYPE_CMD) {
             // "Modify the data and send it back": convert into ECHO response by
