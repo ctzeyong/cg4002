@@ -8,6 +8,10 @@ changes its implementation.
 > reports sensor faults, and keeps the existing 26-byte SENSOR packet. A board with no IMU
 > attached has been flashed and checked (see [Verification](#verification-and-current-evidence)).
 > Real IMU readings and a two-player run are still to be tested.
+>
+> **20 Oct 2026, on `mvp-full-pipeline`:** Hardware's gesture detector runs in the firmware,
+> reading every sample from the MPU6050's FIFO at 500 Hz. Compiled and checked in a host
+> simulation, not yet flashed.
 
 ## Architecture overview
 
@@ -76,7 +80,10 @@ are prototypes and are not runtime dependencies.
 | `IMU_GYRO_RANGE_DPS` | Compile-time gyroscope range; currently `500` |
 | `ImuStatus` | Distinguish a real sample from a missing or recovering sensor |
 | `imuBegin(uint8_t player)` | Start and check the sensor once during firmware setup |
-| `imuRead(int16_t out[6])` | Read one ordered sample and return its status |
+| `imuService()` | Read the sensor and run Hardware's gesture detector, on every pass of `loop()` |
+| `imuRead(int16_t out[6])` | Give the newest ordered sample and its status, once per packet |
+| `gestureFlag(sample, status)` | 1 while Hardware's detector says the hand may be making a gesture, sent in `reserved[1]` |
+| `imuPrintStats()` | Print the detector's counts to serial, every 5 s |
 
 The call used by Comms is:
 
@@ -85,8 +92,11 @@ if (!imuBegin(PLAYER_ID)) {
     // BLE still starts; SENSOR packets report IMU_MISSING.
 }
 
+imuService();                      // first thing in every loop() pass
+
 int16_t values[6];
-ImuStatus status = imuRead(values);
+ImuStatus status = imuRead(values);  // once per 10 ms packet
+int16_t flag = gestureFlag(values, status);
 ```
 
 The player ID is already passed to `imuBegin()` so per-player calibration can be added inside the
@@ -100,17 +110,25 @@ The current physical and acquisition assumptions are:
 |---|---|
 | Sensor count | One MPU6050 per FireBeetle |
 | I2C address | `0x68` (`AD0` low) |
-| FireBeetle pins | SDA GPIO 21, SCL GPIO 22 |
+| FireBeetle pins | SDA GPIO 21, SCL GPIO 22; vibration motor driver GPIO 2 |
 | I2C clock | 400 kHz |
 | Accelerometer | ±4 g, `8192` counts/g |
 | Gyroscope | ±500 °/s, `65.5` counts/(°/s) |
 | Digital low-pass filter | 42 Hz |
 | MPU6050 internal rate | 500 Hz |
-| FireBeetle read rate | Target 100 Hz, one latest register sample every 10 ms |
+| FireBeetle read rate | Every 500 Hz sample, from the MPU6050's FIFO, for the gesture detector |
+| Packet rate | 100 Hz, the newest sample every 10 ms |
 
-The sensor produces internally at 500 Hz, but Comms reads only the latest registers at 100 Hz;
-the other internal samples are not transmitted. Raw counts cross the boundary unchanged: Comms
+The sensor writes every sample into its FIFO at 500 Hz. `imuService()` reads all of them for
+Hardware's gesture detector, which needs every one exactly 2 ms apart. Only the newest is sent in
+each 10 ms packet; the others are not transmitted. Raw counts cross the boundary unchanged: Comms
 does not scale, reorder, or convert them to physical units.
+
+**The gesture detector** is Hardware's `gesture_core.h`, `segments.h` and `model_data.h`, copied
+unchanged from `Hardware/Data Collection/esp32_continuous_pipeline_test/` into
+`Comms/firebeetle/`. `gestureFlag()` returns its segmenter's "in a gesture" state. If the files are
+updated in Hardware's folder, copy them across again: `laptop/tests/test_firmware_detector.py`
+fails until the two match, and the sketch refuses to compile with the untrained placeholder model.
 
 ### Output, timing, and failure contract
 
@@ -121,7 +139,7 @@ does not scale, reorder, or convert them to physical units.
 | `0` | `IMU_UNREPORTED` | Unspecified | Compatibility with firmware from before this status field |
 | `1` | `IMU_OK` | Real raw counts | Successful sensor sample |
 | `2` | `IMU_MISSING` | All zero | The sensor did not answer |
-| `3` | `IMU_RECOVERING` | All zero | Settings changed and were restored on this read |
+| `3` | `IMU_RECOVERING` | All zero | The readings restarted: the sensor was set up again, is still settling (100 ms), or its FIFO lost or stopped giving samples |
 
 Each I2C operation uses a 5 ms timeout. `imuRead()` must remain fast enough for the 10 ms packet
 period, must not halt the FireBeetle on failure, and must never report a missing sensor as
@@ -137,14 +155,19 @@ consumer that needs a real sample must require `IMU_OK`.
    accelerometer-range registers.
 2. The adapter reads every setting back. A write is not treated as successful until all settings
    match.
-3. A healthy `imuRead()` performs one 14-byte burst, skips the temperature bytes, and converts
-   the MPU6050's big-endian registers into six signed values.
-4. Once per second, the adapter reads the settings back to detect a reset or unplugged sensor.
-   Changed settings are restored and reported as `IMU_RECOVERING` for that packet. Because
-   this check runs only once a second, a reset can go unnoticed for up to a second. During that
-   time the packets still say OK but carry frozen values.
-5. While the sensor is offline, normal reads return `IMU_MISSING` without repeatedly accessing
-   I2C. The once-per-second check detects when it is available again.
+3. After any setup the readings are ignored for 100 ms while the chip settles, as Hardware's
+   sketch does, then the FIFO is emptied and the detector starts again.
+4. A healthy `imuService()` reads the FIFO's count and then each 12-byte sample (big-endian, accel
+   then gyro), at most 8 per pass. Each goes to the detector, and the newest is kept for
+   `imuRead()`.
+5. If the FIFO filled up (`loop()` held up over 170 ms) or gave nothing for 50 ms, the FIFO is
+   emptied and the detector starts again. The next packet after an OK one then says
+   `IMU_RECOVERING`, so nothing downstream joins samples from both sides of the gap.
+6. Once per second, the adapter reads the settings back to detect a reset or unplugged sensor,
+   and sets the sensor up again. A reset also stops the FIFO, so packets say `IMU_RECOVERING`
+   rather than sending frozen values.
+7. While the sensor is offline, `imuService()` does no I2C and `imuRead()` returns `IMU_MISSING`.
+   The once-per-second check detects when it is available again.
 
 <details>
 <summary>Current sensor-specific register settings</summary>
@@ -172,7 +195,8 @@ public ranges, sample meaning, status behaviour, and timing remain equivalent.
 | `1` | `seq` | 8-bit sensor sequence, wrapping `255 -> 0` |
 | `2–13` | Six `int16` fields | `ax, ay, az, gx, gy, gz`, little-endian |
 | `14–15` | `reserved[0]` | `ImuStatus`, little-endian signed `int16` |
-| `16–23` | `reserved[1..4]` | Zero; reserved for later use |
+| `16–17` | `reserved[1]` | Gesture flag: `1` while Hardware's detector says the hand may be making a gesture, else `0` |
+| `18–23` | `reserved[2..4]` | Zero; reserved for later use |
 | `24–25` | CRC | CRC-16/CCITT-FALSE over bytes `0–23`, little-endian |
 
 Player identity is not stored in the packet. It comes from the player-specific BLE connection.
@@ -226,9 +250,12 @@ flashing the first FireBeetle and `2` before flashing the second.
 Expected serial output with the IMU connected:
 
 ```text
+[MOTOR] ready on GPIO 2
+[IMU] gesture model 342c4355152c26f4
 [IMU] ready
 [BLE] link encrypted -> streaming enabled
-[IMU] status=1, slowest imuRead since last report: ... us
+[IMU] status=1, slowest since last report: imuService ... us, imuRead ... us, gestureFlag ... us
+[IMU] detector: readings=~2500 decisions=~100 max_score=... gestures started=... ended=... rejected=..., fifo overflows=0 stalls=0, detector gaps=0, clipped=...
 ```
 
 And with no IMU connected, where BLE still starts and the board sends zeros:
@@ -236,7 +263,7 @@ And with no IMU connected, where BLE still starts and the board sends zeros:
 ```text
 [IMU] not found
 [BLE] link encrypted -> streaming enabled
-[IMU] status=2, slowest imuRead since last report: ... us
+[IMU] status=2, slowest since last report: imuService ... us, imuRead ... us, gestureFlag ... us
 ```
 
 From `team/Comms`, run both players through the standalone laptop client:

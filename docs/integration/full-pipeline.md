@@ -1,29 +1,33 @@
-# Full pipeline: Hardware -> Comms -> AI
+# Full pipeline: Hardware -> Comms -> AI -> Visualiser
 
-This is the runbook for the merged `mvp-full-pipeline` branch. It explains how one player's
-physical motion becomes an AI event and how to run that path in Configuration B.
+This is the runbook for the merged `mvp-full-pipeline` branch. It explains how a player's hand
+movement becomes an action in the Vis game, and how to run that path in Configuration B.
 
-It does not replace the detailed [Hardware-Comms](hardware-comms.md) or
-[AI-Comms](ai-comms.md) contracts. Those documents describe each integration boundary; this
-page shows how the two boundaries work together.
+It does not replace the detailed [Hardware-Comms](hardware-comms.md) and [AI-Comms](ai-comms.md)
+contracts, or the [Vis drop-in README](../../Comms/phone/comms-visualiser/README.md). Those
+describe each integration boundary; this page shows how they work together.
 
-> **Current status (16 Oct 2026):** Hardware, Comms, and AI are merged. Two FireBeetles have
-> streamed through the merged Configuration B pipeline, and the Ultra96 correctly refused to
-> classify their missing-IMU zeros. FPGA classification and MQTT publishing were previously
-> exercised with synthetic sensor values. A real-IMU-to-FPGA classification run is still
-> blocked by the accelerometer scaling mismatch described below. The Visualiser is not part of
-> this integration yet, so the current endpoint is the Ultra96's MQTT broker.
+> **Current status (20 Oct 2026):** Every hop has run, but not yet all together.
+> - The gloves' gesture detector is compiled and checked in a simulation, not yet flashed onto a
+>   glove with an MPU6050.
+> - The board half has run on the real FPGA: recorded gestures replayed as packets, with the
+>   gesture flag, from two players through the laptop relay and the tunnel to `--gesture-flag`.
+> - Both iPhones have received hand-made events on the board's broker and spawned units.
+>
+> The first run with real gloves and the phones together is still to come.
 
 ## What is connected
 
 ```text
-One MPU6050 per player
-  raw ax, ay, az, gx, gy, gz
+One MPU6050 per glove
+  every reading, 500 Hz, through the chip's FIFO
        |
-       | I2C, read at a target 100 Hz
+       | I2C
        v
 FireBeetle firmware
-  adds IMU status, sequence number, and CRC
+  Hardware's gesture detector sees every reading
+  every 10 ms: the newest reading, IMU status in reserved[0],
+  gesture flag in reserved[1], sequence number and CRC
        |
        | encrypted BLE, 26-byte SENSOR packets
        v
@@ -33,65 +37,95 @@ Laptop Comms relay
        |
        | TCP through the reverse SSH tunnel
        v
+Ultra96 Comms client (--gesture-flag)
+  drops repeated, late and no-IMU samples; resets a player after a break;
+  passes every other sample to AI, marking the end of each flagged gesture
+       |
+       | GestureClassifier.feed(IMUSample(...), player)
+       v
+AI/board/wk10_integration.py + FPGA (baseline_improved.xsa)
+  per-player rolling 150-sample window; at the end of a gesture
+  returns a gesture name and confidence
+       |
+       v
 Ultra96 Comms client
-  keeps one validated 100-sample window per player
+  builds an AI_EVENT and publishes it at QoS 1;
+  sends a VIBRATE back to that player's glove
        |
-       | GestureClassifier.classify(samples, timeout=0.05)
+       | MQTT topic game/gesture/<player>, on the board's own broker
        v
-FPGA classifier
-  returns a label and confidence
-       |
-       v
-Ultra96 Comms client
-  builds an AI_EVENT and publishes it at QoS 1
-       |
-       | MQTT topic game/gesture/<player>
-       v
-Ultra96 Mosquitto broker
-  current end of the demonstrated merged path
-       |
-       `-- Visualiser/phones: to be integrated later
+Each iPhone (Vis app + Comms drop-in)
+  SSH tunnel to the board's broker; the hook acts on its own player's
+  topic as if the gesture had been drawn on the screen
 ```
 
 This page uses **Configuration B**, where the Ultra96 publishes directly to its own loopback
 broker. The laptop has no MQTT role in this configuration. Configuration A is still supported,
-but it is not the path currently used for full-pipeline integration.
+but it is not the path used for full-pipeline integration.
 
-## Run the current pipeline
+## Run the pipeline
 
 Complete the one-time [Configuration B setup](../subsystem/comms/README.md#2-run-configuration-b)
 first. In particular:
 
-- flash the merged FireBeetle firmware with the correct `PLAYER_ID` on each board;
 - prepare the laptop virtual environment and `.env` tunnel settings;
 - prepare the Ultra96 virtual environment and SSH access; and
 - run Mosquitto on the Ultra96. The board launcher warns if port `1883` is unavailable or is
   exposed beyond loopback.
 
-Open two PowerShell terminals in `team/Comms`. Start the laptop side first so the TCP server and
+### 1. Flash the gloves
+
+Flash [`firebeetle.ino`](../../Comms/firebeetle/firebeetle.ino) from the Arduino IDE onto each
+glove, with `#define PLAYER_ID` set to that glove's player. **The committed value is `2`**, so
+change it to `1` for player 1's glove. A board with no IMU, or another board with the same
+`PLAYER_ID`, should be switched off: the laptop connects to whichever answers first.
+
+With the Serial Monitor open at 115200, you should see:
+
+```text
+[BLE] boot: B16 Player-1 peripheral
+[MOTOR] ready on GPIO 2
+[IMU] gesture model 342c4355152c26f4
+[IMU] ready
+[BLE] advertising as B16-Player1
+```
+
+`[IMU] not found` means the MPU6050 did not answer on I2C address `0x68`, SDA 21 / SCL 22. The
+glove still streams, but every packet says the IMU is missing and no gestures are classified.
+
+A glove that has never connected to this laptop pairs by itself on the first connection. Only a
+board that has paired before and was then flashed with a different `PLAYER_ID` needs removing in
+Windows Bluetooth settings first.
+
+### 2. Start the laptop, then the board
+
+Open two PowerShell terminals in `team/Comms`. Start the laptop side first, so the TCP server and
 reverse tunnel are ready:
 
 ```powershell
-# Terminal 1: FireBeetles -> BLE -> laptop -> TCP tunnel
+# Terminal 1: gloves -> BLE -> laptop -> TCP tunnel (both players)
 .\scripts\run_pipeline.ps1
 ```
 
-Then deploy the current Comms board code, AI API, and bitstream, and start the board client:
+For one player, add `--nodes 1`. Without it, the laptop keeps scanning for the missing glove,
+which slows the connected glove's reconnects.
+
+Then deploy the current Comms board code, AI's module and its bitstream, and start the board
+client:
 
 ```powershell
-# Terminal 2: TCP -> window -> FPGA -> board-local MQTT broker
-.\scripts\run_board.ps1 --sync --sensor-trigger 100
+# Terminal 2: TCP -> AI on the FPGA -> board-local MQTT broker
+.\scripts\run_board.ps1 --sync --gesture-flag
 ```
 
-`--sync` copies every `Comms/ultra96/*.py` file, `AI/board/ai_api.py`, and
-`AI/board/gesture_min_q.xsa` into `~/comms/` before restarting the client. Use it after changing
-any of those files. Without `--sync`, the launcher attaches to an existing board client if one
-is already running; new command-line arguments do not replace that process's arguments.
+`--sync` copies every `Comms/ultra96/*.py` file and AI's files (`ai_api.py`, `gesture_min_q.xsa`,
+`wk10_integration.py` and `baseline_improved.xsa`) into `~/comms/` on the board, then restarts
+the client. Without `--sync`, the launcher attaches to a board client that is already running,
+and that client keeps the arguments it was started with. So use `--sync` whenever you change
+files or flags.
 
-`--sensor-trigger 100` enables classification and chooses a test boundary after a random 50 to
-150 SENSOR packets from each player. It is deliberately opt-in: this is a repeatable integration
-trigger, not the final gesture-segmentation design. Omitting the flag leaves sensor
-classification off.
+`--gesture-flag` turns classification on. Without it, the board makes events only from laptop
+keypresses (below).
 
 Useful board commands are:
 
@@ -103,155 +137,203 @@ Useful board commands are:
 .\scripts\run_board.ps1 --fetch-logs
 ```
 
+### 3. Connect the phones
+
+Follow the drop-in's [bring-up steps](../../Comms/phone/comms-visualiser/README.md#4-bring-up-every-launch):
+both iPhones must show `MQTT_CONNECTED` before anyone selects a player. In VsPlayer, **glove N's
+player selects Player N** on their phone. Player 1's phone is the host, where the match runs.
+Keep the crosshair on your own half: units need valid aim, the same as a drawn stroke.
+
 ### What a healthy run should show
 
-The board log should first identify the real FPGA classifier:
+Terminal 1, for each glove: `node N: subscribed`, then once a second
+`node N: n=… rate=~100 Hz … missed=0`, and no lasting `IMU missing` warning.
+
+Terminal 2 should first identify AI's model on the real FPGA. `StubAI` instead means the client
+found no FPGA:
 
 ```text
-classifier: GestureClassifier
+classifier: AI
 ```
 
-Once a player has 100 valid readings, a selected SENSOR packet should produce three related
-lines:
+Each gesture the glove flags should then produce:
 
 ```text
 trigger node=1 seq=... t_laptop_rx=... t_rx=...
-AI event seq=... player=1 ... gesture=... conf=... t_infer_ms=... missing=...
-published ultra96-relay:... to game/gesture/1 ...
+AI event seq=... player=1 key=None gesture=circle t_event=... conf=... t_infer_ms=... missing=... -> game/gesture/1
+VIBRATE node=1 pattern=1 sent
+published ultra96-relay:... to game/gesture/1 t=...
 ```
 
-If the IMU is absent or recovering, the expected result is instead:
+On the phone that selected that player, the game's feedback label shows `Circle (glove)
+accepted`. `rejected` still means the event arrived; the game refused it, for mana or aim.
+
+If a flagged gesture gets no answer from AI, the board says so instead:
 
 ```text
-no AI event: node 1 has 0 of 100 samples; the last ... had no IMU reading
+no AI event: node 1's flagged gesture of N samples gave no result
 ```
 
-That line is a safety check working correctly: zero-filled fault packets are reaching the
-Ultra96, but they are not reaching the classifier.
+The usual cause is that AI's window was not yet full. It needs 150 samples (1.5 s) after the
+board client connects, and after anything that resets the player (below).
+
+If nothing at all appears on terminal 2 when you gesture, check the glove's serial output. Every
+5 s it prints the detector's counts:
+
+```text
+[IMU] detector: readings=~2500 decisions=~100 max_score=... gestures started=... ended=... rejected=..., fifo overflows=0 stalls=0, detector gaps=0, clipped=...
+```
+
+`readings` near 2,500 means the FIFO works. `gestures started` and `ended` rising when you
+gesture means the detector fires.
+
+### Laptop keypresses
+
+A letter or digit typed into terminal 1 travels to the glove as a CMD packet and back as an ECHO,
+then on to the board, which publishes a made-up event without asking AI. `c k a z i t s` pick
+circle, caret, arc, z, infinity, triangle and star. `1` or `2` goes to that player only; any
+other key goes to every glove. Use it to check the phone half without gesturing.
 
 ## How a SENSOR packet becomes an event
 
-1. [`imuRead()`](../../Comms/firebeetle/imu.cpp) returns six signed raw counts and an
-   [`ImuStatus`](../../Comms/firebeetle/imu.h). Only status `IMU_OK` (`1`) represents a real
-   sensor reading.
-2. [`firebeetle.ino`](../../Comms/firebeetle/firebeetle.ino) puts the six values first, places
-   the status in `reserved[0]`, and sends a sequenced, CRC-protected packet every 10 ms while BLE
-   is ready.
+1. [`imuService()`](../../Comms/firebeetle/imu.cpp) runs on every pass of `loop()`. It reads every
+   500 Hz reading from the MPU6050's FIFO and gives each to Hardware's detector
+   (`gesture_core.h`, `segments.h`, `model_data.h`, copied unchanged from
+   `Hardware/Data Collection/esp32_continuous_pipeline_test/`).
+2. Every 10 ms, [`firebeetle.ino`](../../Comms/firebeetle/firebeetle.ino) sends the newest reading
+   as six raw counts, the [`ImuStatus`](../../Comms/firebeetle/imu.h) in `reserved[0]` and
+   `gestureFlag()` in `reserved[1]`: `1` while the detector's segmenter is in a gesture, else
+   `0`. Only status `IMU_OK` (`1`) represents a real sensor reading.
 3. [`ble_client.py`](../../Comms/laptop/ble_client.py) checks the packet, obtains the player from
    the BLE connection, and adds `timestamp = time.perf_counter()` when the notification is
    received. This timestamp is a laptop receive time, not the time of the physical measurement.
 4. [`pipeline_board_broker.py`](../../Comms/laptop/pipeline_board_broker.py) forwards the decoded
    message to the Ultra96 over TCP. It does not publish MQTT messages.
-5. [`gesture.Windows`](../../Comms/ultra96/gesture.py) keeps independent sequence state and
-   sample history for each player. It passes exactly the channels and window size declared by
-   AI's API to the classifier.
-6. [`GestureClassifier`](../../AI/board/ai_api.py) converts the counts to model units, quantises
-   the 600 inputs, runs the FPGA accelerator, and returns `(label, confidence)`.
-7. [`ai_events.make_event()`](../../Comms/ultra96/ai_events.py) places the returned label in
+5. [`gesture.Windows`](../../Comms/ultra96/gesture.py) applies the rules below to each player,
+   then passes every remaining sample to AI's `feed(IMUSample(...), player)`: `ax`..`gz`,
+   `end_of_gesture` and `timestamp`. `end_of_gesture` is `True` on the first sample after the
+   flag drops from 1 to 0.
+6. [`wk10_integration.py`](../../AI/board/wk10_integration.py) converts the counts to m/s² and
+   rad/s and appends them to that player's 150-sample window. On `end_of_gesture` it quantises
+   the window (900 inputs), runs the FPGA accelerator, and returns a gesture name and confidence.
+   Its contract is [`README_gesture_stream_sim.md`](../../AI/board/README_gesture_stream_sim.md).
+7. [`ai_events.make_event()`](../../Comms/ultra96/ai_events.py) places the name in
    `AI_EVENT.gesture`. [`tcp_client_mqtt.py`](../../Comms/ultra96/tcp_client_mqtt.py) wraps the
-   event and publishes it to `game/gesture/<player>` through the board's local broker.
+   event in the envelope and publishes it to `game/gesture/<player>` through the board's local
+   broker. It then sends `{"type": "VIBRATE", "node": <player>, "pattern": 1}` down the tunnel,
+   which the laptop turns into a CMD for that glove.
+8. On each iPhone, the drop-in's `AiGestureHook` subscribes to its own player's topic, ignores
+   repeated `event_id`s, maps the name onto the game's `GestureSymbol`, and calls
+   `GesturePad.PerformGesture(symbol, "glove")`. `PerformGesture` is in the Vis build used on
+   20 Oct, but not yet pushed to `origin/Vis`.
 
-The published payload currently contains `type`, `player`, `seq`, `gesture`, `mana_cost`, and
-`timestamp`. Confidence, inference time, and missing-packet count are log-only. `gesture` is
-currently a numeric string from `"0"` to `"6"`, and `mana_cost` is still random dummy data.
+The published payload contains `type`, `player`, `seq`, `gesture` and `timestamp`. Confidence,
+inference time and missing-packet count are log-only. `gesture` is one of the Vis game's seven
+names: `arc`, `caret`, `circle`, `infinity`, `star`, `triangle`, `z`.
 
-## Rules that protect the classifier input
+## Rules that protect the AI input
 
 The Ultra96 applies these rules separately to each player:
 
-- A window contains exactly 100 samples in oldest-to-newest order. Each sample has only `ax`,
-  `ay`, `az`, `gx`, `gy`, and `gz`.
-- Only packets with `reserved[0] == IMU_OK` enter the window. Missing, recovering, old-firmware,
-  unknown, or absent status clears the window instead of joining readings across an outage.
-- Malformed, repeated, and backwards SENSOR messages do not enter the window.
+- Each sample sent to AI has only `ax`, `ay`, `az`, `gx`, `gy` and `gz`, plus `end_of_gesture`
+  and `timestamp`.
+- Only packets with `reserved[0] == IMU_OK` reach AI. Missing, recovering, old-firmware,
+  unknown, or absent status resets that player instead of joining readings across an outage.
+- Malformed, repeated, and backwards SENSOR messages do not reach AI.
 - Forward sequence gaps are recorded as missing packets but do not invent replacement samples.
-- If more than `0.5 s` passes between a node's laptop receive timestamps, that node's window,
-  sequence state, no-IMU count, and receive-time state are cleared before the next sequence is
-  checked. This covers a BLE reconnect, FireBeetle reboot, or long stream stall without changing
-  the packet protocol.
-- A TCP reconnection creates fresh windows for all players. The already-loaded classifier is
-  reused across those sessions.
-- A recoverable `ClassifyError` skips one event and leaves packet reception running.
+- If more than `0.5 s` passes between a node's laptop receive timestamps, that player's state is
+  cleared, and AI is told to forget its window, before the next sequence is checked. This covers
+  a BLE reconnect, FireBeetle reboot, or long stream stall without changing the packet protocol.
+- A TCP reconnection clears every player's window in AI. The already-loaded model is reused
+  across those sessions.
+- A DMA stall in AI logs a warning and skips that gesture, and packet reception keeps running.
 
-At 100 Hz, a `0.5 s` break already represents about 50 absent samples, so the old 100-sample
-window is no longer a useful continuous gesture window.
+At 100 Hz, a `0.5 s` break already represents about 50 absent samples, so the old window is no
+longer a continuous record of the hand.
 
-## The gesture flag path (in progress)
+## Behaviours to know about
 
-`--gesture-flag` is the replacement for `--sensor-trigger`'s fixed window. It is built and tested
-on the laptop, but no glove has a detector yet. Use one of the two flags, not both.
+- **The flag ends after the gesture.** Hardware's detector raises the flag about 300 ms after
+  the movement starts and drops it 150–200 ms after it ends. AI's 150-sample window ends at that
+  drop, so it holds the gesture plus the moments before and after.
+- **Every drop of the flag asks AI for an answer.** That includes a candidate the detector
+  rejects (over 6 s of motion, or one cut short by a restart or the previous gesture), and AI's
+  confidence threshold is currently `0.0`. So every flagged movement, once AI's window is full,
+  becomes a game action. Compare the glove's `ended` + `rejected` counts with the board's events.
+- **The motor has not buzzed on a glove yet.** The firmware now pulses the motor on GPIO 2 for
+  200 ms when a VIBRATE CMD arrives and prints `[MOTOR] VIBRATE seq=...` on serial. It still echoes
+  the CMD, which the laptop logs as `node N: VIBRATE seq=... echoed, not forwarded`. This is
+  compiled but not yet flashed. GPIO 2 is an ESP32 strapping pin, so check the glove still boots
+  and flashes with the motor driver attached.
+- **Inference holds the board's event loop for about 23 ms**, mostly two fixed 10 ms sleeps in
+  AI's DMA wait.
 
-- **Hardware:** `gestureFlag()` in [`imu.h`](../../Comms/firebeetle/imu.h) is your detector. It gets
-  every sample and returns `1` while the hand may be making a gesture, otherwise `0`. The version in
-  `imu.cpp` is a placeholder that always returns `0`. `buildPacket()` sends the flag in
-  `reserved[1]`, and the serial timing line now also prints the slowest `gestureFlag()` call.
-- **Comms:** the board applies the rules above, then passes every remaining sample to AI's
-  `feed(IMUSample(...), player)`: `ax`..`gz`, `end_of_gesture` and `timestamp` (the laptop's
-  receive time). `end_of_gesture` is `True` on the first sample after the flag drops from 1 to 0.
-  It calls `reset(player)` after an IMU outage or a gap of more than `0.5 s`, `reset()` for every
-  player at the start of each TCP session, and publishes whatever AI returns. A DMA stall in AI
-  logs a warning and skips that gesture rather than ending the session.
-- **AI:** [`wk10_integration.py`](../../AI/board/wk10_integration.py) owns the buffering and
-  inference, on `baseline_improved.xsa`. Its contract is
-  [`README_gesture_stream_sim.md`](../../AI/board/README_gesture_stream_sim.md). Each player has
-  their own 150-step ring buffer, and `feed()` classifies it when `end_of_gesture` is `True`.
-  `ai_api.py` stays for `--sensor-trigger` only.
+## The `--sensor-trigger` path
+
+`--sensor-trigger N` is the older mode. It doesn't use the gesture flag: each player's latest
+100 samples are classified once every 50 to 150 packets, at random. It uses
+[`ai_api.py`](../../AI/board/ai_api.py) and `gesture_min_q.xsa`, kept for latency measurement.
+Use one of the two flags, not both.
+
+Its labels are the strings `"0"` to `"6"`, which the phone hook rejects as `unknown gesture`. So
+under `--sensor-trigger` events reach the broker and the phone, but the game does nothing.
 
 ## Contracts that must agree across teams
 
 | Contract | Current code | Owner/action |
 |---|---|---|
 | Sensor layout | Six raw `int16` counts: `ax, ay, az, gx, gy, gz` | Hardware and Comms must preserve order and meaning |
-| Sensor rate | FireBeetle target: 100 Hz; AI window: 100 samples | Hardware, Comms, and AI coordinate any change |
+| Sensor rate | IMU 500 Hz, all of it to the detector; 100 Hz packets; AI window 150 samples (`--sensor-trigger`: 100) | Hardware, Comms, and AI coordinate any change |
 | IMU validity | `reserved[0] == 1` means real data | Hardware defines status; Comms enforces it |
+| Gesture flag | `reserved[1] == 1` while Hardware's segmenter is in a gesture | Hardware owns the detector; Comms carries the flag |
 | Gyroscope range | Firmware: +/-500 degrees/s; AI: `65.5` counts/(degree/s) | Currently aligned |
 | Accelerometer range | Firmware: +/-4 g and `8192` counts/g; AI: `8192` counts/g | Aligned; a Comms test checks `ai_api.py` against `firebeetle/imu.h` |
-| AI deployment | `--sensor-trigger`: `ai_api.BITSTREAM` and `run_board.py` both name `gesture_min_q.xsa`. `--gesture-flag`: `gesture.AI_BITSTREAM` and `run_board.py` both name `baseline_improved.xsa` | AI and Comms update together |
-| Model input | `--sensor-trigger`: `WINDOW`, `CHANNELS`, scaling, and quantisation come from `ai_api.py`. `--gesture-flag`: all of it is inside `wk10_integration.py` | AI owns implementation; interface changes require coordination |
+| AI deployment | `--gesture-flag`: `gesture.AI_BITSTREAM` and `run_board.py` both name `baseline_improved.xsa`. `--sensor-trigger`: `ai_api.BITSTREAM` and `run_board.py` both name `gesture_min_q.xsa` | AI and Comms update together |
+| Model input | `--gesture-flag`: all of it is inside `wk10_integration.py`. `--sensor-trigger`: `WINDOW`, `CHANNELS`, scaling, and quantisation come from `ai_api.py` | AI owns implementation; interface changes require coordination |
 | Per-sample API | `GestureClassifier.feed(IMUSample, player)` and `reset(player)`; Comms tests read `IMUSample`'s fields and both `player` arguments from the source | AI and Comms agree any change |
+| Gesture names | AI's `LABEL_MAP`, lowercase; the hook maps them onto Vis's `GestureSymbol` enum | AI and Vis keep the seven names equal |
 | Event route | QoS 1 MQTT on `game/gesture/<player>` | Comms owns transport; Game/Vis own consumption |
 
 ### Acceleration range
 
-The firmware configures the MPU6050 for +/-4 g, where `1 g` is approximately `8192` counts.
-`ai_api.py` decodes at `8192` counts/g as well, so a stationary `az` near `8192` reaches the model
-as about `9.81 m/s^2`. It used to divide by `16384`, which gave the model half the real
+The firmware configures the MPU6050 for +/-4 g, where `1 g` is approximately `8192` counts. Both
+of AI's modules decode at `8192` counts/g, so a stationary `az` near `8192` reaches the model as
+about `9.81 m/s^2`. `ai_api.py` used to divide by `16384`, which gave the model half the real
 acceleration (`4.90 m/s^2` at rest). `test_ai_api_decodes_counts_at_the_ranges_the_firmware_sets`
 reads both ranges from `firebeetle/imu.h` and fails if `ai_api.py` disagrees with them.
 
-Do not use the current merged path as evidence of real gesture accuracy yet:
+Do not treat a live run as evidence of real gesture accuracy yet:
 - The signed Q6.10 input clips acceleration above approximately `3.26 g`. AI decides whether
   that is acceptable for the model.
-- The model on the board (`gesture_min_q.xsa`) was trained before Hardware's dataset existed,
-  on a different dataset. Meaningful predictions need a model trained on Hardware's data, with
-  live data prepared the same way: the same IMU settings and mounting, and the same gesture
-  segmentation and resampling.
+- AI's model was trained on whole gestures, each resampled to 100 steps and centred in the
+  150-step window. Live, the window holds raw 100 Hz samples, so a short gesture fills less of it
+  and a gesture longer than 1.5 s loses its start.
 
 ## What has and has not been verified
 
 | Evidence | What it establishes | What it does not establish |
 |---|---|---|
-| 505 automated Comms tests passing on 16 Oct, including windowing and both sensor-trigger paths | Message validation, per-player histories, IMU-status filtering, gap reset, classifier invocation, event construction, and A/B wiring | Physical IMU behaviour, FPGA deployment, or phone receipt |
-| 15 Oct AI-Comms Configuration B run: 1,214 triggers, events, and broker acknowledgements | Live FPGA inference and board-side MQTT publishing with the then-current synthetic sensor stream | Real gesture accuracy or phone rendering |
-| [16 Oct merged laptop log](../../Comms/logs/2026-10-16/pipeline_board_broker_125107Z.log) and [board log](../../Comms/logs/board/2026-10-16/tcp_client_mqtt_125116Z.log): two nodes at about 100 Hz each, no IMUs attached | Merged firmware, BLE, TCP, real classifier startup, IMU fault rejection, ECHO events, and MQTT publishing work together | Real IMU samples entering the FPGA or a classified gesture reaching the Visualiser |
+| 588 automated Comms tests passing on 20 Oct, including both classification paths, the VIBRATE return and the detector copy check | Message validation, per-player state, IMU-status filtering, gap reset, AI invocation, event construction, VIBRATE routing, A/B wiring | Physical IMU behaviour, FPGA deployment, or phone receipt |
+| [16 Oct merged laptop log](../../Comms/logs/2026-10-16/pipeline_board_broker_125107Z.log) and [board log](../../Comms/logs/board/2026-10-16/tcp_client_mqtt_125116Z.log): two nodes at about 100 Hz each, no IMUs attached | Firmware, BLE, TCP, real classifier startup, IMU fault rejection, ECHO events, and MQTT publishing work together | Real IMU samples entering the FPGA or a classified gesture reaching the phones |
+| 20 Oct simulation of the detector firmware (the real `imu.cpp` and Hardware's headers against a simulated MPU6050 with a FIFO) | FIFO handling, the flag matching a reference detector on every OK packet, restarts after faults, 100 Hz packets | The real chip, the detector's thresholds on our gloves, real BLE timing |
+| 20 Oct board run with recorded gestures replayed as packets for two players, through the laptop relay and tunnel to `--gesture-flag` | AI's module and `baseline_improved.xsa` on the real FPGA: 60 of 60 gestures gave an event, 59 correct (training data), inference median 23 ms | Live gloves, or accuracy on new data |
+| 20 Oct, both iPhones: hand-made events on `game/gesture/1` and `/2` each spawned one unit on the right side | The phone tunnel, the hook, and `PerformGesture` on both phones | Events from the classifier, and the other six gestures |
 
 An MQTT `PUBACK` proves that the broker accepted a QoS 1 publication. It does not prove that a
-phone subscribed, received the event, or rendered it. That boundary needs separate Visualiser
-evidence when the phone is added.
+phone subscribed, received the event, or acted on it. The game's feedback label on the phone is
+that evidence.
 
 ## Remaining integration work
 
-1. Align the +/-4 g firmware with AI preprocessing and confirm the model's usable input range.
-2. Run both players with real MPU6050 readings through the FPGA and compare predictions with a
-   trusted input/result set.
-3. Replace `--sensor-trigger` with `--gesture-flag` once a glove has a real detector and
-   `wk10_integration.py` has run on the board.
-4. Map labels `"0"` to `"6"` to the final gesture/action names.
-5. Replace random `mana_cost` when the game engine owns that value.
-6. Confirm recovery after a real DMA timeout; the current API reports the error but does not
-   reset the DMA or reload the overlay.
-7. Integrate the Visualiser and verify phone-side receipt and rendering, not only broker
-   acknowledgement.
+1. Flash both gloves and run the whole path with real gestures and both phones.
+2. Measure live accuracy, and decide with AI and Hardware whether the window needs the gesture
+   resampled first (see "Acceleration range").
+3. Decide whether a rejected candidate should still be classified, and set AI's confidence
+   threshold.
+4. Flash the motor code and check each player's glove buzzes after its own gestures only.
+5. Push `GesturePad.PerformGesture` to the Vis branch.
+6. Confirm recovery after a real DMA timeout; AI's module reports the error but does not reset the
+   DMA or reload the overlay.
 
-For changes inside either boundary, follow the change guides in
+For changes inside a boundary, follow the change guides in
 [Hardware-Comms](hardware-comms.md#change-guide) and [AI-Comms](ai-comms.md#change-guide).
