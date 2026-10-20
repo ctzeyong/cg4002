@@ -1,0 +1,224 @@
+<title>B16 System Diagram</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600;700&display=swap">
+<style>
+  /* Light only. All text and arrows black; colour lives only in the block fills.
+     Technical look: hairline grey cards, tight corners, thin owner-coloured outlines. */
+  :root {
+    color-scheme: light;
+    --ground: #DCDCD8;
+    --slide: #FBFBFA;
+    --card: #F0F0ED;
+    --card-edge: #DADAD5;
+    --ink: #111111;
+
+    --hw-swatch: #C8473C;    --hw-tint: #F6E4E1;    --hw-edge: #C8473C;
+    --comms-swatch: #D9A920; --comms-tint: #F8EFCF; --comms-edge: #D9A920;
+    --ai-swatch: #2F6DB5;    --ai-tint: #E1EAF4;    --ai-edge: #2F6DB5;
+    --vis-swatch: #3A8A55;   --vis-tint: #E0EEE4;   --vis-edge: #3A8A55;
+  }
+
+  html, body { height: 100%; }
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: 'IBM Plex Sans', 'Segoe UI', Arial, sans-serif;
+    padding-inline: 16px;
+    padding-block: 16px;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .frame {
+    width: min(100%, calc((100vh - 32px) * 16 / 9));
+    aspect-ratio: 16 / 9;
+    max-width: 100%;
+    position: relative;
+    overflow: hidden;
+    border-radius: 6px;
+    box-shadow: 0 2px 24px rgba(0, 0, 0, 0.12);
+    background: var(--slide);
+  }
+  .stage {
+    position: absolute;
+    left: 0; top: 0;
+    width: 1920px; height: 1080px;
+    transform-origin: 0 0;
+    transform: scale(var(--s, 0.5));
+    background: var(--slide);
+    color: var(--ink);
+  }
+  .stage > * { position: absolute; box-sizing: border-box; margin: 0; }
+
+  h1.title { left: 64px; top: 56px; width: 1200px; font-size: 46px; font-weight: 600; line-height: 1.1; letter-spacing: -0.3px; }
+  .sub { left: 64px; top: 124px; width: 1100px; font-size: 26px; line-height: 1.3; }
+  .legend { right: 64px; top: 124px; display: flex; gap: 32px; font-size: 24px; line-height: 1.3; }
+  .legend span { display: flex; align-items: center; gap: 10px; }
+  .legend i { width: 18px; height: 18px; border-radius: 2px; display: block; }
+
+  .card { top: 200px; height: 594px; background: #F2F2EF; border-radius: 6px; }
+  .head { top: 218px; }
+  .head h2 { font-size: 30px; font-weight: 600; line-height: 1.2; margin: 0; }
+  .head p { font-size: 24px; line-height: 1.3; margin: 4px 0 0; }
+
+  .block { border-radius: 3px; border: 0; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
+  .block h3 { font-size: 25px; font-weight: 600; line-height: 1.25; margin: 0; }
+  .block p { font-size: 24px; line-height: 1.4; margin: 0; }
+  .block ul { font-size: 24px; line-height: 1.4; margin: 0; padding-left: 24px; }
+  .hw    { background: var(--hw-tint);    border-color: var(--hw-edge); }
+  .comms { background: var(--comms-tint); border-color: var(--comms-edge); }
+  .ai    { background: var(--ai-tint);    border-color: var(--ai-edge); }
+  .vis   { background: var(--vis-tint);   border-color: var(--vis-edge); }
+
+  ul.points { font-size: 24px; line-height: 1.4; margin: 0; padding-left: 24px; display: flex; flex-direction: column; gap: 18px; }
+
+  .link { width: 140px; text-align: center; font-size: 26px; font-weight: 600; line-height: 1.2; letter-spacing: 1px; }
+  .link-sub { width: 140px; text-align: center; font-size: 24px; line-height: 1.3; }
+
+  svg.wires { left: 0; top: 0; width: 1920px; height: 1080px; pointer-events: none; }
+  .wire { fill: none; stroke: var(--ink); stroke-width: 2.5; }
+  .wire.inner { stroke-width: 2; }
+  .arrowhead { fill: var(--ink); }
+
+  .flow-title { left: 64px; top: 850px; width: 600px; font-size: 26px; font-weight: 600; line-height: 1.2; }
+  .flow { left: 64px; top: 902px; width: 1792px; display: flex; align-items: center; justify-content: space-between; }
+  .flow p { width: 250px; margin: 0; font-size: 26px; line-height: 1.3; text-align: center; }
+  .step-arrow { flex: none; }
+</style>
+
+<div class="frame" id="frame">
+<div class="stage" id="stage" role="img" aria-label="B16 system block diagram: two gloves stream IMU data over BLE to a relay laptop, which forwards it through an SSH tunnel to the Ultra96. The Ultra96 classifies gestures on the FPGA and publishes them over MQTT to two phones.">
+
+  <h1 class="title">B16 System Block Diagram</h1>
+  <p class="sub">AR PvP Battle Cats</p>
+  <div class="legend" aria-label="Colour key">
+    <span><i style="background:var(--hw-swatch)"></i>Hardware</span>
+    <span><i style="background:var(--comms-swatch)"></i>Comms</span>
+    <span><i style="background:var(--ai-swatch)"></i>AI</span>
+    <span><i style="background:var(--vis-swatch)"></i>Visualiser</span>
+  </div>
+
+  <!-- Columns: glove 64-404 | laptop 518-828 | Ultra96 942-1342 | phones 1456-1856.
+       Widths fit each column's longest line. Blocks are sized to their text (132 px for two
+       lines, 98 for one), 29 px apart. Every stack starts 120 px below its card's
+       top, and every card ends 20 px below its last block. The laptop's blocks line up with the
+       glove's radio, so its card starts lower. -->
+
+  <!-- Glove: sensor -> detector -> radio, top to bottom -->
+  <div class="card" style="left:64px;width:340px;top:200px;height:526px"></div>
+  <div class="head" style="left:84px;width:300px;top:218px"><h2>Glove (per player)</h2><p>FireBeetle ESP32</p></div>
+  <div class="block hw" style="left:84px;top:320px;width:300px;height:132px">
+    <h3>IMU sensor</h3>
+    <ul><li>MPU6050 on I²C</li><li>±4 g, ±500 °/s</li></ul>
+  </div>
+  <div class="block hw" style="left:84px;top:481px;width:300px;height:98px">
+    <h3>Gesture detector</h3>
+    <ul><li>Flags gesture samples</li></ul>
+  </div>
+  <div class="block comms" style="left:84px;top:608px;width:300px;height:98px">
+    <h3>BLE peripheral</h3>
+    <ul><li>Streams at 100 Hz</li></ul>
+  </div>
+
+  <!-- Laptop: BLE central (level with the glove's radio) feeds the TCP server above it through one queue -->
+  <div class="card" style="left:518px;width:310px;top:327px;height:399px"></div>
+  <div class="head" style="left:538px;width:270px;top:345px"><h2>Relay Laptop</h2><p>Python, one asyncio loop</p></div>
+  <div class="block comms" style="left:538px;top:447px;width:270px;height:132px">
+    <h3>TCP server</h3>
+    <ul><li>If queue is full, drop oldest packet</li></ul>
+  </div>
+  <div class="block comms" style="left:538px;top:608px;width:270px;height:98px">
+    <h3>BLE central</h3>
+    <ul><li>Checks IMU status</li></ul>
+  </div>
+
+  <!-- Ultra96: TCP in to the client (middle), classifier below, broker above -->
+  <div class="card" style="left:942px;width:400px;top:200px;height:560px"></div>
+  <div class="head" style="left:962px;width:360px;top:218px"><h2>Ultra96-V2</h2><p>PYNQ Linux + FPGA fabric</p></div>
+  <div class="block comms" style="left:962px;top:320px;width:360px;height:98px">
+    <h3>MQTT broker</h3>
+    <ul><li>Mosquitto, QoS 1</li></ul>
+  </div>
+  <div class="block comms" style="left:962px;top:447px;width:360px;height:132px">
+    <h3>TCP + MQTT client</h3>
+    <ul><li>Passes samples to classifier</li><li>Publishes the gesture</li></ul>
+  </div>
+  <div class="block ai" style="left:962px;top:608px;width:360px;height:132px">
+    <h3>FPGA classifier</h3>
+    <ul><li>hls4ml CNN, 7 classes</li><li>Per-player 150-step buffer</li></ul>
+  </div>
+
+  <!-- Phones: host (on the MQTT line), client, AR on both -->
+  <div class="card" style="left:1456px;width:400px;top:200px;height:594px"></div>
+  <div class="head" style="left:1476px;width:360px;top:218px"><h2>Phone (per player)</h2><p>iPhone, Unity, MQTT client</p></div>
+  <div class="block vis" style="left:1476px;top:320px;width:360px;height:132px">
+    <h3>Player 1 (host)</h3>
+    <ul><li>Game engine (for now)</li><li>Mana, spawns, combat</li></ul>
+  </div>
+  <div class="block vis" style="left:1476px;top:481px;width:360px;height:132px">
+    <h3>Player 2 (client)</h3>
+    <ul><li>Sends gesture + aim to host</li><li>Renders host's state</li></ul>
+  </div>
+  <div class="block vis" style="left:1476px;top:642px;width:360px;height:132px">
+    <h3>AR anchoring (both)</h3>
+    <ul><li>AprilTag markers</li><li>Shared arena frame</li></ul>
+  </div>
+
+  <svg class="wires" viewBox="0 0 1920 1080" aria-hidden="true">
+    <defs>
+      <marker id="ah" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="12" markerHeight="12" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path class="arrowhead" d="M0,0 L10,5 L0,10 z"/></marker>
+      <marker id="ah-sm" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path class="arrowhead" d="M0,0 L10,5 L0,10 z"/></marker>
+    </defs>
+    <!-- inside the columns, every one 29 px long; client <-> classifier is two-way (sample down, result up) -->
+    <path class="wire inner" d="M234 452 V481" marker-end="url(#ah-sm)"/>
+    <path class="wire inner" d="M234 579 V608" marker-end="url(#ah-sm)"/>
+    <path class="wire inner" d="M673 608 V579" marker-end="url(#ah-sm)"/>
+    <path class="wire inner" d="M1142 447 V418" marker-end="url(#ah-sm)"/>
+    <path class="wire inner" d="M1142 579 V608" marker-start="url(#ah-sm)" marker-end="url(#ah-sm)"/>
+    <!-- BLE and TCP between the columns -->
+    <path class="wire" d="M384 657 H538" marker-end="url(#ah)"/>
+    <path class="wire" d="M808 513 H962" marker-end="url(#ah)"/>
+    <!-- MQTT, two-way: broker <-> host, and broker <-> client along the branch -->
+    <path class="wire" d="M1322 377 H1476" marker-start="url(#ah)" marker-end="url(#ah)"/>
+    <path class="wire" d="M1476 547 H1446 V377" marker-start="url(#ah)"/>
+  </svg>
+
+  <!-- Link labels: name above the wire, one note below it, centred on the gap.
+       The branch down to Player 2 runs 10 px left of the phone card, clear of MQTT's labels. -->
+  <p class="link" style="left:391px;top:613px">BLE</p>
+  <p class="link-sub" style="left:391px;top:669px">encrypted</p>
+  <p class="link" style="left:815px;top:469px">TCP</p>
+  <p class="link-sub" style="left:815px;top:525px">in SSH</p>
+  <p class="link" style="left:1329px;top:333px">MQTT</p>
+  <p class="link-sub" style="left:1329px;top:389px">in SSH</p>
+
+  <!-- System flow -->
+  <p class="flow-title">System Flow</p>
+  <div class="flow">
+    <p>Player gestures<br>with the glove</p>
+    <svg class="step-arrow" width="48" height="20" viewBox="0 0 48 20" aria-hidden="true"><path d="M0 10 H36" stroke="#111111" stroke-width="2.5" fill="none"/><path d="M36 5 L46 10 L36 15 z" fill="#111111"/></svg>
+    <p>IMU streams<br>100 Hz over BLE</p>
+    <svg class="step-arrow" width="48" height="20" viewBox="0 0 48 20" aria-hidden="true"><path d="M0 10 H36" stroke="#111111" stroke-width="2.5" fill="none"/><path d="M36 5 L46 10 L36 15 z" fill="#111111"/></svg>
+    <p>Laptop relays<br>over TCP in SSH</p>
+    <svg class="step-arrow" width="48" height="20" viewBox="0 0 48 20" aria-hidden="true"><path d="M0 10 H36" stroke="#111111" stroke-width="2.5" fill="none"/><path d="M36 5 L46 10 L36 15 z" fill="#111111"/></svg>
+    <p>FPGA classifies<br>the gesture</p>
+    <svg class="step-arrow" width="48" height="20" viewBox="0 0 48 20" aria-hidden="true"><path d="M0 10 H36" stroke="#111111" stroke-width="2.5" fill="none"/><path d="M36 5 L46 10 L36 15 z" fill="#111111"/></svg>
+    <p>Event published<br>over MQTT</p>
+    <svg class="step-arrow" width="48" height="20" viewBox="0 0 48 20" aria-hidden="true"><path d="M0 10 H36" stroke="#111111" stroke-width="2.5" fill="none"/><path d="M36 5 L46 10 L36 15 z" fill="#111111"/></svg>
+    <p>Host engine acts,<br>both phones render</p>
+  </div>
+</div>
+</div>
+
+<script>
+  (function () {
+    var frame = document.getElementById('frame');
+    var stage = document.getElementById('stage');
+    function fit() { stage.style.setProperty('--s', frame.clientWidth / 1920); }
+    fit();
+    if ('ResizeObserver' in window) new ResizeObserver(fit).observe(frame);
+    else window.addEventListener('resize', fit);
+  })();
+</script>

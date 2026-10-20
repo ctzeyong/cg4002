@@ -1,0 +1,309 @@
+{
+  "sessions": [
+    {
+      "split": "train",
+      "group": "p1_day1",
+      "csv": "sessions/p1_day1_arc_air_ccw_stand.csv"
+    },
+    {
+      "split": "train",
+      "group": "p1_day1",
+      "csv": "sessions/p1_day1_arc_air_ccw.csv"
+    },
+    {
+      "split": "train",
+      "group": "p1_day1",
+      "csv": "sessions/p1_day1_arc_air_cw_stand.csv"
+    },
+    {
+      "split": "train",
+      "group": "p1_day1",
+      "csv": "sessions/p1_day1_arc_air_cw.csv"
+    },
+    {
+      "split": "train",
+      "group": "p1_day1",
+      "csv": "sessions/p1_day1_arc_table_ccw_stand.csv"
+    },
+    {
+      "split": "train",
+      "group": "p1_day1",
+      "csv": "sessions/p1_day1_arc_table_ccw.csv"
+    },
+    {
+      "split": "train",
+      "group": "p1_day1",
+      "csv": "sessions/p1_day1_arc_table_cw_stand.csv"
+    },
+    {
+      "split": "train",
+      "group": "p1_day1",
+      "csv": "sessions/p1_day1_arc_table_cw.csv"
+    },
+    {
+      "split": "train",
+      "group": "p1_day1",
+      "csv": "sessions/p1_day1_caret_air_ccw_stand.csv"
+    },
+    {
+      "split": "train",
+      "group": "p1_day1",
+      "csv": "sessions/p1_day1_caret_air_ccw.csv"
+    },
+    {
+      "split": "train",
+      "group": "p1_day1",
+      "csv": "sessions/p1_day1_caret_air_cw_stand.csv"
+    },
+    {
+      "split": "train",
+      "group": "p1_day1",
+      "csv": "sessions/p1_day1_caret_air_cw.csv"
+    },
+    {
+      "split": "train",
+      "group": "p1_day1",
+      "csv": "sessions/p1_day1_caret_table_ccw_stand.csv"
+    },
+    {
+      "split": "train",
+      "group": "p1_day1",
+      "csv": "sessions/p1_day1_caret_table_ccw.csv"
+    },
+    {
+      "split": "train",
+      "group": "p1_day1",
+      "csv": "sessions/p1_day1_caret_table_cw_stand.csv"
+    },
+    {
+      "split": "train",
+      "group": "p1_day1",
+      "csv": "sessions/p1_day1_caret_table_cw.csv"
+    },
+    {
+      "split": "train",
+      "group": "p1_day1",
+      "csv": "sessions/p1_day1_circle_air_ccw_stand.csv"
+    },
+    {
+      "split": "train",
+      "group": "p1_day1",
+      "csv": "sessions/p1_day1_circle_air_ccw.csv"
+    },
+    {
+      "split": "train",
+      "group": "p1_day1",
+      "csv": "sessions/p1_day1_circle_air_cw_stand_2.csv"
+    },
+    {
+      "split": "train",
+      "group": "p1_day1",
+      "csv": "sessions/p1_day1_circle_air_cw_stand.csv"
+    },
+    {
+      "split": "train",
+      "group": "p1_day1",
+      "csv": "sessions/p1_day1_circle_air_cw.csv"
+    },
+    {
+      "split": "train",
+      "group": "p1_day1",
+      "csv": "sessions/p1_day1_circle_table_ccw_stand.csv"
+    },
+    {
+      "split": "train",
+      "group": "p1_day1",
+      "csv": "sessions/p1_day1_circle_table_ccw.csv"
+    },
+    {
+      "split": "train",
+      "group": "p1_day1",
+      "csv": "sessions/p1_day1_circle_table_cw_2.csv"
+    },
+    {
+      "split": "train",
+      "group": "p1_day1",
+      "csv": "sessions/p1_day1_circle_table_cw_stand.csv"
+    },
+    {
+      "split": "train",
+      "group": "p1_day1",
+      "csv": "sessions/p1_day1_circle_table_cw.csv"
+    },
+    {
+      "split": "train",
+      "group": "p1_day1",
+      "csv": "sessions/p1_day1_infinity_air_ccw_2.csv"
+    },
+    {
+      "split": "train",
+      "group": "p1_day1",
+      "csv": "sessions/p1_day1_infinity_air_ccw_stand.csv"
+    },
+    {
+      "split": "train",
+      "group": "p1_day1",
+      "csv": "sessions/p1_day1_infinity_air_ccw.csv"
+    },
+    {
+      "split": "train",
+      "group": "p1_day1",
+      "csv": "sessions/p1_day1_infinity_air_cw_stand.csv"
+    },
+    {
+      "split": "train",
+      "group": "p1_day1",
+      "csv": "sessions/p1_day1_infinity_air_cw.csv"
+    },
+    {
+      "split": "train",
+      "group": "p1_day1",
+      "csv": "sessions/p1_day1_infinity_table_ccw_stand_2.csv"
+    },
+    {
+      "split": "train",
+      "group": "p1_day1",
+      "csv": "sessions/p1_day1_infinity_table_ccw_stand.csv"
+    },
+    {
+      "split": "train",
+      "group": "p1_day1",
+      "csv": "sessions/p1_day1_infinity_table_ccw.csv"
+    },
+    {
+      "split": "train",
+      "group": "p1_day1",
+      "csv": "sessions/p1_day1_infinity_table_cw_stand_2.csv"
+    },
+    {
+      "split": "train",
+      "group": "p1_day1",
+      "csv": "sessions/p1_day1_infinity_table_cw.csv"
+    },
+    {
+      "split": "train",
+      "group": "p1_day1",
+      "csv": "sessions/p1_day1_star_air_ccw_stand.csv"
+    },
+    {
+      "split": "train",
+      "group": "p1_day1",
+      "csv": "sessions/p1_day1_star_air_ccw.csv"
+    },
+    {
+      "split": "train",
+      "group": "p1_day1",
+      "csv": "sessions/p1_day1_star_air_cw_stand.csv"
+    },
+    {
+      "split": "train",
+      "group": "p1_day1",
+      "csv": "sessions/p1_day1_star_air_cw.csv"
+    },
+    {
+      "split": "train",
+      "group": "p1_day1",
+      "csv": "sessions/p1_day1_star_table_ccw_stand.csv"
+    },
+    {
+      "split": "train",
+      "group": "p1_day1",
+      "csv": "sessions/p1_day1_star_table_ccw.csv"
+    },
+    {
+      "split": "train",
+      "group": "p1_day1",
+      "csv": "sessions/p1_day1_star_table_cw_stand.csv"
+    },
+    {
+      "split": "train",
+      "group": "p1_day1",
+      "csv": "sessions/p1_day1_star_table_cw.csv"
+    },
+    {
+      "split": "train",
+      "group": "p1_day1",
+      "csv": "sessions/p1_day1_triangle_air_ccw_stand.csv"
+    },
+    {
+      "split": "train",
+      "group": "p1_day1",
+      "csv": "sessions/p1_day1_triangle_air_ccw.csv"
+    },
+    {
+      "split": "train",
+      "group": "p1_day1",
+      "csv": "sessions/p1_day1_triangle_air_cw_stand.csv"
+    },
+    {
+      "split": "train",
+      "group": "p1_day1",
+      "csv": "sessions/p1_day1_triangle_air_cw.csv"
+    },
+    {
+      "split": "train",
+      "group": "p1_day1",
+      "csv": "sessions/p1_day1_triangle_table_ccw_2.csv"
+    },
+    {
+      "split": "train",
+      "group": "p1_day1",
+      "csv": "sessions/p1_day1_triangle_table_ccw_stand.csv"
+    },
+    {
+      "split": "train",
+      "group": "p1_day1",
+      "csv": "sessions/p1_day1_triangle_table_ccw.csv"
+    },
+    {
+      "split": "train",
+      "group": "p1_day1",
+      "csv": "sessions/p1_day1_triangle_table_cw_stand.csv"
+    },
+    {
+      "split": "train",
+      "group": "p1_day1",
+      "csv": "sessions/p1_day1_triangle_table_cw.csv"
+    },
+    {
+      "split": "train",
+      "group": "p1_day1",
+      "csv": "sessions/p1_day1_z_air_ccw_stand.csv"
+    },
+    {
+      "split": "train",
+      "group": "p1_day1",
+      "csv": "sessions/p1_day1_z_air_ccw.csv"
+    },
+    {
+      "split": "train",
+      "group": "p1_day1",
+      "csv": "sessions/p1_day1_z_air_cw_stand.csv"
+    },
+    {
+      "split": "train",
+      "group": "p1_day1",
+      "csv": "sessions/p1_day1_z_air_cw.csv"
+    },
+    {
+      "split": "train",
+      "group": "p1_day1",
+      "csv": "sessions/p1_day1_z_table_ccw_stand.csv"
+    },
+    {
+      "split": "train",
+      "group": "p1_day1",
+      "csv": "sessions/p1_day1_z_table_ccw.csv"
+    },
+    {
+      "split": "train",
+      "group": "p1_day1",
+      "csv": "sessions/p1_day1_z_table_cw_stand.csv"
+    },
+    {
+      "split": "train",
+      "group": "p1_day1",
+      "csv": "sessions/p1_day1_z_table_cw.csv"
+    }
+  ]
+}
