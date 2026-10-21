@@ -82,14 +82,16 @@
   .wire.inner { stroke-width: 2; }
   .arrowhead { fill: var(--ink); }
 
-  .flow-title { left: 64px; top: 850px; width: 600px; font-size: 26px; font-weight: 600; line-height: 1.2; }
-  .flow { left: 64px; top: 902px; width: 1792px; display: flex; align-items: center; justify-content: space-between; }
+  .flow-title { left: 64px; top: 878px; width: 600px; font-size: 26px; font-weight: 600; line-height: 1.2; }
+  .flow { left: 64px; top: 922px; width: 1792px; display: flex; align-items: center; justify-content: space-between; }
   .flow p { width: 250px; margin: 0; font-size: 26px; line-height: 1.3; text-align: center; }
   .step-arrow { flex: none; }
+  .feedback { left: 64px; top: 1020px; width: 1792px; display: flex; align-items: center; gap: 16px; font-size: 24px; line-height: 1.3; }
+  .feedback b { font-weight: 600; margin-right: 8px; }
 </style>
 
 <div class="frame" id="frame">
-<div class="stage" id="stage" role="img" aria-label="B16 system block diagram: two gloves stream IMU data over BLE to a relay laptop, which forwards it through an SSH tunnel to the Ultra96. The Ultra96 classifies gestures on the FPGA and publishes them over MQTT to two phones.">
+<div class="stage" id="stage" role="img" aria-label="B16 system block diagram: two gloves stream IMU data over BLE to a relay laptop, which forwards it through an SSH tunnel to the Ultra96. The Ultra96 classifies gestures on the FPGA and publishes them over MQTT to two phones. Each classified gesture also sends a VIBRATE back through the laptop to that player's glove, which pulses its motor.">
 
   <h1 class="title">B16 System Block Diagram</h1>
   <p class="sub">AR PvP Battle Cats</p>
@@ -106,8 +108,8 @@
        top, and every card ends 20 px below its last block. The laptop's blocks line up with the
        glove's radio, so its card starts lower. -->
 
-  <!-- Glove: sensor -> detector -> radio, top to bottom -->
-  <div class="card" style="left:64px;width:340px;top:200px;height:526px"></div>
+  <!-- Glove: sensor -> detector -> radio, top to bottom; the radio drives the motor below it -->
+  <div class="card" style="left:64px;width:340px;top:200px;height:653px"></div>
   <div class="head" style="left:84px;width:300px;top:218px"><h2>Glove (per player)</h2><p>FireBeetle ESP32</p></div>
   <div class="block hw" style="left:84px;top:320px;width:300px;height:132px">
     <h3>IMU sensor</h3>
@@ -121,17 +123,22 @@
     <h3>BLE peripheral</h3>
     <ul><li>Streams at 100 Hz</li></ul>
   </div>
+  <div class="block hw" style="left:84px;top:735px;width:300px;height:98px">
+    <h3>Vibration motor</h3>
+    <ul><li>200 ms pulse, GPIO 2</li></ul>
+  </div>
 
-  <!-- Laptop: BLE central (level with the glove's radio) feeds the TCP server above it through one queue -->
-  <div class="card" style="left:518px;width:310px;top:327px;height:399px"></div>
+  <!-- Laptop: BLE central (level with the glove's radio) feeds the TCP server above it through one queue;
+       a VIBRATE from the board comes back down into that glove's command outbox -->
+  <div class="card" style="left:518px;width:310px;top:327px;height:433px"></div>
   <div class="head" style="left:538px;width:270px;top:345px"><h2>Relay Laptop</h2><p>Python, one asyncio loop</p></div>
   <div class="block comms" style="left:538px;top:447px;width:270px;height:132px">
     <h3>TCP server</h3>
     <ul><li>If queue is full, drop oldest packet</li></ul>
   </div>
-  <div class="block comms" style="left:538px;top:608px;width:270px;height:98px">
+  <div class="block comms" style="left:538px;top:608px;width:270px;height:132px">
     <h3>BLE central</h3>
-    <ul><li>Checks IMU status</li></ul>
+    <ul><li>Checks IMU status</li><li>Writes VIBRATE</li></ul>
   </div>
 
   <!-- Ultra96: TCP in to the client (middle), classifier below, broker above -->
@@ -171,15 +178,17 @@
       <marker id="ah" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="12" markerHeight="12" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path class="arrowhead" d="M0,0 L10,5 L0,10 z"/></marker>
       <marker id="ah-sm" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path class="arrowhead" d="M0,0 L10,5 L0,10 z"/></marker>
     </defs>
-    <!-- inside the columns, every one 29 px long; client <-> classifier is two-way (sample down, result up) -->
+    <!-- inside the columns, every one 29 px long; client <-> classifier is two-way (sample down, result up),
+         and so is the laptop's (samples up, VIBRATE down) -->
     <path class="wire inner" d="M234 452 V481" marker-end="url(#ah-sm)"/>
     <path class="wire inner" d="M234 579 V608" marker-end="url(#ah-sm)"/>
-    <path class="wire inner" d="M673 608 V579" marker-end="url(#ah-sm)"/>
+    <path class="wire inner" d="M234 706 V735" marker-end="url(#ah-sm)"/>
+    <path class="wire inner" d="M673 608 V579" marker-start="url(#ah-sm)" marker-end="url(#ah-sm)"/>
     <path class="wire inner" d="M1142 447 V418" marker-end="url(#ah-sm)"/>
     <path class="wire inner" d="M1142 579 V608" marker-start="url(#ah-sm)" marker-end="url(#ah-sm)"/>
-    <!-- BLE and TCP between the columns -->
-    <path class="wire" d="M384 657 H538" marker-end="url(#ah)"/>
-    <path class="wire" d="M808 513 H962" marker-end="url(#ah)"/>
+    <!-- BLE and TCP between the columns, two-way: samples up, VIBRATE back down to the glove -->
+    <path class="wire" d="M384 657 H538" marker-start="url(#ah)" marker-end="url(#ah)"/>
+    <path class="wire" d="M808 513 H962" marker-start="url(#ah)" marker-end="url(#ah)"/>
     <!-- MQTT, two-way: broker <-> host, and broker <-> client along the branch -->
     <path class="wire" d="M1322 377 H1476" marker-start="url(#ah)" marker-end="url(#ah)"/>
     <path class="wire" d="M1476 547 H1446 V377" marker-start="url(#ah)"/>
@@ -208,6 +217,17 @@
     <p>Event published<br>over MQTT</p>
     <svg class="step-arrow" width="48" height="20" viewBox="0 0 48 20" aria-hidden="true"><path d="M0 10 H36" stroke="#111111" stroke-width="2.5" fill="none"/><path d="M36 5 L46 10 L36 15 z" fill="#111111"/></svg>
     <p>Host engine acts,<br>both phones render</p>
+  </div>
+  <!-- Motor feedback: tcp_client_mqtt sends a VIBRATE after each classified gesture -->
+  <div class="feedback">
+    <b>Motor feedback</b>
+    <span>FPGA classifies the gesture</span>
+    <svg class="step-arrow" width="40" height="18" viewBox="0 0 40 18" aria-hidden="true"><path d="M0 9 H30" stroke="#111111" stroke-width="2.5" fill="none"/><path d="M30 4 L40 9 L30 14 z" fill="#111111"/></svg>
+    <span>Ultra96 sends VIBRATE over TCP</span>
+    <svg class="step-arrow" width="40" height="18" viewBox="0 0 40 18" aria-hidden="true"><path d="M0 9 H30" stroke="#111111" stroke-width="2.5" fill="none"/><path d="M30 4 L40 9 L30 14 z" fill="#111111"/></svg>
+    <span>Laptop writes a CMD over BLE</span>
+    <svg class="step-arrow" width="40" height="18" viewBox="0 0 40 18" aria-hidden="true"><path d="M0 9 H30" stroke="#111111" stroke-width="2.5" fill="none"/><path d="M30 4 L40 9 L30 14 z" fill="#111111"/></svg>
+    <span>That player's glove buzzes</span>
   </div>
 </div>
 </div>
