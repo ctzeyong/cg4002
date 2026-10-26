@@ -15,6 +15,7 @@ def main():
                          ("none3", AugConfig.none(), 6),
                          ("feat", AugConfig.lean(), 10)]:
         aug.resample = True                     # the headline runs resampled to GEST
+        aug.filler = "gesture"                  # ... with gesture-chunk filler
         cfg = RunConfig(data=DataConfig(**OLD), aug=aug, channels=ch, seeds=(1, 2, 3), tag=tag)
         print(train_eval(cfg).summary(), "\n")
 

@@ -202,8 +202,8 @@ class Windows:
         if answer is None:
             if ended:
                 # so a detector that only fires briefly still shows in the log
-                log.info("no AI event: node %d's flagged gesture of %d samples gave no result",
-                         node, flagged[0])
+                log.info("no AI event: node %d's flagged gesture of %d samples gave no result%s",
+                         node, flagged[0], self._why())
             return None
         t_infer_ms = (time.perf_counter() - started) * 1000
         label, confidence = answer
@@ -240,11 +240,17 @@ class Windows:
         answer = self.ai.infer_window(node, window)
         t_infer_ms = (time.perf_counter() - started) * 1000
         if answer is None:
-            log.info("no AI event: node %d's resampled gesture of %d samples gave no result",
-                     node, n)
+            log.info("no AI event: node %d's resampled gesture of %d samples gave no result%s",
+                     node, n, self._why())
             return None
         label, confidence = answer
         return Result(label, confidence, t_infer_ms, span["missing"])
+
+    def _why(self):
+        """' (reason)' for a no-result log line when AI's model says why it gave none
+        (its no-gesture class, e.g. 'noise p=0.94', or low confidence), else ''."""
+        reason = getattr(self.ai, "reject_reason", lambda: None)()
+        return f" ({reason})" if reason else ""
 
     def _restart(self, node):
         """Empty a node's window and tell AI to forget its gesture in progress."""
@@ -312,6 +318,11 @@ class AI:
         except RuntimeError as exc:  # DMA stall, handled the same as on_sample
             raise ClassifierError(str(exc)) from exc
         return None if result is None else (result.gesture, result.confidence)
+
+    def reject_reason(self):
+        """Why the model's latest inference gave no result (its no-gesture class or low
+        confidence), or None; set by wk10_integration / keras_stream."""
+        return getattr(self.model, "last_reject", None)
 
     def reset(self, player=None):
         """Forget a player's samples, or every player's."""

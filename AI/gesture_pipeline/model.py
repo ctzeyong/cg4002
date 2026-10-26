@@ -30,10 +30,10 @@ def _conv_block(x, filters, i, cfg: ModelConfig, pool: bool):
     return x
 
 
-def build_model(channels: int, cfg: ModelConfig = ModelConfig()):
-    """Conv blocks -> global pool -> dense head to N_CLASSES logits. Identical for 6- and
-    10-channel inputs (only the input width changes). BatchNorm folds into the conv at
-    inference (use_bias=False), so it is free on the board."""
+def build_model(channels: int, cfg: ModelConfig = ModelConfig(), n_classes: int = N_CLASSES):
+    """Conv blocks -> global pool -> dense head to n_classes logits (7 gestures, or 8 with the
+    noise class). Identical for 6- and 10-channel inputs (only the input width changes).
+    BatchNorm folds into the conv at inference (use_bias=False), so it is free on the board."""
     inp = tf.keras.Input(shape=(WIN, channels), name="imu_window")
     x = QActivation(_IN_Q, name="in_quant")(inp)
     x = _conv_block(x, cfg.f1, 1, cfg, pool=True)
@@ -48,6 +48,6 @@ def build_model(channels: int, cfg: ModelConfig = ModelConfig()):
             [tf.keras.layers.GlobalMaxPooling1D()(x), tf.keras.layers.GlobalAveragePooling1D()(x)])
     else:
         x = tf.keras.layers.GlobalMaxPooling1D(name="gpool")(x)
-    logits = QDense(N_CLASSES, kernel_quantizer=_KQ, bias_quantizer=_BQ, name="dense")(x)
+    logits = QDense(n_classes, kernel_quantizer=_KQ, bias_quantizer=_BQ, name="dense")(x)
     logits = QActivation(_IN_Q, name="dense_q")(logits)
     return tf.keras.Model(inp, logits, name=f"qcnn_{channels}ch")

@@ -65,6 +65,7 @@ N_CLASSES      = 7
 SCALE          = 1 << 10      # to_fixed multiplier (1024)
 OUT_FRAC       = 10           # ap_fixed<16,6> -> 10 frac bits (logits = outb / 1024)
 CONF_THRESHOLD = 0.7          # reject top class below this as rest/blank; 0.0 = never reject
+REJECT_LABELS  = ("noise",)   # a model's no-gesture class: top class here -> no result (8-class models)
 
 CROP           = 40           # test only: max |offset| steps the EOG may miss the gesture by
 NOISE_FRAC     = 0.05         # test only: filler noise std as a fraction of per-channel gesture std
@@ -122,6 +123,8 @@ class ModelConfig:
     label_map: dict = field(default_factory=lambda: dict(LABEL_MAP))
     accel_to_m_s2: float = ACCEL_TO_M_S2
     gyro_to_rad_s: float = GYRO_TO_RAD_S
+    # classes that mean "no gesture": a top class in here gives no result, like low confidence
+    reject_labels: tuple = REJECT_LABELS
 
 
 # ---------------------------------------------------------------------------
@@ -192,6 +195,7 @@ class GestureClassifier:
         self.outb = self._backend.outb   # DMA output buffer (n_classes int16)
         self.bufs = {}                   # player -> rolling ring buffer
         self.last_result: GestureResult | None = None
+        self.last_reject: str | None = None   # why the latest inference gave no result
         self._assert_parity(bitstream)   # best-effort label_map.json guard (no-op off-board)
 
     # ---- public API -------------------------------------------------------
@@ -211,9 +215,11 @@ class GestureClassifier:
 
     def infer(self, player=None) -> GestureResult | None:
         """Infer on the last `win` samples of the player's ring buffer. None if the
-        buffer is not full or the top class is below conf_threshold."""
+        buffer is not full, the top class is a reject label (noise), or it is below
+        conf_threshold; last_reject then says which."""
         buf = self._buf(player)
         if len(buf) < self.config.win:
+            self.last_reject = f"buffer not full: {len(buf)}/{self.config.win} samples"
             return None
         return self._run_window(np.stack(buf, axis=0))
 
@@ -264,11 +270,18 @@ class GestureClassifier:
         z = np.asarray(raw).astype(np.float64) / (1 << self.config.out_frac)   # fixed -> float logits
         p = np.exp(z - z.max()); p /= p.sum()                                   # softmax (float)
         pred = int(p.argmax()); conf = float(p[pred])
-        if conf < self.config.conf_threshold:
+        gesture = self.config.label_map.get(pred, str(pred))
+        if gesture in self.config.reject_labels:                                # no-gesture class
+            self.last_reject = f"{gesture} p={conf:.2f}"
+        elif conf < self.config.conf_threshold:                                 # not sure enough
+            self.last_reject = (f"low confidence {gesture} p={conf:.2f}"
+                                f" < {self.config.conf_threshold:.2f}")
+        else:
+            self.last_reject = None
+        if self.last_reject is not None:
             self.last_result = None
             return None
-        res = GestureResult(class_id=pred,
-                            gesture=self.config.label_map.get(pred, str(pred)),
+        res = GestureResult(class_id=pred, gesture=gesture,
                             confidence=conf, logits=z.tolist(), timestamp=None)
         self.last_result = res
         return res

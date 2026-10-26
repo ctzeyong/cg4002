@@ -5,12 +5,15 @@ Three layers, applied in this order to each gesture:
      -> time-warp + resample to GEST -> bias -> jitter
   2. feature channels (only when channels == 10): raw 6 + |accel|, |gyro|, |d accel|, |d gyro|
   3. window synthesis (always on): lay the gesture into a WIN-step filler window at a
-     random offset  (the detection-in-window domain randomisation)
+     random offset  (the detection-in-window domain randomisation). The filler is chunks of
+     other gestures, or (AugConfig.filler="background") a slice of real recorded background
 
 AugConfig.resample picks the gesture length. True: every gesture is resampled to GEST steps
 and placed at a random offset. False (native): the gesture keeps its 100 Hz length (time-warp
 only varies its speed) and slides anywhere across the window, from slide_max_out of it cut off
 the left edge to the same cut off the right edge (slide_range), filler on both sides.
+
+noise_window builds the 8th-class (DataConfig.noise) windows: real background only, no gesture.
 
 Everything operates on SI units (m/s^2, rad/s); accel = cols 0:3, gyro = cols 3:6.
 """
@@ -18,7 +21,7 @@ import math
 
 import numpy as np
 
-from .config import WIN, GEST, CROP, AugConfig
+from .config import WIN, GEST, CROP, NOISE_SPAN, AugConfig
 
 NCH_RAW = 6
 
@@ -40,10 +43,11 @@ def _curve(rng, n, knots, sigma, center=0.0):
     return np.interp(np.linspace(0, 1, n), kx, kv)
 
 
-def _apply_signal(si, rng, cfg: AugConfig):
-    """Augment a variable-length SI gesture (all but the final time-warp+resample)."""
+def _apply_signal(si, rng, cfg: AugConfig, trim=True):
+    """Augment a variable-length SI gesture (all but the final time-warp+resample).
+    trim=False skips the boundary trim (a noise window keeps its length)."""
     x = si.copy()
-    if cfg.boundary and rng.random() < cfg.bnd_p and len(x) > 10:
+    if trim and cfg.boundary and rng.random() < cfg.bnd_p and len(x) > 10:
         a = int(len(x) * rng.uniform(0, cfg.bnd_max_frac))
         b = int(len(x) * rng.uniform(0, cfg.bnd_max_frac))
         if len(x) - a - b >= 5:
@@ -86,11 +90,52 @@ def to_gesture(si, rng, cfg: AugConfig, ch_std, augment):
     elif cfg.timewarp:
         n = max(2, round(len(g) * rng.uniform(cfg.speed_lo, cfg.speed_hi)))
         g = _timewarp_resample(g, n, rng, cfg, warp=True)
+    return _apply_offsets(g, rng, cfg, ch_std).astype(np.float32)
+
+
+def _apply_offsets(g, rng, cfg: AugConfig, ch_std):
+    """The last signal augs: constant bias, then per-sample jitter (both scaled by ch_std)."""
     if cfg.bias and rng.random() < cfg.bias_p:
         g = g + rng.normal(0, cfg.bias_frac * ch_std, size=(1, NCH_RAW))
     if cfg.jitter and rng.random() < cfg.jit_p:
         g = g + rng.normal(0, cfg.jit_frac * ch_std, size=g.shape)
-    return g.astype(np.float32)
+    return g
+
+
+# --------------------------------------------------------------------------- noise class
+def _bg_slice(bg, rng, n):
+    """A random contiguous n-step slice of one background block (a block >= n steps long;
+    n shrinks to the longest block if none is)."""
+    fits = [b for b in bg if len(b) >= n]
+    if not fits:
+        fits = [max(bg, key=len)]
+        n = len(fits[0])
+    b = fits[rng.integers(len(fits))]
+    start = int(rng.integers(0, len(b) - n + 1))
+    return np.asarray(b[start:start + n], np.float64)
+
+
+def noise_window(bg, pool, rng, ch_std, cfg: AugConfig, augment):
+    """A WIN-step window with no gesture in it, for the noise class, made of real background
+    (`bg` = that split's background blocks) and augmented like a gesture when requested.
+
+    Native: one contiguous slice (time-warp varies its speed, then it is resampled back to WIN),
+    so there are no seams. Resampled: a NOISE_SPAN-length background span goes through exactly
+    the gesture path (to_gesture -> GEST steps -> make_window on background filler), as the live
+    --resample path would present a flagged non-gesture."""
+    if cfg.resample:
+        span = _bg_slice(bg, rng, int(rng.integers(NOISE_SPAN[0], NOISE_SPAN[1] + 1)))
+        return make_window(to_gesture(span, rng, cfg, ch_std, augment), pool, rng, ch_std, cfg, None, bg)
+    n = round(WIN * rng.uniform(cfg.speed_lo, cfg.speed_hi)) if augment and cfg.timewarp else WIN
+    x = _bg_slice(bg, rng, n)
+    if augment:
+        x = _apply_signal(x, rng, cfg, trim=False)
+        if cfg.timewarp:
+            x = _timewarp_resample(x, WIN, rng, cfg, warp=True)
+        x = _apply_offsets(x, rng, cfg, ch_std)
+    x = _timewarp_resample(x, WIN, rng, cfg, warp=False) if len(x) != WIN else x
+    x = x + rng.standard_normal(x.shape) * (cfg.noise_frac * ch_std)      # as the filler gets
+    return x.astype(np.float32)
 
 
 # --------------------------------------------------------------------------- feature channels
@@ -107,7 +152,16 @@ def add_features(w):
 
 
 # --------------------------------------------------------------------------- window synthesis
-def build_filler(pool, rng, length, ch_std, noise_frac):
+def build_filler(pool, rng, length, ch_std, noise_frac, bg=None):
+    """`length` steps of filler + noise_frac Gaussian noise. With `bg` (background blocks, each
+    >= WIN steps): one contiguous slice of real recorded background; else 5-24-step chunks of
+    the pool's gestures."""
+    if bg is not None:
+        b = bg[rng.integers(len(bg))]
+        start = int(rng.integers(0, len(b) - length + 1))
+        out = np.array(b[start:start + length], np.float32)
+        out += rng.standard_normal(out.shape).astype(np.float32) * (noise_frac * ch_std)
+        return out
     out = np.empty((length, NCH_RAW), np.float32)
     pos = 0
     while pos < length:
@@ -135,10 +189,11 @@ def slide_range(n, cfg: AugConfig):
     return vis - n, WIN - vis
 
 
-def make_window(gesture, pool, rng, ch_std, cfg: AugConfig, offset=None):
-    """Lay a gesture into a WIN-step filler window at a random (or given) start offset."""
+def make_window(gesture, pool, rng, ch_std, cfg: AugConfig, offset=None, bg=None):
+    """Lay a gesture into a WIN-step filler window at a random (or given) start offset.
+    `bg` = real-background filler blocks (see build_filler)."""
     n = len(gesture)
-    win = build_filler(pool, rng, WIN, ch_std, cfg.noise_frac)
+    win = build_filler(pool, rng, WIN, ch_std, cfg.noise_frac, bg)
     if offset is None:
         if cfg.resample:
             offset = int(rng.integers(-CROP, (WIN - GEST) + CROP + 1))
@@ -151,10 +206,10 @@ def make_window(gesture, pool, rng, ch_std, cfg: AugConfig, offset=None):
     return win
 
 
-def make_fragment(gesture, pool, rng, ch_std, cfg: AugConfig, vis, where="head"):
+def make_fragment(gesture, pool, rng, ch_std, cfg: AugConfig, vis, where="head", bg=None):
     """Window with exactly `vis` of the gesture's steps visible (capped at its length), at a
     random position, the rest filler. `where` = head|tail|mid. vis=0 -> pure filler (leakage probe)."""
-    win = build_filler(pool, rng, WIN, ch_std, cfg.noise_frac)
+    win = build_filler(pool, rng, WIN, ch_std, cfg.noise_frac, bg)
     n = len(gesture)
     vis = min(vis, n, WIN)
     if vis > 0:

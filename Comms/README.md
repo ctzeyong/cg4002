@@ -182,4 +182,14 @@ output to read. The glove buzzes (VIBRATE) on each recognized gesture, and Termi
 `rate ~100 Hz` and the VIBRATE CMD. (Terminal 1 is the config-B laptop, which has no MQTT role, so it
 won't drive a visualiser — for the model check you read the client pane.)
 
+**When there is no event.** A flagged motion gives no AI event (no TCP event, no MQTT, no VIBRATE) when
+the model's top class is its no-gesture class `noise` (8-class models), or the top probability is below
+`CONF_THRESHOLD` in `AI/board/wk10_integration.py`. The client pane says which:
+```text
+no AI event: node 1's flagged gesture of 84 samples gave no result (noise p=0.94)
+no AI event: node 1's flagged gesture of 61 samples gave no result (low confidence fireball p=0.55 < 0.70)
+no AI event: node 1's flagged gesture of 12 samples gave no result (buffer not full: 12/150 samples)
+```
+A 7-class or an 8-class `.h5` both work with `--ai-h5` (the output size is read from the model).
+
 **Never mix config-A and config-B launch scripts** (`run_pipeline_a` pairs with the config-A client; the chosen deployment is config B).

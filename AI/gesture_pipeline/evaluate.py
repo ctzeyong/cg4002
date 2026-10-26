@@ -11,6 +11,23 @@ def accuracy(model, X, y):
     return float((predict(model, X) == y).mean())
 
 
+def probs(model, X):
+    """Softmax probabilities per window (the model outputs logits), as the comms side computes."""
+    z = model.predict(X, verbose=0).astype(np.float64)
+    p = np.exp(z - z.max(1, keepdims=True))
+    return p / p.sum(1, keepdims=True)
+
+
+def reject_rates(p, noise_label=None, threshold=0.0):
+    """Fraction of windows that would produce NO game event: the top class is noise, or its
+    probability is below `threshold` (the comms rejection rule)."""
+    top = p.argmax(1)
+    rejected = p.max(1) < threshold
+    if noise_label is not None:
+        rejected |= top == noise_label
+    return float(rejected.mean())
+
+
 def per_class(preds, y, names):
     """preds: (n,) or stacked (seeds, n). Returns {name: recall} seed-averaged."""
     preds = np.atleast_2d(preds)
@@ -29,7 +46,8 @@ def confusion(preds, y, names):
     for p in preds:
         for t, pr in zip(y, p):
             cm[t, pr] += 1
-    row = cm / cm.sum(1, keepdims=True)
+    s = cm.sum(1, keepdims=True)
+    row = np.divide(cm, s, out=np.zeros_like(cm), where=s > 0)    # a class with no test rows -> 0
     pairs = sorted(((row[i, j], names[i], names[j]) for i in range(n) for j in range(n)
                     if i != j and cm[i, j] > 0), reverse=True)
     return row, pairs

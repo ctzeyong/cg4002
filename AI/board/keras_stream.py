@@ -5,9 +5,11 @@ of the Ultra96 bitstream. Drop-in for wk10_integration.GestureClassifier: same
 feed()/infer()/infer_window()/reset() API, so the comms `AI` adapter uses it unchanged.
 Selected by the board client's `--ai-h5 PATH` flag.
 
-Non-destructive: wk10_integration.py is imported and reused, never modified. Only the
-compute backend is swapped (pynq -> Keras); the ring buffer, decode, end-of-gesture
-logic, softmax and CONF_THRESHOLD are all inherited.
+wk10_integration.py is imported and reused; only the compute backend is swapped (pynq ->
+Keras). The ring buffer, decode, end-of-gesture logic, softmax and the no-result rule (top
+class in REJECT_LABELS, i.e. 'noise', or below CONF_THRESHOLD; reason in last_reject) are all
+inherited, so the FPGA path behaves the same. The output size is read from the model, so a
+7-class and an 8-class (noise) .h5 both work.
 
 Works for a 6-channel model directly; for a 10-channel (feature) model it appends the
 4 derived channels (must match run_features.add_features).
@@ -32,9 +34,11 @@ GestureResult = wk.GestureResult
 ModelConfig = wk.ModelConfig
 ai_event_from_result = wk.ai_event_from_result
 
-# class index (sorted gesture names used in training) -> game-facing name
+# class index (sorted gesture names used in training) -> game-facing name. An 8-class model
+# (gesture_pipeline --noise) adds 'noise' LAST, so 0..6 are the same for 7- and 8-class models;
+# 'noise' is in wk10's REJECT_LABELS, so it gives no result (no event), like low confidence.
 NEW_LABEL_MAP = {0: 'warrior', 1: 'mage', 2: 'fireball', 3: 'rogue',
-                 4: 'lightning', 5: 'hero', 6: 'shield'}
+                 4: 'lightning', 5: 'hero', 6: 'shield', 7: 'noise'}
 
 
 def _add_features(w):
@@ -56,6 +60,7 @@ class _KerasBackend:
         self.model = load_qmodel(str(h5))
         self.config = config
         self.in_ch = int(self.model.input_shape[-1])          # 6 or 10
+        config.n_classes = int(self.model.output_shape[-1])   # 7, or 8 with the noise class
         self.inb = np.zeros((config.win * config.channels,), dtype=np.int16)   # 150*6
         self.outb = np.zeros((config.n_classes,), dtype=np.int16)
 
@@ -81,4 +86,5 @@ class GestureClassifier(wk.GestureClassifier):
         self.outb = self._backend.outb
         self.bufs = {}
         self.last_result = None
+        self.last_reject = None
         # no _assert_parity: there is no bitstream / label_map.json alongside a .h5
