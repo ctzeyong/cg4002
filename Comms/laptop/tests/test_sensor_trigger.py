@@ -553,8 +553,8 @@ async def test_both_configurations_emit_the_classifiers_answer_alike(caplog):
 def test_the_flags_reach_run_and_default_off(module, argv, monkeypatch):
     seen = []
 
-    async def fake_run(*args, gesture_flag=False):
-        seen.append((args[-1], gesture_flag))
+    async def fake_run(*args, gesture_flag=False, resample=False):
+        seen.append((args[-1], gesture_flag, resample))
 
     monkeypatch.setattr(module, "run", fake_run)
     monkeypatch.setattr(module, "setup_logging", lambda *a: "log")
@@ -562,7 +562,7 @@ def test_the_flags_reach_run_and_default_off(module, argv, monkeypatch):
         monkeypatch.setattr(sys, "argv", argv + extra)
         module.main()
 
-    assert seen == [(0, False), (100, False), (0, True)]
+    assert seen == [(0, False, False), (100, False, False), (0, True, False)]
 
 
 @pytest.mark.parametrize("module", [tcp_client, tcp_client_mqtt])
@@ -575,6 +575,25 @@ def test_the_two_sensor_triggers_cannot_be_used_together(module, monkeypatch):
     monkeypatch.setattr(sys, "argv", ["x.py", "--sensor-trigger", "100", "--gesture-flag"])
     with pytest.raises(SystemExit):
         module.main()
+
+
+def test_resample_reaches_run_and_needs_the_gesture_flag(monkeypatch):
+    seen = []
+
+    async def fake_run(*args, gesture_flag=False, resample=False):
+        seen.append((gesture_flag, resample))
+
+    monkeypatch.setattr(tcp_client_mqtt, "run", fake_run)
+    monkeypatch.setattr(tcp_client_mqtt, "setup_logging", lambda *a: "log")
+
+    monkeypatch.setattr(sys, "argv", ["tcp_client_mqtt.py", "--gesture-flag", "--resample"])
+    tcp_client_mqtt.main()
+    assert seen == [(True, True)]
+
+    # --resample on its own is refused: it only applies to the gesture-flag path
+    monkeypatch.setattr(sys, "argv", ["tcp_client_mqtt.py", "--resample"])
+    with pytest.raises(SystemExit):
+        tcp_client_mqtt.main()
 
 
 @pytest.mark.asyncio
@@ -615,7 +634,8 @@ async def test_configuration_b_run_passes_the_flag_to_every_session(
     seen = []
 
     async def failing_session(
-        host, port, events, event_every=0.0, sensor_every=0, classifier=None, gesture_flag=False
+        host, port, events, event_every=0.0, sensor_every=0, classifier=None, gesture_flag=False,
+        resample=False,
     ):
         seen.append(((sensor_every, gesture_flag), classifier))
         raise OSError("refused")

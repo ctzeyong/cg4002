@@ -841,3 +841,135 @@ def test_on_the_board_a_missing_pynq_is_an_error_not_the_stub(monkeypatch, tmp_p
     monkeypatch.setitem(sys.modules, "pynq", None)  # importing it now raises ImportError
     with pytest.raises(ImportError):
         gesture.load_classifier()
+
+
+# --- --resample preprocessing ------------------------------------------------
+# These need numpy (the resampler), so each skips rather than importing it at
+# module level, which would skip the whole file where numpy is absent.
+
+
+class RecordingWindowAI:
+    """Stands in for gesture.AI on the --resample path: captures each window given
+    to infer_window and never sees per-sample feed."""
+
+    def __init__(self, answer=("3", 0.9)):
+        self.windows = []
+        self.answer = answer
+
+    def infer_window(self, player, window):
+        self.windows.append((player, window))
+        return self.answer
+
+    def reset(self, player=None):
+        pass
+
+
+def test_resample_without_per_sample_stays_off():
+    # resample only applies to the per-sample AI; without it the flag is a no-op
+    # and preprocess (numpy) is never imported.
+    w = gesture.Windows(gesture.StubClassifier(), per_sample=False, resample=True)
+    assert w.resample is False
+
+
+def test_without_resample_the_per_sample_path_is_unchanged():
+    ai = FakeAI()
+    w = gesture.Windows(ai, per_sample=True)  # resample defaults off
+    assert w.resample is False
+    ai.calls.clear()
+    w.feed(packet(0, flag=1))
+    assert ai.calls[-1][0] == "sample"  # still fed one sample at a time
+
+
+def test_resample_steps_and_quantize_match_the_hardware_reference():
+    np = pytest.importorskip("numpy")
+    import preprocess
+
+    hw_dir = Path(__file__).resolve().parents[3] / "Hardware" / "Data Collection"
+    if not (hw_dir / "segments.py").exists():
+        pytest.skip("hardware data-collection tool not present")
+    sys.path.insert(0, str(hw_dir))
+    try:
+        import importlib
+
+        hw_seg = importlib.import_module("segments")
+        hw_cloud = importlib.import_module("cloud_export")
+        rng = np.random.default_rng(0)
+        raw = rng.uniform(-2.0, 2.0, size=(237, 6))  # g / deg-s, a realistic span
+        ours = preprocess.resample_steps(raw, 100)
+        theirs = hw_seg.resample_steps(raw, 100)
+        assert np.array_equal(ours, theirs)
+        q_ours, c_ours = preprocess.quantize_counts(ours)
+        q_theirs, c_theirs = hw_cloud.quantize_counts(theirs)
+        assert np.array_equal(q_ours, q_theirs)
+        assert c_ours == c_theirs
+        assert preprocess.PROCESSING_ID == hw_seg.PROCESSING_ID
+        assert preprocess.ENCODING_ID == hw_cloud.ENCODING_ID
+    except ImportError as exc:
+        pytest.skip(f"hardware reference not importable: {exc}")
+    finally:
+        if str(hw_dir) in sys.path:
+            sys.path.remove(str(hw_dir))
+        for name in ("segments", "cloud_export", "core"):
+            sys.modules.pop(name, None)
+
+
+def test_resample_window_is_centred_and_decoded():
+    np = pytest.importorskip("numpy")
+    import preprocess
+
+    span = [[0, 0, 8192, 0, 0, 0]] * 50  # a steady +1 g on az, 50 count samples
+    window, clipped = preprocess.gesture_window(span)
+    assert window.shape == (preprocess.WIN, preprocess.CHANNELS)
+    pad = preprocess.PAD
+    assert np.all(window[:pad] == 0)
+    assert np.all(window[pad + preprocess.GEST:] == 0)
+    # 8192 counts -> 9.80665 m/s^2 through resample(constant) + quantize + decode
+    assert abs(float(window[pad + 10, 2]) - 9.80665) < 1e-3
+    assert clipped == 0
+
+
+def test_the_resample_path_classifies_a_flagged_gesture_once():
+    pytest.importorskip("numpy")
+    w = gesture.Windows(gesture.StubAI(), per_sample=True, resample=True)
+    mid = [w.feed(packet(seq, flag=1, imu=(100, 0, 8192, 0, 0, 0), t=seq * 0.01))
+           for seq in range(30)]
+    assert all(r is None for r in mid)  # nothing is emitted mid-gesture
+    end = w.feed(packet(30, flag=0, imu=(0, 0, 0, 0, 0, 0), t=0.30))
+    assert end is not None and end.label in gesture.LABELS
+
+
+def test_the_resample_path_hands_ai_one_full_centred_window():
+    np = pytest.importorskip("numpy")
+    import preprocess
+
+    ai = RecordingWindowAI()
+    w = gesture.Windows(ai, per_sample=True, resample=True)
+    for seq in range(40):
+        w.feed(packet(seq, node=1, flag=1, imu=(seq, 0, 8192, 0, 0, 0), t=seq * 0.01))
+    res = w.feed(packet(40, node=1, flag=0, t=0.40))
+    assert len(ai.windows) == 1  # classified once, at the end of the gesture
+    player, window = ai.windows[0]
+    assert player == 1
+    assert np.asarray(window).shape == (preprocess.WIN, 6)
+    assert res.label == "3"
+
+
+def test_a_too_short_resampled_gesture_gives_no_event(caplog):
+    pytest.importorskip("numpy")
+    w = gesture.Windows(gesture.StubAI(), per_sample=True, resample=True)
+    w.feed(packet(0, flag=1, t=0.0))  # a single flagged sample
+    with caplog.at_level(logging.INFO, logger="gesture"):
+        res = w.feed(packet(1, flag=0, t=0.01))  # gesture ends with < 2 samples
+    assert res is None
+    assert "too short to resample" in caplog.text
+
+
+def test_a_reset_drops_a_resample_span_in_progress():
+    pytest.importorskip("numpy")
+    ai = RecordingWindowAI()
+    w = gesture.Windows(ai, per_sample=True, resample=True)
+    for seq in range(10):
+        w.feed(packet(seq, flag=1, imu=(seq, 0, 8192, 0, 0, 0), t=10.0 + seq * 0.01))
+    # a > RESET_GAP_S jump clears the node, so the half-built span is abandoned
+    w.feed(packet(10, flag=0, imu=(0, 0, 8192, 0, 0, 0), t=13.0))
+    assert ai.windows == []  # nothing classified: the span was dropped, not finished
