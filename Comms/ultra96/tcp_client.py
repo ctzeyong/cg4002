@@ -459,17 +459,19 @@ async def run(
     event_every: float = 0.0,
     sensor_every: int = 0,
     gesture_flag: bool = False,
+    ai_h5=None,
 ) -> None:
     """Maintain the Ultra96 TCP connection, reconnecting automatically after failures,
     waiting RECONNECT_BACKOFF_S between attempts.
     """
-    classifier = gesture.load_classifier(gesture_flag) if sensor_every > 0 or gesture_flag else None
+    use_flag = gesture_flag or bool(ai_h5)   # a Keras .h5 is always a per-sample model
+    classifier = gesture.load_classifier(use_flag, ai_h5=ai_h5) if sensor_every > 0 or use_flag else None
     if classifier is not None:
         log.info("classifier: %s", type(classifier).__name__)
     while True:
         try:
             await one_session(
-                host, port, event_every, sensor_every, classifier, gesture_flag=gesture_flag
+                host, port, event_every, sensor_every, classifier, gesture_flag=use_flag
             )
         except (OSError, asyncio.TimeoutError) as exc:
             log.warning("connect failed: %s", exc)
@@ -515,6 +517,13 @@ def main() -> None:
         help="standalone test: emit an AI event this often instead of waiting for an "
         "ECHO from a FireBeetle (default: off)",
     )
+    parser.add_argument(
+        "--ai-h5",
+        default=None,
+        metavar="PATH",
+        help="local test: run a Keras .h5 model instead of the FPGA bitstream (implies the "
+        "per-sample gesture path). See AI/board/keras_stream.py.",
+    )
     add_sensor_triggers(parser)
     args = parser.parse_args()
     log_file = setup_logging(args.verbose)
@@ -527,6 +536,7 @@ def main() -> None:
                 args.event_every,
                 args.sensor_trigger,
                 gesture_flag=args.gesture_flag,
+                ai_h5=args.ai_h5,
             )
         )
     except KeyboardInterrupt:
