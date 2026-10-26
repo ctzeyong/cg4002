@@ -33,12 +33,36 @@ the data is the `DataConfig`; the result is a `Result`. That is the whole surfac
 ## Run (from `baseline/`)
 
 ```bash
-python -m gesture_pipeline.exp_new_vocab          # new vocab, 6-ch lean (recommended)
-python -m gesture_pipeline.exp_new_vocab --feat   # new vocab, 10-ch feature model
-python -m gesture_pipeline.exp_final              # old vocab: lean / none / feat (3 seeds)
-python -m gesture_pipeline.exp_ablation           # old vocab: leave-one-out + strength sweep
-python -m gesture_pipeline.exp_eval --model results/models/new_lean_s1.h5   # eval a saved .h5
+python -m gesture_pipeline.exp_new_vocab              # new vocab, 6-ch lean, native length
+python -m gesture_pipeline.exp_new_vocab --resample   # same, resampled to 100 steps (= new_lean)
+python -m gesture_pipeline.exp_new_vocab --feat       # new vocab, 10-ch feature model
+python -m gesture_pipeline.exp_final                  # old vocab: lean / none / feat (3 seeds)
+python -m gesture_pipeline.exp_ablation               # old vocab: leave-one-out + strength sweep
+python -m gesture_pipeline.exp_eval --model results/models/new_lean_s1.h5 --resample   # eval a saved .h5
 ```
+
+### Gesture length: native vs resample
+
+`AugConfig.resample` (default `False`) must match how the live pipeline feeds the model:
+
+| `resample` | training | live pipeline | tag suffix |
+|---|---|---|---|
+| `False` (native) | gesture keeps its 100 Hz length (time-warp varies speed ×0.9–1.1) and slides anywhere across the 150-step window, up to `slide_max_out` (0.3) of it cut off either edge | default ring buffer: last 150 samples at end-of-flag | `_native` |
+| `True` | every gesture resampled to 100 steps, random offset −40…90 | `--resample` (resampled span, centred) | none |
+
+`exp_final` / `exp_ablation` pin `resample=True` so they still reproduce the old-vocab results.
+Evaluate a model with the mode it was trained in (`exp_eval --resample` for resampled models).
+
+### Test sets
+
+| test | windows | why |
+|---|---|---|
+| **jitter** (`build_test`) | each test gesture ×4 at a random start offset −40…40 | the original metric, unchanged, so new runs compare with old ones |
+| **ceiling** (`build_test`) | each gesture centred | upper bound |
+| **slide** (`build_slide_test`) | each gesture at 5 evenly spaced offsets, from `slide_max_out` cut off the left edge to the same off the right | robustness to cut-off / partial gestures; same rule for every model |
+
+`train_eval` prints all three per seed (slide is also in `run_<tag>.json`; `results.csv` keeps its
+old columns). `exp_eval` prints slide accuracy per position (head cut → tail cut).
 
 `exp_eval` prints per-class recall, the confusion matrix, the offset-robustness sweep, and the
 visible-length leakage probe (the `eval_offsets` / `eval_visible_lengths` sweeps from the old baseline).

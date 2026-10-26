@@ -42,14 +42,20 @@ def format_confusion(row, names):
     return "\n".join(lines)
 
 
-def offset_sweep(model, stream, offsets):
-    """Accuracy with every test gesture pinned at each fixed window offset
-    (centre = (WIN-GEST)//2). Robustness to a mistimed end-of-gesture. Ported from
-    gesture_real_baseline_v3.eval_offsets."""
+def by_position(preds, y, pos):
+    """Accuracy at each sliding-test position (data.build_slide_test: 0 = head cut ... last =
+    tail cut)."""
+    return {int(k): float((preds[pos == k] == y[pos == k]).mean()) for k in np.unique(pos)}
+
+
+def offset_sweep(model, stream, shifts):
+    """Accuracy with every test gesture pinned at each fixed shift from the centred position
+    (augment.ref_offset).
+    Robustness to a mistimed end-of-gesture. Ported from gesture_real_baseline_v3.eval_offsets."""
     out = {}
-    for off in offsets:
-        X = np.stack([stream.window(i, offset=off) for i in range(len(stream))]).astype("float32")
-        out[off] = float((predict(model, X) == stream.y).mean())
+    for s in shifts:
+        X = np.stack([stream.window(i, shift=s) for i in range(len(stream))]).astype("float32")
+        out[s] = float((predict(model, X) == stream.y).mean())
     return out
 
 

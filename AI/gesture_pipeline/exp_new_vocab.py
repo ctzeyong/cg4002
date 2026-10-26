@@ -6,6 +6,9 @@ picks 6-ch (raw, recommended) vs 10-ch (feature model), and build_model is the a
     python -m gesture_pipeline.exp_new_vocab            # 6-ch lean (recommended)
     python -m gesture_pipeline.exp_new_vocab --feat     # 10-ch feature model
     python -m gesture_pipeline.exp_new_vocab --smoke     # quick sanity run
+    python -m gesture_pipeline.exp_new_vocab --resample  # resample to GEST (the original new_lean)
+
+Native length is the default (tag new_lean_native); --resample reproduces new_lean.
 """
 import argparse
 
@@ -17,14 +20,18 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--feat", action="store_true", help="10-channel feature model (default: 6-ch raw)")
     ap.add_argument("--smoke", action="store_true", help="1 seed, 3 epochs, tiny mult")
+    ap.add_argument("--resample", action="store_true", help="resample every gesture to GEST steps")
     a = ap.parse_args()
 
+    aug = AugConfig.lean()                          # amp + time-warp + rotate + mag-warp
+    aug.resample = a.resample
     cfg = RunConfig(
         data=DataConfig(dir="new_gesture_100hz", labels=NEW_LABELS, roles=NEW_ROLE),
-        aug=AugConfig.lean(),                       # amp + time-warp + rotate + mag-warp
+        aug=aug,
         channels=10 if a.feat else 6,
         seeds=(1, 2, 3),
-        tag="new_feat" if a.feat else "new_lean",
+        # a distinct tag per length mode, so a native run never overwrites a resampled .h5
+        tag=("new_feat" if a.feat else "new_lean") + ("" if a.resample else "_native"),
     )
     if a.smoke:
         cfg.seeds = (1,)

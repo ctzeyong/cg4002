@@ -50,6 +50,15 @@ class AugConfig:
     bias: bool = True;     bias_p: float = 0.5; bias_frac: float = 0.05
     boundary: bool = True; bnd_p: float = 0.6;  bnd_max_frac: float = 0.10
     noise_frac: float = NOISE_FRAC
+    # resample=True: every gesture -> GEST steps, placed at a random offset in -CROP..WIN-GEST+CROP
+    # (the original pipeline; pair with the live --resample path). False: native 100 Hz length,
+    # slid anywhere across the window with up to slide_max_out of it cut off either edge;
+    # time-warp then also varies overall speed.
+    resample: bool = False
+    speed_lo: float = 0.9; speed_hi: float = 1.1   # native mode only, with timewarp
+    # most of the gesture (fraction 0..1) allowed outside the window: native training placement,
+    # and the sliding test set for every model
+    slide_max_out: float = 0.3
 
     SIGNAL = ("amp", "timewarp", "jitter", "rotate", "magwarp", "bias", "boundary")
 
@@ -115,5 +124,6 @@ class RunConfig:
 
     def describe(self):
         return (f"[{self.tag}] data={os.path.basename(self.data.path())} channels={self.channels} "
-                f"aug={self.aug.enabled() or 'none'} seeds={list(self.seeds)} "
+                f"aug={self.aug.enabled() or 'none'} "
+                f"length={'resample' if self.aug.resample else 'native'} seeds={list(self.seeds)} "
                 f"mult={self.train.mult} epochs<={self.train.epochs}")

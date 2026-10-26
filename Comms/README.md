@@ -182,20 +182,4 @@ output to read. The glove buzzes (VIBRATE) on each recognized gesture, and Termi
 `rate ~100 Hz` and the VIBRATE CMD. (Terminal 1 is the config-B laptop, which has no MQTT role, so it
 won't drive a visualiser — for the model check you read the client pane.)
 
-### Full loop with a visualiser — needs a broker (Configuration A)
-
-Deployment (config B) runs the broker on the Ultra96; with no board, move it to the laptop = **config A**.
-Requires **Mosquitto** installed and the Windows **Mobile hotspot** on (the config binds `192.168.137.1`).
-```powershell
-# Terminal 1 (Comms/): starts Mosquitto on the laptop + the config-A relay (publishes AI events)
-.\scripts\run_pipeline_a.ps1 --no-tunnel --nodes 1
-```
-```powershell
-# Terminal 2 (Comms/ultra96/): config-A board client, local, Keras model
-python tcp_client.py --host 127.0.0.1 --port 8888 --ai-h5 "...\models\new_lean_s1.h5"
-```
-Then point the **demo-visualiser** (config-A Unity client) at the laptop broker, or watch events from a shell:
-```powershell
-& "C:\Program Files\Mosquitto\mosquitto_sub.exe" -h 127.0.0.1 -t "game/gesture/#" -v
-```
 **Never mix config-A and config-B launch scripts** (`run_pipeline_a` pairs with the config-A client; the chosen deployment is config B).

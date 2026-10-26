@@ -15,6 +15,7 @@ SCREEN = TrainConfig(mult=8, epochs=100, patience=12)
 
 
 def _run(tag, aug):
+    aug.resample = True                         # the original ablation resampled to GEST
     cfg = RunConfig(data=DataConfig(**OLD), aug=aug, channels=6, seeds=(1,), train=SCREEN, tag=tag)
     print(train_eval(cfg).summary(), "\n")
 

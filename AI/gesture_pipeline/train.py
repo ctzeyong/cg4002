@@ -20,6 +20,7 @@ class Result:
     seeds: list
     jitter: list          # per-seed jitter accuracy
     ceiling: list          # per-seed ceiling accuracy
+    slide: list            # per-seed sliding-test accuracy (data.build_slide_test)
     params: int
     per_class: dict        # seed-averaged recall
     confusion: object      # row-normalised matrix
@@ -29,8 +30,10 @@ class Result:
         j, c = float(np.mean(self.jitter)), float(np.mean(self.ceiling))
         pc = ", ".join(f"{k} {v:.3f}" for k, v in self.per_class.items() if v is not None)
         worst = ", ".join(f"{a}->{b} {r:.1%}" for r, a, b in self.worst_pairs[:4])
+        s = float(np.mean(self.slide))
         return (f"[{self.tag}] jitter {j:.4f} (seeds {[round(x, 4) for x in self.jitter]})  "
-                f"ceiling {c:.4f}  params {self.params}\n  per-class: {pc}\n  worst: {worst or 'none'}")
+                f"ceiling {c:.4f}  slide {s:.4f}  params {self.params}\n"
+                f"  per-class: {pc}\n  worst: {worst or 'none'}")
 
 
 def train_eval(cfg: RunConfig) -> Result:
@@ -43,11 +46,12 @@ def train_eval(cfg: RunConfig) -> Result:
 
     sp = D.stratified_split(D.load(cfg.data), cfg.data)
     Xj, yj, Xc, yc = D.build_test(sp["test"], cfg.aug, cfg.channels)
+    Xs, ys, _ = D.build_slide_test(sp["test"], cfg.aug, cfg.channels)
     print(cfg.describe(), flush=True)
     print(f"split train/val/test = {len(sp['train'])}/{len(sp['val'])}/{len(sp['test'])}; "
-          f"test windows {len(Xj)} jitter / {len(Xc)} ceiling", flush=True)
+          f"test windows {len(Xj)} jitter / {len(Xc)} ceiling / {len(Xs)} slide", flush=True)
 
-    jit, ceil, preds_j, params = [], [], [], 0
+    jit, ceil, slide, preds_j, params = [], [], [], [], 0
     for seed in cfg.seeds:
         np.random.seed(seed); tf.random.set_seed(seed); tf.keras.backend.clear_session()
         tr = D.make_sequence(sp["train"], cfg.aug, cfg.channels, True,  cfg.train.batch, cfg.train.mult, seed)
@@ -62,12 +66,13 @@ def train_eval(cfg: RunConfig) -> Result:
                       monitor="val_loss", patience=cfg.train.patience, restore_best_weights=True)])
         pj = E.predict(model, Xj)
         jit.append(float((pj == yj).mean())); ceil.append(E.accuracy(model, Xc, yc)); preds_j.append(pj)
+        slide.append(E.accuracy(model, Xs, ys))
         model.save(os.path.join(models, f"{cfg.tag}_s{seed}.h5"))
-        print(f"  seed {seed}: jitter {jit[-1]:.4f} ceiling {ceil[-1]:.4f}", flush=True)
+        print(f"  seed {seed}: jitter {jit[-1]:.4f} ceiling {ceil[-1]:.4f} slide {slide[-1]:.4f}", flush=True)
 
     pc = E.per_class(np.stack(preds_j), yj, names)
     row, pairs = E.confusion(np.stack(preds_j), yj, names)
-    result = Result(cfg.tag, names, list(cfg.seeds), jit, ceil, int(params), pc, row, pairs)
+    result = Result(cfg.tag, names, list(cfg.seeds), jit, ceil, slide, int(params), pc, row, pairs)
 
     rc = os.path.join(cfg.out_dir, "results.csv")
     new = not os.path.exists(rc)
@@ -78,6 +83,8 @@ def train_eval(cfg: RunConfig) -> Result:
         w.writerow([cfg.tag, cfg.channels, "+".join(cfg.aug.enabled()),
                     round(float(np.mean(jit)), 4), round(float(np.mean(ceil)), 4), params, list(cfg.seeds)])
     json.dump(dict(tag=cfg.tag, channels=cfg.channels, enabled=cfg.aug.enabled(),
-                   jitter=jit, ceiling=ceil, per_class=pc, names=names),
+                   resample=cfg.aug.resample,
+                   slide_max_out=cfg.aug.slide_max_out,
+                   jitter=jit, ceiling=ceil, slide=slide, per_class=pc, names=names),
               open(os.path.join(cfg.out_dir, f"run_{cfg.tag}.json"), "w"), indent=2)
     return result

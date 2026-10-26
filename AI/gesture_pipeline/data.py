@@ -70,13 +70,17 @@ class GestureStream:
         self.rng = np.random.default_rng(seed)
         self.y = np.array([it["label"] for it in items], dtype=np.int64)
         self.pool = [augment.to_gesture(it["si"], self.rng, aug_cfg, None, augment=False) for it in items]
-        self.ch_std = np.stack(self.pool).reshape(-1, 6).std(axis=0)
+        self.ch_std = np.concatenate(self.pool).std(axis=0)   # native pool lengths vary
 
     def __len__(self):
         return len(self.items)
 
-    def window(self, i, offset=None):
+    def window(self, i, offset=None, shift=None):
+        """A window for item i. offset = absolute start step; shift = steps from the
+        reference position (augment.ref_offset); neither = random placement."""
         g = augment.to_gesture(self.items[i]["si"], self.rng, self.cfg, self.ch_std, self.augment_on)
+        if shift is not None:
+            offset = augment.ref_offset(len(g)) + shift
         w = augment.make_window(g, self.pool, self.rng, self.ch_std, self.cfg, offset)
         return augment.add_features(w) if self.channels == 10 else w
 
@@ -115,13 +119,28 @@ def make_sequence(items, aug_cfg, channels, augment_on, batch, mult, seed):
 
 
 def build_test(test_items, aug_cfg, channels, seed=777, mult_j=4):
-    """Fixed, never-augmented test windows: jitter = random offsets x mult_j, ceiling = centred."""
+    """Fixed, never-augmented test windows (the original test, kept so runs stay comparable):
+    jitter = random start offsets in -CROP..CROP x mult_j, ceiling = centred."""
     st = GestureStream(test_items, aug_cfg, channels, augment_on=False, seed=seed)
-    rng = np.random.default_rng(seed); center = (WIN - GEST) // 2
+    rng = np.random.default_rng(seed)
     Xj, yj, Xc, yc = [], [], [], []
     for _ in range(mult_j):
         for i in range(len(st)):
             Xj.append(st.window(i, offset=int(rng.integers(-CROP, CROP + 1)))); yj.append(st.y[i])
     for i in range(len(st)):
-        Xc.append(st.window(i, offset=center)); yc.append(st.y[i])
+        Xc.append(st.window(i, shift=0)); yc.append(st.y[i])
     return np.stack(Xj).astype(np.float32), np.array(yj), np.stack(Xc).astype(np.float32), np.array(yc)
+
+
+def build_slide_test(test_items, aug_cfg, channels, seed=778, positions=5):
+    """Fixed sliding test, alongside build_test: every test gesture at `positions` evenly spaced
+    start offsets across augment.slide_range (head cut by slide_max_out ... tail cut by the same),
+    filler both sides, never augmented. The same rule for resampled and native models, so they
+    compare. Returns X, y and each window's position index (0 = head cut, last = tail cut)."""
+    st = GestureStream(test_items, aug_cfg, channels, augment_on=False, seed=seed)
+    X, y, pos = [], [], []
+    for i in range(len(st)):
+        first, last = augment.slide_range(len(st.pool[i]), aug_cfg)   # pool = this item, unaugmented
+        for k, off in enumerate(np.linspace(first, last, positions).round().astype(int)):
+            X.append(st.window(i, offset=int(off))); y.append(st.y[i]); pos.append(k)
+    return np.stack(X).astype(np.float32), np.array(y), np.array(pos)
