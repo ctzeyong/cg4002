@@ -142,5 +142,60 @@ broker, is the proof the phone received them. `.\scripts\run_board.ps1 --stop` s
 client. The other options are in the
 [docs](../docs/subsystem/comms/README.md#2-run-configuration-b).
 
-**Never mix A's and B's scripts.** A mixed pair can run with every process looking healthy
-while the phone receives nothing.
+## Testing the model in the comms pipeline (laptop, before bitstream)
+
+Run a trained `.h5` through the **real comms pipeline on the laptop** — glove → BLE → laptop → TCP →
+classifier → event — with the model doing inference **locally instead of on the FPGA**. This validates it
+under live streaming / offset conditions (not just the offline test set) before converting to a bitstream.
+
+### What changed in the comms code
+
+| file | change |
+|---|---|
+| `AI/board/keras_stream.py` | **new.** `GestureClassifier` subclassing `wk10_integration`'s, with the pynq/FPGA backend swapped for a local Keras `.h5` (`_KerasBackend`). Reuses the ring buffer, decode, end-of-gesture, softmax and `CONF_THRESHOLD`; maps class ids → game roles; feeds a 6-ch model directly, computes the 4 feature channels for a 10-ch model. No pynq import. |
+| `Comms/ultra96/gesture.py` | `load_classifier(per_sample, ai_h5=None)` — one added branch: if `ai_h5` is set, return the Keras classifier instead of the FPGA/stub path. |
+| `Comms/ultra96/tcp_client.py` | `run()` / `main()` gain a `--ai-h5 PATH` flag (implies the per-sample gesture path). |
+
+Without `--ai-h5` nothing changes — `wk10_integration.py`, `ai_api.py`, the stubs and the FPGA path are untouched.
+
+### One-time: ML deps in the comms venv
+
+`tcp_client.py --ai-h5` needs TensorFlow + qkeras. From `Comms/`:
+```powershell
+.\.venv\Scripts\pip install tensorflow tf-keras qkeras
+```
+(`keras_stream` sets `TF_USE_LEGACY_KERAS=1` for qkeras automatically.)
+
+### Quick check — classify in the pipeline, no broker needed
+
+Fastest way to confirm the model works live. Two Windows Terminal panes:
+```powershell
+# Terminal 1 (Comms/): laptop relay, no SSH tunnel (the "board" is local), one glove
+.\scripts\run_pipeline.ps1 --no-tunnel --nodes 1
+```
+```powershell
+# Terminal 2 (Comms/ultra96/): local board client, Keras model in place of the FPGA
+python tcp_client.py --host 127.0.0.1 --port 8888 --ai-h5 "C:\Users\USER\Desktop\NUS\y4s1\CG4002\Model\baseline\ablation\models\new_lean_s1.h5"
+```
+Draw a gesture. The **client pane (Terminal 2) logs each classified gesture + confidence** — that's the
+output to read. The glove buzzes (VIBRATE) on each recognized gesture, and Terminal 1 shows the sensor
+`rate ~100 Hz` and the VIBRATE CMD. (Terminal 1 is the config-B laptop, which has no MQTT role, so it
+won't drive a visualiser — for the model check you read the client pane.)
+
+### Full loop with a visualiser — needs a broker (Configuration A)
+
+Deployment (config B) runs the broker on the Ultra96; with no board, move it to the laptop = **config A**.
+Requires **Mosquitto** installed and the Windows **Mobile hotspot** on (the config binds `192.168.137.1`).
+```powershell
+# Terminal 1 (Comms/): starts Mosquitto on the laptop + the config-A relay (publishes AI events)
+.\scripts\run_pipeline_a.ps1 --no-tunnel --nodes 1
+```
+```powershell
+# Terminal 2 (Comms/ultra96/): config-A board client, local, Keras model
+python tcp_client.py --host 127.0.0.1 --port 8888 --ai-h5 "...\models\new_lean_s1.h5"
+```
+Then point the **demo-visualiser** (config-A Unity client) at the laptop broker, or watch events from a shell:
+```powershell
+& "C:\Program Files\Mosquitto\mosquitto_sub.exe" -h 127.0.0.1 -t "game/gesture/#" -v
+```
+**Never mix config-A and config-B launch scripts** (`run_pipeline_a` pairs with the config-A client; the chosen deployment is config B).
