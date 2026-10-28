@@ -153,10 +153,10 @@ under live streaming / offset conditions (not just the offline test set) before 
 | file | change |
 |---|---|
 | `AI/board/keras_stream.py` | **new.** `GestureClassifier` subclassing `wk10_integration`'s, with the pynq/FPGA backend swapped for a local Keras `.h5` (`_KerasBackend`). Reuses the ring buffer, decode, end-of-gesture, softmax and `CONF_THRESHOLD`; maps class ids → game roles; feeds a 6-ch model directly, computes the 4 feature channels for a 10-ch model. No pynq import. |
-| `Comms/ultra96/gesture.py` | `load_classifier(per_sample, ai_h5=None)` — one added branch: if `ai_h5` is set, return the Keras classifier instead of the FPGA/stub path. |
-| `Comms/ultra96/tcp_client.py` | `run()` / `main()` gain a `--ai-h5 PATH` flag (implies the per-sample gesture path). |
+| `Comms/ultra96/gesture.py` | `load_classifier(ai_h5=None)` — one added branch: if `ai_h5` is set, return the Keras classifier instead of the FPGA/stub path. |
+| `Comms/ultra96/tcp_client.py` | `run()` / `main()` gain a `--ai-h5 PATH` flag (implies `--gesture-flag`). |
 
-Without `--ai-h5` nothing changes — `wk10_integration.py`, `ai_api.py`, the stubs and the FPGA path are untouched.
+Without `--ai-h5` nothing changes — `wk10_integration.py`, the stub and the FPGA path are untouched.
 
 ### One-time: ML deps in the comms venv
 

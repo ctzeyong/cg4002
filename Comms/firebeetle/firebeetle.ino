@@ -44,7 +44,6 @@ static_assert(IMU_ACCEL_RANGE_G == 4 && IMU_GYRO_RANGE_DPS == 500,
 #endif
 
 static constexpr uint8_t TYPE_SENSOR = 0x01;  // uplink, free-running stream
-// 0x02 is reserved for EVENT (hall-effect open/closed)
 static constexpr uint8_t TYPE_CMD  = 0x03;  // downlink, laptop -> board
 static constexpr uint8_t TYPE_ECHO = 0x04;  // uplink, this board's reply to a CMD
 static constexpr uint8_t TYPE_FILE_START = 0x10;

@@ -1,39 +1,23 @@
-"""The gesture windows' seq rules, and the promises AI's ai_api.py makes to Comms.
+"""The transport rules Comms applies before a SENSOR sample reaches AI, and what AI is given.
 
-A mistake here gives wrong predictions with no error anywhere. notes/ai_integration.md 3.2.
+A mistake here gives wrong predictions with no error anywhere.
 """
 
 import ast
-import csv
 import dataclasses
 import logging
 import math
 import re
 import sys
-import time
 import types
 from pathlib import Path
 
 import pytest
 
-import gesture  # noqa: E402 - ultra96/, on sys.path via conftest
+import ai_events  # noqa: E402 - ultra96/, on sys.path via conftest
+import gesture  # noqa: E402
 
-ai_api = gesture.ai_api  # imported via gesture, which knows where to find it
-
-AI_TEST_CSV = Path(__file__).resolve().parents[3] / "AI" / "laptop" / "gestures_test.csv"
-IMU_H = Path(__file__).resolve().parents[2] / "firebeetle" / "imu.h"
 ZERO = dict.fromkeys(gesture.CHANNELS, 0)
-
-
-class Recording:
-    """A classifier that keeps what it was given."""
-
-    def __init__(self):
-        self.samples = self.timeout = None
-
-    def classify(self, samples, timeout=None):
-        self.samples, self.timeout = samples, timeout
-        return "0", 1.0
 
 
 def packet(seq, node=1, imu=(0, 0, 0, 0, 0, 0), status=gesture.IMU_OK, t=None, flag=0):
@@ -49,76 +33,70 @@ def packet(seq, node=1, imu=(0, 0, 0, 0, 0, 0), status=gesture.IMU_OK, t=None, f
     return msg
 
 
-def windows(classifier=None):
-    return gesture.Windows(classifier or gesture.StubClassifier())
+# --- AI's side, faked ---------------------------------------------------------
 
 
-def fill(w, seqs, node=1):
-    for seq in seqs:
-        assert w.add(packet(seq, node))
+class FakeAI:
+    """Stands in for gesture.AI, keeping every call in order. Gives `answer` at a gesture's end."""
+
+    def __init__(self, answer=None):
+        self.calls = []
+        self.answer = answer
+
+    def on_sample(self, player, record):
+        self.calls.append(("sample", player, record))
+        return self.answer if record["end_of_gesture"] else None
+
+    def reset(self, player=None):
+        self.calls.append(("reset", player))
+
+
+def fed(answer=None, ai=None):
+    ai = ai or FakeAI(answer)
+    w = gesture.Windows(ai)
+    ai.calls.clear()  # the session's first reset has its own test
+    return w
+
+
+def seqs_seen(w):
+    return [call[2]["ax"] for call in w.ai.calls if call[0] == "sample"]
+
+
+def ends_seen(w):
+    return [call[2]["end_of_gesture"] for call in w.ai.calls if call[0] == "sample"]
+
+
+def flagged(w, seqs, node=1, t0=None, ax0=0):
+    """Feed one flagged packet per seq, 10 ms apart from t0, with ax counting up from ax0."""
+    for i, seq in enumerate(seqs):
+        t = None if t0 is None else t0 + i * 0.01
+        assert w.feed(packet(seq, node, imu=(ax0 + i, 1, 1, 1, 1, 1), t=t, flag=1)) is None
+
+
+def resets(w):
+    return [c[1] for c in w.ai.calls if c[0] == "reset"]
 
 
 # --- seq rules ---------------------------------------------------------------
 
 
 def test_the_wrap_from_255_to_0_is_not_a_gap():
-    w = windows()
-    fill(w, range(200, 300))  # 200..255, then 0..43
-    assert w.classify(1).missing == 0
+    w = fed(answer=("0", 1.0))
+    flagged(w, range(200, 300))  # 200..255, then 0..43
+    assert w.feed(packet(300)).missing == 0
 
 
-def test_a_backwards_seq_is_dropped_and_not_counted_as_missing():
-    rec = Recording()
-    w = windows(rec)
-    fill(w, range(100))
-    assert not w.add(packet(98, imu=(7,) * 6))  # one step back reads as a jump of 255
-    w.classify(1)
-    assert rec.samples[-1] == ZERO  # its sample never went in
-    assert w.classify(1).missing == 0
-
-
-def test_a_repeated_seq_is_dropped():
-    rec = Recording()
-    w = windows(rec)
-    fill(w, range(100))
-    assert not w.add(packet(99, imu=(7,) * 6))
-    w.classify(1)
-    assert rec.samples[-1] == ZERO
-    assert w.classify(1).missing == 0
-
-
-def test_forward_gaps_inside_the_window_are_counted():
-    w = windows()
-    fill(w, [*range(50), *range(53, 103)])  # 50, 51 and 52 lost
-    assert w.size(1) == 100
-    assert w.classify(1).missing == 3
-
-
-def test_a_gap_before_the_window_starts_is_not_counted():
-    w = windows()
-    fill(w, [*range(10), *range(15, 115)])  # the window is 15..114
-    assert w.classify(1).missing == 0
-
-
-def test_nodes_keep_separate_windows_and_seqs():
-    w = windows()
-    fill(w, range(100), node=1)
-    fill(w, range(50), node=2)  # seq 0 again, but for another node: not a repeat
-    assert w.classify(1) is not None
-    assert w.classify(2) is None
-
-
-def test_a_window_is_classified_only_once_it_is_full():
-    w = windows()
-    fill(w, range(99))
-    assert w.classify(1) is None
-    assert w.size(1) == 99
-    fill(w, [99])
-    assert w.classify(1).label in gesture.LABELS
+@pytest.mark.parametrize("old", [99, 98], ids=["repeat", "late"])
+def test_a_repeat_or_late_seq_is_dropped_and_not_counted_as_missing(old):
+    w = fed(answer=("0", 1.0))
+    flagged(w, range(100))
+    assert w.feed(packet(old, imu=(999,) * 6, flag=1)) is None
+    assert 999 not in seqs_seen(w)  # its sample never went in
+    assert w.feed(packet(100)).missing == 0
 
 
 def test_malformed_packets_are_skipped():
-    w = windows()
+    w = fed()
     good = packet(0)
     bad = [
         {**good, "imu": None},
@@ -128,27 +106,13 @@ def test_malformed_packets_are_skipped():
         {**good, "node": "1"},
         {key: value for key, value in good.items() if key != "seq"},
     ]
-    assert [w.add(msg) for msg in bad] == [False] * len(bad)
-    assert w.size(1) == 0
+    assert [w.feed(msg) for msg in bad] == [None] * len(bad)
+    assert w.ai.calls == []
 
 
-# --- a stream that stopped starts a new window -------------------------------
+# --- a stream that stopped starts again --------------------------------------
 # The firmware's seq only moves while it streams, and restarts at 0 on a reboot, so after a
 # BLE reconnect seq alone can't tell old samples from new. The laptop's receive time can.
-
-
-def stream(w, seqs, t0, node=1, ax0=0):
-    """Add packets 10 ms apart from t0, with ax counting up from ax0. Returns the next time."""
-    for i, seq in enumerate(seqs):
-        w.add(packet(seq, node, imu=(ax0 + i, 1, 1, 1, 1, 1), t=t0 + i * 0.01))
-    return t0 + len(seqs) * 0.01
-
-
-def window_ax(w, node=1):
-    rec = Recording()
-    w.classifier = rec
-    result = w.classify(node)
-    return None if result is None else ([s["ax"] for s in rec.samples], result.missing)
 
 
 @pytest.mark.parametrize(
@@ -160,63 +124,42 @@ def window_ax(w, node=1):
     ],
     ids=["reconnect", "reboot-looks-like-a-gap", "reboot-looks-late"],
 )
-def test_after_a_gap_the_window_holds_only_the_new_stream(before, after):
-    w = windows()
-    t = stream(w, before, 10.0, ax0=1000)
-    stream(w, after, t + 3.0, ax0=5000)  # 3 s with nothing, as in a BLE reconnect
-    assert window_ax(w) == (list(range(5000, 5100)), 0)
+def test_after_a_gap_ai_gets_only_the_new_stream(before, after):
+    w = fed(answer=("0", 1.0))
+    flagged(w, before, t0=10.0, ax0=1000)
+    w.ai.calls.clear()
+    t = 10.0 + len(before) * 0.01 + 3.0  # 3 s with nothing, as in a BLE reconnect
+    flagged(w, after, t0=t, ax0=5000)
+    result = w.feed(packet(after[-1] + 1, t=t + len(after) * 0.01))
+    assert w.ai.calls[0] == ("reset", 1) and resets(w) == [1]
+    assert seqs_seen(w)[:-1] == list(range(5000, 5100))
+    assert result.missing == 0
 
 
-def test_right_after_a_gap_there_is_no_full_window_to_classify():
-    w = windows()
-    t = stream(w, range(100), 10.0)
-    stream(w, [100], t + 3.0)
-    assert w.size(1) == 1
-    assert w.classify(1) is None
-
-
-def test_a_gap_under_the_limit_keeps_the_window():
-    w = windows()
-    t = stream(w, range(100), 10.0, ax0=0)
-    last = t - 0.01
-    w.add(packet(100, imu=(100, 1, 1, 1, 1, 1), t=last + gesture.RESET_GAP_S - 0.01))
-    assert window_ax(w) == (list(range(1, 101)), 0)
-
-
-def test_a_gap_on_one_node_leaves_the_other_alone():
-    w = windows()
-    stream(w, range(100), 10.0, node=1)
-    stream(w, range(100), 10.0, node=2)
-    w.add(packet(100, node=1, t=20.0))
-    assert w.size(1) == 1
-    assert w.size(2) == 100
+def test_a_gap_under_the_limit_keeps_the_gesture():
+    w = fed(answer=("0", 1.0))
+    flagged(w, range(100), t0=10.0)
+    last = 10.0 + 99 * 0.01
+    result = w.feed(packet(100, t=last + gesture.RESET_GAP_S - 0.01))
+    assert resets(w) == []
+    assert result is not None
 
 
 @pytest.mark.parametrize("bad", [None, "11.0", float("nan"), float("inf"), True, 0.5])
 def test_an_unusable_or_earlier_time_neither_resets_nor_moves_the_clock(bad):
-    w = windows()
-    t = stream(w, range(100), 0.0)  # times 0.00 .. 0.99
-    msg = packet(100)
+    w = fed()
+    flagged(w, range(100), t0=0.0)  # times 0.00 .. 0.99
+    msg = packet(100, imu=(999,) * 6)
     msg["timestamp"] = bad
-    assert w.add(msg)  # judged on seq alone
-    assert w.size(1) == 100
-    w.add(packet(101, t=t + 0.01))  # 20 ms after the last good time: no reset
-    assert w.size(1) == 100
-    w.add(packet(102, t=t + 3.0))  # but a real gap after it still resets
-    assert w.size(1) == 1
+    w.feed(msg)  # judged on seq alone
+    assert resets(w) == [] and seqs_seen(w)[-1] == 999
+    w.feed(packet(101, t=1.01))  # 20 ms after the last good time, so no reset
+    assert resets(w) == []
+    w.feed(packet(102, t=4.0))  # but a real gap after it still resets
+    assert resets(w) == [1]
 
 
-def test_a_gap_also_restarts_the_count_of_packets_without_a_reading():
-    w = windows()
-    stream(w, range(3), 10.0)
-    for seq in range(3, 6):
-        w.add(packet(seq, status=2, t=10.0 + seq * 0.01))
-    assert w.without_imu(1) == 3
-    w.add(packet(6, status=2, t=15.0))
-    assert w.without_imu(1) == 1
-
-
-# --- only IMU readings reach the model ---------------------------------------
+# --- only IMU readings reach AI ----------------------------------------------
 
 
 def test_the_board_reads_the_status_the_laptop_and_firmware_use():
@@ -237,163 +180,57 @@ NO_READING = [
 
 
 @pytest.mark.parametrize("change", NO_READING, ids=lambda c: repr(c["reserved"]))
-def test_a_packet_without_an_imu_reading_starts_the_window_again(change):
-    w = windows()
-    fill(w, range(100))
-    assert not w.add({**packet(100), **change})
-    assert w.size(1) == 0
-    assert w.classify(1) is None  # the readings from before it are not classified again
+def test_a_packet_without_an_imu_reading_resets_ai_and_never_reaches_it(change):
+    w = fed()
+    flagged(w, range(3))
+    assert w.feed({**packet(3, imu=(7,) * 6), **change}) is None
+    assert resets(w) == [1]
+    assert 7 not in seqs_seen(w)
 
 
 def test_a_packet_with_no_reserved_field_is_not_a_reading():
-    w = windows()
+    w = fed()
     msg = packet(0)
     del msg["reserved"]
-    assert not w.add(msg)
-    assert w.size(1) == 0
+    assert w.feed(msg) is None
+    assert w.ai.calls == [("reset", 1)]
 
 
-def test_after_an_outage_the_model_gets_only_readings_from_after_it():
-    rec = Recording()
-    w = windows(rec)
-    for seq in range(100):
-        assert w.add(packet(seq, imu=(seq, 1, 1, 1, 1, 1)))
+def test_after_an_outage_ai_gets_only_readings_from_after_it():
+    w = fed(answer=("0", 1.0))
+    flagged(w, range(100))
     # Unplugged for 2 s: zeros at status 2, then one status 3. Longer than half the seq
     # range, so if these packets didn't move the seq on, the next reading would look late.
     for seq in range(100, 300):
-        assert not w.add(packet(seq, status=2 if seq < 299 else 3))
-    for seq in range(300, 399):
-        assert w.add(packet(seq, imu=(seq, 1, 1, 1, 1, 1)))
-    assert w.classify(1) is None  # 99 readings since the outage, not enough
-    assert w.add(packet(399, imu=(399, 1, 1, 1, 1, 1)))
-    result = w.classify(1)
-    assert [s["ax"] for s in rec.samples] == list(range(300, 400))
+        assert w.feed(packet(seq, status=2 if seq < 299 else 3, flag=1)) is None
+    w.ai.calls.clear()
+    flagged(w, range(300, 400), ax0=300)
+    result = w.feed(packet(400, imu=(400, 1, 1, 1, 1, 1)))
+    assert seqs_seen(w) == list(range(300, 401))
     assert result.missing == 0  # the outage's packets arrived, so none were lost
 
 
-def test_packets_without_a_reading_are_counted_until_one_returns():
-    w = windows()
-    fill(w, range(3))
-    for seq in range(3, 6):
-        w.add(packet(seq, status=2))
-    assert w.without_imu(1) == 3
-    assert w.without_imu(2) == 0
-    w.add(packet(6))
-    assert w.without_imu(1) == 0
+def test_a_repeat_or_late_packet_without_a_reading_leaves_ai_alone():
+    w = fed(answer=("0", 1.0))
+    flagged(w, range(10))
+    assert w.feed(packet(9, status=2)) is None  # a repeat
+    assert w.feed(packet(8, status=2)) is None  # late
+    assert resets(w) == []
+    assert w.feed(packet(10)) is not None  # the gesture survived them
 
 
-def test_a_repeat_or_late_packet_without_a_reading_leaves_the_window_alone():
-    w = windows()
-    fill(w, range(100))
-    assert not w.add(packet(99, status=2))  # a repeat
-    assert not w.add(packet(98, status=2))  # late
-    assert w.size(1) == 100
-    assert w.without_imu(1) == 0
-
-
-def test_the_model_gets_only_the_six_imu_channels():
-    rec = Recording()
-    w = windows(rec)
-    for seq in range(100):
-        msg = packet(seq, imu=(1, 2, 3, 4, 5, 6))
-        msg["imu"]["temp"] = 99  # an extra value, if the firmware ever sends one
-        msg.update(fields=[1, 2, 3, 4, 5, 6, 1, 0, 0, 0, 0], crc=0, timestamp=1.0)
-        assert w.add(msg)
-    w.classify(1)
-    assert all(s == dict(zip(gesture.CHANNELS, (1, 2, 3, 4, 5, 6))) for s in rec.samples)
-
-
-# --- what Windows hands the API ----------------------------------------------
-
-
-def test_the_api_gets_the_window_oldest_first_and_comms_deadline():
-    rec = Recording()
-    w = windows(rec)
-    for seq in range(150):
-        assert w.add(packet(seq, imu=(seq, 0, 0, 0, 0, 0)))
-    w.classify(1)
-    assert [s["ax"] for s in rec.samples] == list(range(50, 150))
-    assert rec.timeout == gesture.TIMEOUT_S
-
-
-# --- AI's API: counts in, the model's inputs ---------------------------------
-
-
-# MPU6050 datasheet: counts per unit at each full-scale range
-ACCEL_LSB_PER_G_AT = {2: 16384, 4: 8192, 8: 4096, 16: 2048}
-GYRO_LSB_PER_DPS_AT = {250: 131, 500: 65.5, 1000: 32.8, 2000: 16.4}
-
-
-def test_ai_api_decodes_counts_at_the_ranges_the_firmware_sets():
-    """A range mismatch hands the model values at the wrong size, with no error."""
-    ranges = dict(re.findall(r"constexpr int16_t (IMU_\w+_RANGE_\w+) = (\d+);", IMU_H.read_text()))
-    assert ai_api.ACCEL_LSB_PER_G == ACCEL_LSB_PER_G_AT[int(ranges["IMU_ACCEL_RANGE_G"])]
-    assert ai_api.GYRO_LSB_PER_DPS == GYRO_LSB_PER_DPS_AT[int(ranges["IMU_GYRO_RANGE_DPS"])]
-
-
-def test_one_g_and_two_degrees_per_second_give_hand_computed_inputs():
-    # 1 g = 8192 counts = 9.80665 m/s², x1024 = 10042.01. 131 counts = 2 °/s = 0.034907 rad/s,
-    # x1024 = 35.74.
-    sample = dict(zip(ai_api.CHANNELS, (8192, -8192, 0, 131, -131, 0)))
-    assert ai_api.to_inputs([sample]) == [10042, -10042, 0, 36, -36, 0]
-
-
-def test_to_fixed_saturates_at_the_int16_ends():
-    assert ai_api.to_fixed(1.0) == 1024
-    assert ai_api.to_fixed(32.0) == 32767
-    assert ai_api.to_fixed(-32.0) == -32768
-    assert ai_api.to_fixed(-40.0) == -32768
-
-
-def test_gyro_full_scale_fits_but_acceleration_clips_above_3_26_g():
-    """Q6.10 holds ±32: ±500 °/s (±8.7 rad/s) fits, ±4 g (±39.2 m/s²) does not.
-
-    Acceleration saturates above 32 / 9.80665 = 3.26 g. Whether that is acceptable is AI's
-    call; this pins today's behaviour so a change to it is seen.
-    """
-    top = ai_api.to_inputs([dict.fromkeys(ai_api.CHANNELS, 32767)])
-    bottom = ai_api.to_inputs([dict.fromkeys(ai_api.CHANNELS, -32768)])
-    assert max(top[3:]) < 32767 and min(bottom[3:]) > -32768
-
-    def ax_input(g):
-        sample = {**dict.fromkeys(ai_api.CHANNELS, 0), "ax": round(g * ai_api.ACCEL_LSB_PER_G)}
-        return ai_api.to_inputs([sample])[0]
-
-    assert ax_input(3.2) < 32767
-    assert ax_input(3.3) == 32767
+def test_ai_gets_only_the_six_imu_channels():
+    w = fed()
+    msg = packet(0, imu=(1, 2, 3, 4, 5, 6), t=1.0)
+    msg["imu"]["temp"] = 99  # an extra value, if the firmware ever sends one
+    msg.update(fields=[1, 2, 3, 4, 5, 6, 1, 0, 0, 0, 0], crc=0)
+    w.feed(msg)
+    record = w.ai.calls[0][2]
+    assert {k: record[k] for k in gesture.CHANNELS} == dict(zip(gesture.CHANNELS, (1, 2, 3, 4, 5, 6)))
+    assert set(record) == {*gesture.CHANNELS, "end_of_gesture", "timestamp"}
 
 
 # --- --gesture-flag: what reaches AI ----------------------------------------
-
-
-class FakeAI:
-    """Stands in for gesture.AI, keeping every call in order. Gives `answer` at a gesture's end."""
-
-    def __init__(self, answer=None):
-        self.calls = []
-        self.answer = answer
-
-    def on_sample(self, player, record):
-        self.calls.append(("sample", player, record))
-        return self.answer if record["end_of_gesture"] else None
-
-    def reset(self, player=None):
-        self.calls.append(("reset", player))
-
-
-def fed(answer=None, ai=None):
-    ai = ai or FakeAI(answer)
-    w = gesture.Windows(ai, per_sample=True)
-    ai.calls.clear()  # the session's first reset has its own test
-    return w
-
-
-def seqs_seen(w):
-    return [call[2]["ax"] for call in w.ai.calls if call[0] == "sample"]
-
-
-def ends_seen(w):
-    return [call[2]["end_of_gesture"] for call in w.ai.calls if call[0] == "sample"]
 
 
 def test_each_sample_reaches_ai_as_its_imu_sample_fields_with_the_player():
@@ -442,31 +279,12 @@ def test_the_record_has_no_timestamp_when_the_message_has_none():
     assert w.ai.calls[0][2]["timestamp"] is None
 
 
-def test_a_repeat_or_late_packet_never_reaches_ai():
-    w = fed()
-    for seq in (10, 11, 11, 9, 12):
-        w.feed(packet(seq, imu=(seq, 0, 0, 0, 0, 0)))
-    assert seqs_seen(w) == [10, 11, 12]
-
-
 def test_an_outage_resets_ai_once_and_its_packets_never_reach_it():
     w = fed()
     for seq, status in enumerate((1, 1, 2, 2, 3, 1)):
         w.feed(packet(seq, imu=(seq, 0, 0, 0, 0, 0), status=status))
     assert [c[:2] if c[0] == "reset" else c[2]["ax"] for c in w.ai.calls] == [
         0, 1, ("reset", 1), 5,
-    ]
-
-
-@pytest.mark.parametrize("after", [range(10, 13), range(0, 3)], ids=["reconnect", "reboot"])
-def test_a_gap_resets_ai_before_the_next_sample(after):
-    w = fed()
-    for i, seq in enumerate(range(7, 10)):
-        w.feed(packet(seq, imu=(seq, 0, 0, 0, 0, 0), t=10.0 + i * 0.01, flag=1))
-    for i, seq in enumerate(after):
-        w.feed(packet(seq, imu=(100 + seq, 0, 0, 0, 0, 0), t=13.0 + i * 0.01, flag=1))
-    assert [c[:2] if c[0] == "reset" else c[2]["ax"] for c in w.ai.calls] == [
-        7, 8, 9, ("reset", 1), *[100 + seq for seq in after],
     ]
 
 
@@ -561,26 +379,18 @@ def test_a_failed_gesture_is_not_also_logged_as_no_result(caplog):
 
 def test_a_new_session_empties_ais_buffers_and_has_no_gesture_in_progress():
     ai = FakeAI(answer=("0", 1.0))  # the model lives for the whole run, the windows per session
-    first = gesture.Windows(ai, per_sample=True)
+    first = gesture.Windows(ai)
     for seq in range(30):
         first.feed(packet(seq, flag=1))
     ai.calls.clear()
-    second = gesture.Windows(ai, per_sample=True)
+    second = gesture.Windows(ai)
     assert ai.calls == [("reset", None)]
     assert second.feed(packet(30)) is None  # the old session's gesture would end here
     assert ai.calls[-1][2]["end_of_gesture"] is False
 
 
-def test_the_sensor_trigger_path_never_resets_its_classifier():
-    """StubClassifier and ai_api's model have no reset(), so an outage must not call one."""
-    w = windows()
-    for seq, status in enumerate((1, 2, 1)):
-        w.add(packet(seq, status=status))
-    w.add(packet(3, t=10.0))
-    w.add(packet(4, t=13.0))  # and a gap
 
-
-# --- AI's per-sample model, through gesture.AI -------------------------------
+# --- AI's model, through gesture.AI ------------------------------------------
 
 AI_STREAM = Path(__file__).resolve().parents[3] / "AI" / "board" / f"{gesture.AI_MODULE}.py"
 
@@ -647,12 +457,34 @@ def test_the_stub_ai_answers_only_at_the_end_of_a_gesture():
     stub = gesture.StubAI()
     record = gesture.to_record(dict(zip(gesture.CHANNELS, range(6))), {}, False)
     assert stub.on_sample(1, record) is None
-    assert stub.on_sample(1, {**record, "end_of_gesture": True})[0] in gesture.LABELS
+    assert stub.on_sample(1, {**record, "end_of_gesture": True})[0] in ai_events.GESTURES
 
 
 def ai_class(name):
     tree = ast.parse(AI_STREAM.read_text(encoding="utf-8"))
     return next(n for n in ast.walk(tree) if isinstance(n, ast.ClassDef) and n.name == name)
+
+
+IMU_H = Path(__file__).resolve().parents[2] / "firebeetle" / "imu.h"
+
+# counts per unit at each MPU6050 full-scale range, from its datasheet
+ACCEL_LSB_PER_G_AT = {2: 16384, 4: 8192, 8: 4096, 16: 2048}
+GYRO_LSB_PER_DPS_AT = {250: 131, 500: 65.5, 1000: 32.8, 2000: 16.4}
+
+
+def ai_constant(name):
+    tree = ast.parse(AI_STREAM.read_text(encoding="utf-8"))
+    node = next(n for n in tree.body if isinstance(n, ast.Assign) and n.targets[0].id == name)
+    return ast.literal_eval(node.value)
+
+
+def test_ais_model_decodes_counts_at_the_ranges_the_firmware_sets():
+    """A range mismatch hands the model values at the wrong size, with no error."""
+    ranges = dict(re.findall(r"constexpr int16_t (IMU_\w+_RANGE_\w+) = (\d+);", IMU_H.read_text()))
+    accel = ACCEL_LSB_PER_G_AT[int(ranges["IMU_ACCEL_RANGE_G"])]
+    gyro = GYRO_LSB_PER_DPS_AT[int(ranges["IMU_GYRO_RANGE_DPS"])]
+    assert ai_constant("ACCEL_TO_M_S2") == pytest.approx(9.80665 / accel, rel=1e-9)
+    assert ai_constant("GYRO_TO_RAD_S") == pytest.approx(math.radians(1) / gyro, rel=1e-9)
 
 
 def test_comms_fills_exactly_ais_imu_sample_fields():
@@ -674,7 +506,7 @@ def test_the_bitstream_comms_loads_is_beside_ais_module():
 
 def test_off_the_board_the_flag_path_gets_the_stub(monkeypatch, tmp_path):
     monkeypatch.setattr(gesture, "FPGA_MANAGER", tmp_path / "absent")
-    assert isinstance(gesture.load_classifier(per_sample=True), gesture.StubAI)
+    assert isinstance(gesture.load_classifier(), gesture.StubAI)
 
 
 def test_on_the_board_the_flag_path_loads_ais_model_with_its_bitstream(monkeypatch, tmp_path):
@@ -684,18 +516,19 @@ def test_on_the_board_the_flag_path_loads_ais_model_with_its_bitstream(monkeypat
     module.GestureClassifier = lambda bitstream: built.append(bitstream) or "model"
     monkeypatch.setitem(sys.modules, gesture.AI_MODULE, module)
     monkeypatch.setattr(gesture, "FPGA_MANAGER", tmp_path)
-    ai = gesture.load_classifier(per_sample=True)
+    ai = gesture.load_classifier()
     assert isinstance(ai, gesture.AI) and (ai.module, ai.model) == (module, "model")
     assert built == [str(tmp_path / gesture.AI_BITSTREAM)]
 
 
-# --- the stub and the log fields ---------------------------------------------
+def test_on_the_board_a_model_that_will_not_import_is_an_error_not_the_stub(monkeypatch, tmp_path):
+    monkeypatch.setattr(gesture, "FPGA_MANAGER", tmp_path)
+    monkeypatch.setitem(sys.modules, gesture.AI_MODULE, None)  # importing it now raises ImportError
+    with pytest.raises(ImportError):
+        gesture.load_classifier()
 
 
-def test_the_stub_gives_the_same_class_for_the_same_window():
-    stub = gesture.StubClassifier()
-    samples = [dict(zip(gesture.CHANNELS, range(t, t + 6))) for t in range(100)]
-    assert stub.classify(samples)[0] == stub.classify([dict(s) for s in samples])[0]
+# --- the log fields ----------------------------------------------------------
 
 
 def test_log_fields_are_empty_for_a_dummy_event():
@@ -703,273 +536,3 @@ def test_log_fields_are_empty_for_a_dummy_event():
     assert gesture.log_fields(gesture.Result("3", 0.5, 0.8125, 2)) == (
         " conf=0.500 t_infer_ms=0.812 missing=2"
     )
-
-
-# --- AI's classifier, against a fake pynq ------------------------------------
-
-
-class FakeChannel:
-    def __init__(self, overlay, name):
-        self.overlay, self.name = overlay, name
-        self.busy_until = 0.0
-
-    @property
-    def idle(self):
-        return time.perf_counter() >= self.busy_until
-
-    def transfer(self, buffer):
-        if self.overlay.refuse:
-            raise RuntimeError("DMA channel not idle")
-        self.overlay.calls.append(self.name)
-        self.busy_until = time.perf_counter() + self.overlay.stall_s
-        if self.name == "send":  # the "IP": logit 2.0 for class inputs[0] % 7, the rest 0
-            out = self.overlay.outb
-            out[:] = [0] * len(out)
-            out[buffer[0] % len(out)] = 2 << ai_api.OUT_FRAC
-
-
-class FakeOverlay:
-    def __init__(self, path, ip=("cnn_axi_0", "axi_dma_0")):
-        self.ip_dict = dict.fromkeys(ip)
-        self.calls, self.refuse, self.stall_s, self.inb, self.outb = [], False, 0.0, None, None
-        self.axi_dma_0 = types.SimpleNamespace(
-            sendchannel=FakeChannel(self, "send"), recvchannel=FakeChannel(self, "recv")
-        )
-        self.cnn_axi_0 = types.SimpleNamespace(write=lambda addr, value: self.calls.append("start"))
-        FakeOverlay.last = self
-
-
-@pytest.fixture
-def fake_pynq(monkeypatch):
-    def allocate(shape, dtype, cacheable):
-        assert dtype == "int16" and cacheable is False
-        buffer = [0] * shape[0]
-        if shape[0] == len(ai_api.LABELS):
-            FakeOverlay.last.outb = buffer
-        else:
-            FakeOverlay.last.inb = buffer
-        return buffer
-
-    monkeypatch.setitem(sys.modules, "pynq", types.SimpleNamespace(Overlay=FakeOverlay, allocate=allocate))
-    return FakeOverlay
-
-
-def test_ai_rows_sent_as_counts_reach_the_fpga_as_the_same_row(fake_pynq):
-    """The AI team's own rows, streamed in as counts, must reach the DMA as that row.
-
-    Goes through Windows and classify(), the path the board takes. A channel-major mix-up
-    fails this; fingerprint_board.py shows it is a real risk.
-    """
-    with open(AI_TEST_CSV, newline="") as f:
-        reader = csv.reader(f)
-        next(reader)
-        rows = [next(reader) for _ in range(3)]
-
-    w = windows(ai_api.GestureClassifier("x.xsa"))
-    n = len(ai_api.CHANNELS)
-    for row in rows:
-        values = [float(v) for v in row[1:]]  # row[0] is the label
-        assert len(values) == ai_api.WINDOW * n
-        for t in range(ai_api.WINDOW):
-            step = values[t * n : (t + 1) * n]
-            assert w.add(packet(t, imu=[round(v / s) for v, s in zip(step, ai_api.SCALES)]))
-        w.classify(1)
-
-        expected = [ai_api.to_fixed(v) for v in values]
-        assert max(abs(a - b) for a, b in zip(fake_pynq.last.inb, expected)) <= 1
-        w = windows(w.classifier)  # a fresh window, seq 0 again
-
-
-def test_classify_gives_the_top_class_and_its_softmax(fake_pynq):
-    model = ai_api.GestureClassifier("x.xsa")
-    label, confidence = model.classify([ZERO] * ai_api.WINDOW)  # input word 0 -> class 0
-    assert label == "0"
-    assert confidence == pytest.approx(math.exp(2) / (math.exp(2) + 6))
-    assert model.logits([5] + [0] * 599)[5] == 2.0  # 2048 in Q6.10
-
-
-def test_classify_refuses_a_window_of_the_wrong_length(fake_pynq):
-    model = ai_api.GestureClassifier("x.xsa")
-    with pytest.raises(ai_api.ClassifyError, match="need 100 samples, got 99"):
-        model.classify([ZERO] * 99)
-
-
-def test_the_ip_is_started_and_the_receive_armed_before_sending(fake_pynq):
-    model = ai_api.GestureClassifier("x.xsa")
-    fake_pynq.last.calls.clear()
-    model.classify([ZERO] * ai_api.WINDOW)
-    assert fake_pynq.last.calls == ["start", "recv", "send"]
-
-
-def test_loading_runs_one_warm_up_inference(fake_pynq):
-    model = ai_api.GestureClassifier("x.xsa")
-    assert fake_pynq.last.calls == ["start", "recv", "send"]
-    assert model.cold_ms >= 0
-
-
-def test_a_stalled_dma_fails_that_window_within_the_timeout(fake_pynq):
-    model = ai_api.GestureClassifier("x.xsa")
-    fake_pynq.last.stall_s = 0.3  # it would finish, but far too late
-    started = time.perf_counter()
-    with pytest.raises(gesture.ClassifierError):
-        model.classify([ZERO] * ai_api.WINDOW, timeout=gesture.TIMEOUT_S)
-    assert time.perf_counter() - started < 0.2
-
-
-def test_a_refused_transfer_is_a_classify_error(fake_pynq):
-    model = ai_api.GestureClassifier("x.xsa")
-    fake_pynq.last.refuse = True
-    with pytest.raises(gesture.ClassifierError):
-        model.classify([ZERO] * ai_api.WINDOW)
-
-
-def test_a_bitstream_without_the_control_port_is_refused(fake_pynq, monkeypatch):
-    monkeypatch.setattr(sys.modules["pynq"], "Overlay", lambda path: FakeOverlay(path, ip=("axi_dma_0",)))
-    with pytest.raises(RuntimeError, match="cnn_axi_0"):
-        ai_api.GestureClassifier("old.xsa")
-
-
-def test_the_board_gets_the_fpga_classifier_and_anywhere_else_the_stub(fake_pynq, monkeypatch, tmp_path):
-    monkeypatch.setattr(gesture, "FPGA_MANAGER", tmp_path / "absent")
-    assert isinstance(gesture.load_classifier(), gesture.StubClassifier)
-    monkeypatch.setattr(gesture, "FPGA_MANAGER", tmp_path)
-    assert isinstance(gesture.load_classifier(), ai_api.GestureClassifier)
-
-
-def test_on_the_board_a_missing_pynq_is_an_error_not_the_stub(monkeypatch, tmp_path):
-    monkeypatch.setattr(gesture, "FPGA_MANAGER", tmp_path)
-    monkeypatch.setitem(sys.modules, "pynq", None)  # importing it now raises ImportError
-    with pytest.raises(ImportError):
-        gesture.load_classifier()
-
-
-# --- --resample preprocessing ------------------------------------------------
-# These need numpy (the resampler), so each skips rather than importing it at
-# module level, which would skip the whole file where numpy is absent.
-
-
-class RecordingWindowAI:
-    """Stands in for gesture.AI on the --resample path: captures each window given
-    to infer_window and never sees per-sample feed."""
-
-    def __init__(self, answer=("3", 0.9)):
-        self.windows = []
-        self.answer = answer
-
-    def infer_window(self, player, window):
-        self.windows.append((player, window))
-        return self.answer
-
-    def reset(self, player=None):
-        pass
-
-
-def test_resample_without_per_sample_stays_off():
-    # resample only applies to the per-sample AI; without it the flag is a no-op
-    # and preprocess (numpy) is never imported.
-    w = gesture.Windows(gesture.StubClassifier(), per_sample=False, resample=True)
-    assert w.resample is False
-
-
-def test_without_resample_the_per_sample_path_is_unchanged():
-    ai = FakeAI()
-    w = gesture.Windows(ai, per_sample=True)  # resample defaults off
-    assert w.resample is False
-    ai.calls.clear()
-    w.feed(packet(0, flag=1))
-    assert ai.calls[-1][0] == "sample"  # still fed one sample at a time
-
-
-def test_resample_steps_and_quantize_match_the_hardware_reference():
-    np = pytest.importorskip("numpy")
-    import preprocess
-
-    hw_dir = Path(__file__).resolve().parents[3] / "Hardware" / "Data Collection"
-    if not (hw_dir / "segments.py").exists():
-        pytest.skip("hardware data-collection tool not present")
-    sys.path.insert(0, str(hw_dir))
-    try:
-        import importlib
-
-        hw_seg = importlib.import_module("segments")
-        hw_cloud = importlib.import_module("cloud_export")
-        rng = np.random.default_rng(0)
-        raw = rng.uniform(-2.0, 2.0, size=(237, 6))  # g / deg-s, a realistic span
-        ours = preprocess.resample_steps(raw, 100)
-        theirs = hw_seg.resample_steps(raw, 100)
-        assert np.array_equal(ours, theirs)
-        q_ours, c_ours = preprocess.quantize_counts(ours)
-        q_theirs, c_theirs = hw_cloud.quantize_counts(theirs)
-        assert np.array_equal(q_ours, q_theirs)
-        assert c_ours == c_theirs
-        assert preprocess.PROCESSING_ID == hw_seg.PROCESSING_ID
-        assert preprocess.ENCODING_ID == hw_cloud.ENCODING_ID
-    except ImportError as exc:
-        pytest.skip(f"hardware reference not importable: {exc}")
-    finally:
-        if str(hw_dir) in sys.path:
-            sys.path.remove(str(hw_dir))
-        for name in ("segments", "cloud_export", "core"):
-            sys.modules.pop(name, None)
-
-
-def test_resample_window_is_centred_and_decoded():
-    np = pytest.importorskip("numpy")
-    import preprocess
-
-    span = [[0, 0, 8192, 0, 0, 0]] * 50  # a steady +1 g on az, 50 count samples
-    window, clipped = preprocess.gesture_window(span)
-    assert window.shape == (preprocess.WIN, preprocess.CHANNELS)
-    pad = preprocess.PAD
-    assert np.all(window[:pad] == 0)
-    assert np.all(window[pad + preprocess.GEST:] == 0)
-    # 8192 counts -> 9.80665 m/s^2 through resample(constant) + quantize + decode
-    assert abs(float(window[pad + 10, 2]) - 9.80665) < 1e-3
-    assert clipped == 0
-
-
-def test_the_resample_path_classifies_a_flagged_gesture_once():
-    pytest.importorskip("numpy")
-    w = gesture.Windows(gesture.StubAI(), per_sample=True, resample=True)
-    mid = [w.feed(packet(seq, flag=1, imu=(100, 0, 8192, 0, 0, 0), t=seq * 0.01))
-           for seq in range(30)]
-    assert all(r is None for r in mid)  # nothing is emitted mid-gesture
-    end = w.feed(packet(30, flag=0, imu=(0, 0, 0, 0, 0, 0), t=0.30))
-    assert end is not None and end.label in gesture.LABELS
-
-
-def test_the_resample_path_hands_ai_one_full_centred_window():
-    np = pytest.importorskip("numpy")
-    import preprocess
-
-    ai = RecordingWindowAI()
-    w = gesture.Windows(ai, per_sample=True, resample=True)
-    for seq in range(40):
-        w.feed(packet(seq, node=1, flag=1, imu=(seq, 0, 8192, 0, 0, 0), t=seq * 0.01))
-    res = w.feed(packet(40, node=1, flag=0, t=0.40))
-    assert len(ai.windows) == 1  # classified once, at the end of the gesture
-    player, window = ai.windows[0]
-    assert player == 1
-    assert np.asarray(window).shape == (preprocess.WIN, 6)
-    assert res.label == "3"
-
-
-def test_a_too_short_resampled_gesture_gives_no_event(caplog):
-    pytest.importorskip("numpy")
-    w = gesture.Windows(gesture.StubAI(), per_sample=True, resample=True)
-    w.feed(packet(0, flag=1, t=0.0))  # a single flagged sample
-    with caplog.at_level(logging.INFO, logger="gesture"):
-        res = w.feed(packet(1, flag=0, t=0.01))  # gesture ends with < 2 samples
-    assert res is None
-    assert "too short to resample" in caplog.text
-
-
-def test_a_reset_drops_a_resample_span_in_progress():
-    pytest.importorskip("numpy")
-    ai = RecordingWindowAI()
-    w = gesture.Windows(ai, per_sample=True, resample=True)
-    for seq in range(10):
-        w.feed(packet(seq, flag=1, imu=(seq, 0, 8192, 0, 0, 0), t=10.0 + seq * 0.01))
-    # a > RESET_GAP_S jump clears the node, so the half-built span is abandoned
-    w.feed(packet(10, flag=0, imu=(0, 0, 8192, 0, 0, 0), t=13.0))
-    assert ai.windows == []  # nothing classified: the span was dropped, not finished

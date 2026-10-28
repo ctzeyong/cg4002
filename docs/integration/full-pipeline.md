@@ -118,11 +118,10 @@ client:
 .\scripts\run_board.ps1 --sync --gesture-flag
 ```
 
-`--sync` copies every `Comms/ultra96/*.py` file and AI's files (`ai_api.py`, `gesture_min_q.xsa`,
-`wk10_integration.py` and `baseline_improved.xsa`) into `~/comms/` on the board, then restarts
-the client. Without `--sync`, the launcher attaches to a board client that is already running,
-and that client keeps the arguments it was started with. So use `--sync` whenever you change
-files or flags.
+`--sync` copies every `Comms/ultra96/*.py` file and AI's model files (`wk10_integration.py` and
+`baseline_improved.xsa`) into `~/comms/` on the board, then restarts the client. Without `--sync`,
+the launcher attaches to a board client that is already running, and that client keeps the
+arguments it was started with. So use `--sync` whenever you change files or flags.
 
 `--gesture-flag` turns classification on. Without it, the board makes events only from laptop
 keypresses (below).
@@ -268,46 +267,42 @@ longer a continuous record of the hand.
 - **Inference holds the board's event loop for about 23 ms**, mostly two fixed 10 ms sleeps in
   AI's DMA wait.
 
-## The `--sensor-trigger` path
+## Retired: `--sensor-trigger`
 
-`--sensor-trigger N` is the older mode. It doesn't use the gesture flag: each player's latest
-100 samples are classified once every 50 to 150 packets, at random. It uses
-[`ai_api.py`](../../AI/board/ai_api.py) and `gesture_min_q.xsa`, kept for latency measurement.
-Use one of the two flags, not both.
-
-Its labels are the strings `"0"` to `"6"`, which the phone hook rejects as `unknown gesture`. So
-under `--sensor-trigger` events reach the broker and the phone, but the game does nothing.
+The older `--sensor-trigger` mode, which classified a fixed 100-sample window at random packets
+through `ai_api.py`, was removed on `full-pipeline`. The board clients now refuse that flag.
 
 ## Contracts that must agree across teams
 
 | Contract | Current code | Owner/action |
 |---|---|---|
 | Sensor layout | Six raw `int16` counts: `ax, ay, az, gx, gy, gz` | Hardware and Comms must preserve order and meaning |
-| Sensor rate | IMU 500 Hz, all of it to the detector; 100 Hz packets; AI window 150 samples (`--sensor-trigger`: 100) | Hardware, Comms, and AI coordinate any change |
+| Sensor rate | IMU 500 Hz, all of it to the detector; 100 Hz packets; AI window 150 samples | Hardware, Comms, and AI coordinate any change |
 | IMU validity | `reserved[0] == 1` means real data | Hardware defines status; Comms enforces it |
 | Gesture flag | `reserved[1] == 1` while Hardware's segmenter is in a gesture | Hardware owns the detector; Comms carries the flag |
 | Gyroscope range | Firmware: +/-500 degrees/s; AI: `65.5` counts/(degree/s) | Currently aligned |
-| Accelerometer range | Firmware: +/-4 g and `8192` counts/g; AI: `8192` counts/g | Aligned; a Comms test checks `ai_api.py` against `firebeetle/imu.h` |
-| AI deployment | `--gesture-flag`: `gesture.AI_BITSTREAM` and `run_board.py` both name `baseline_improved.xsa`. `--sensor-trigger`: `ai_api.BITSTREAM` and `run_board.py` both name `gesture_min_q.xsa` | AI and Comms update together |
-| Model input | `--gesture-flag`: all of it is inside `wk10_integration.py`. `--sensor-trigger`: `WINDOW`, `CHANNELS`, scaling, and quantisation come from `ai_api.py` | AI owns implementation; interface changes require coordination |
+| Accelerometer range | Firmware: +/-4 g and `8192` counts/g; AI: `8192` counts/g | Aligned; a Comms test checks `wk10_integration.py` against `firebeetle/imu.h` |
+| AI deployment | `gesture.AI_BITSTREAM` and `run_board.py` both name `baseline_improved.xsa` | AI and Comms update together |
+| Model input | All of it is inside `wk10_integration.py` | AI owns implementation; interface changes require coordination |
 | Per-sample API | `GestureClassifier.feed(IMUSample, player)` and `reset(player)`; Comms tests read `IMUSample`'s fields and both `player` arguments from the source | AI and Comms agree any change |
 | Gesture names | AI's `LABEL_MAP`, lowercase; the hook maps them onto Vis's `GestureSymbol` enum | AI and Vis keep the seven names equal |
 | Event route | QoS 1 MQTT on `game/gesture/<player>` | Comms owns transport; Game/Vis own consumption |
 
 ### Acceleration range
 
-The firmware configures the MPU6050 for +/-4 g, where `1 g` is approximately `8192` counts. Both
-of AI's modules decode at `8192` counts/g, so a stationary `az` near `8192` reaches the model as
-about `9.81 m/s^2`. `ai_api.py` used to divide by `16384`, which gave the model half the real
-acceleration (`4.90 m/s^2` at rest). `test_ai_api_decodes_counts_at_the_ranges_the_firmware_sets`
-reads both ranges from `firebeetle/imu.h` and fails if `ai_api.py` disagrees with them.
+The firmware configures the MPU6050 for +/-4 g, where `1 g` is approximately `8192` counts. AI's
+`wk10_integration.py` decodes at `8192` counts/g, so a stationary `az` near `8192` reaches the
+model as about `9.81 m/s^2`. The retired `ai_api.py` once divided by `16384`, which gave the model
+half the real acceleration (`4.90 m/s^2` at rest). `test_ais_model_decodes_counts_at_the_ranges_the_firmware_sets`
+reads both ranges from `firebeetle/imu.h` and fails if `wk10_integration.py` disagrees with them.
 
 Do not treat a live run as evidence of real gesture accuracy yet:
 - The signed Q6.10 input clips acceleration above approximately `3.26 g`. AI decides whether
   that is acceptable for the model.
-- AI's model was trained on whole gestures, each resampled to 100 steps and centred in the
-  150-step window. Live, the window holds raw 100 Hz samples, so a short gesture fills less of it
-  and a gesture longer than 1.5 s loses its start.
+- The board's model, `baseline_improved.xsa`, was trained on gestures resampled to 100 steps.
+  Live, the window holds raw 100 Hz samples, so a short gesture fills less of it and a gesture
+  longer than 1.5 s loses its start. AI's newer model trains on raw 100 Hz gestures, which matches
+  the live stream, and replaces it once AI makes its `.xsa`.
 
 ## What has and has not been verified
 
@@ -326,8 +321,7 @@ that evidence.
 ## Remaining integration work
 
 1. Flash both gloves and run the whole path with real gestures and both phones.
-2. Measure live accuracy, and decide with AI and Hardware whether the window needs the gesture
-   resampled first (see "Acceleration range").
+2. Measure live accuracy once AI's newer model is on the board (see "Acceleration range").
 3. Decide whether a rejected candidate should still be classified, and set AI's confidence
    threshold.
 4. Flash the motor code and check each player's glove buzzes after its own gestures only.

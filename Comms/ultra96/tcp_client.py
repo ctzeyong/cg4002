@@ -10,10 +10,8 @@ a CMD to a FireBeetle, the board negates the fields and returns them as an ECHO,
 the laptop forwards it here, and this generates one random AI event and sends it
 back for the laptop to publish to the visualiser.
 
-`--sensor-trigger N` also makes AI events from the SENSOR stream. The picked packet is
-treated as the end of a gesture, and that node's last 100 samples are classified.
-`--gesture-flag` instead passes every SENSOR sample to AI, which classifies each gesture the
-glove flags. It replaces `--sensor-trigger` once the gloves have a detector.
+`--gesture-flag` also passes every SENSOR sample to AI, which classifies each gesture the
+glove flags.
 
 Auto-reconnects on any disconnect, per Comms Initial Design Report Table 4.3.
 The protocol decisions behind this file are in notes/tcp_leg.md.
@@ -22,7 +20,6 @@ The protocol decisions behind this file are in notes/tcp_leg.md.
 import argparse
 import asyncio
 import logging
-import random
 import time
 
 import ai_events
@@ -47,7 +44,7 @@ PROGRESS_INTERVAL_S = 1.0
 # SENSOR stream instead would bury it. See notes/tcp_leg.md.
 AI_EVENT_TRIGGER = "ECHO"
 HEARTBEAT_ACK = "HEARTBEAT_ACK"  # the laptop's reply; liveness, not uplink traffic
-SENSOR = "SENSOR"  # counted by --sensor-trigger; never a trigger otherwise
+SENSOR = "SENSOR"  # passed to AI with --gesture-flag, and a trigger only when AI answers
 
 TICKER_PLAYER = 1  # --event-every has no packet to attribute to; pick one
 
@@ -107,38 +104,6 @@ class ClockOffset:
             return "offset=- rtt=-"
         offset, rtt = best
         return f"offset={offset:.6f} rtt={rtt * 1000:.3f}ms"
-
-
-class SensorTrigger:
-    """Picks the SENSOR packets that stand in for a gesture window's last packet.
-
-    Each node fires after N of its own packets, N drawn uniformly from
-    [mean/2, 3*mean/2] every time. Not every `mean`th: two fixed-rate nodes would keep
-    one phase for the whole run, so their events would always coincide or never.
-    Counted here rather than from `seq`, which wraps at 255. notes/latency.md 3.9.
-    """
-
-    def __init__(self, mean, rng=None):
-        self.low = max(1, mean // 2)
-        self.high = max(self.low, mean + mean // 2)
-        self.rng = rng or random.Random()
-        self._left = {}  # node -> packets until its next trigger
-
-    def hit(self, node):
-        """Count one SENSOR packet from `node`. True if it is a trigger."""
-        left = self._left.get(node)
-        if left is None:
-            left = self._draw()  # a random first phase, per node
-        left -= 1
-        if left <= 0:
-            left = self._draw()
-            self._left[node] = left
-            return True
-        self._left[node] = left
-        return False
-
-    def _draw(self):
-        return self.rng.randint(self.low, self.high)
 
 
 def parse_echo(msg):
@@ -233,7 +198,6 @@ async def receiver(
     writer: asyncio.StreamWriter,
     stop: asyncio.Event,
     events: EventSource,
-    sensor_trigger: SensorTrigger = None,
     windows: gesture.Windows = None,
 ) -> None:
     """Receive messages from the laptop and handle AI event triggers.
@@ -243,10 +207,8 @@ async def receiver(
     reconnect is requested. AI event triggers are processed and the
     resulting events are sent back to the laptop.
 
-    An ECHO is always a trigger and gets a dummy gesture. A SENSOR packet is only a
-    trigger when `sensor_trigger` picks it, and then its node's window in `windows` is
-    classified. With `windows` but no `sensor_trigger`, every SENSOR packet goes to AI,
-    and a packet is a trigger when AI answers with a gesture.
+    An ECHO is always a trigger and gets a dummy gesture. With `windows`, every SENSOR
+    packet goes to AI, and a packet is a trigger when AI answers with a gesture.
     """
     count = 0
     window_count = 0
@@ -305,16 +267,13 @@ async def receiver(
             continue
         result = None
         if windows is not None and msg.get("type") == SENSOR:
-            if sensor_trigger is not None:
-                windows.add(msg)
-            else:
-                try:
-                    result = windows.feed(msg)
-                except gesture.ClassifierError as exc:
-                    log.warning(
-                        "no AI event: classifier failed on node %s (%s)", msg.get("node"), exc
-                    )
-                    continue
+            try:
+                result = windows.feed(msg)
+            except gesture.ClassifierError as exc:
+                log.warning(
+                    "no AI event: classifier failed on node %s (%s)", msg.get("node"), exc
+                )
+                continue
         if result is not None:
             player, key = msg["node"], None
         elif msg.get("type") == AI_EVENT_TRIGGER:
@@ -323,13 +282,6 @@ async def receiver(
             except ValueError as exc:
                 log.warning("dropping malformed ECHO seq=%.40r: %s", msg.get("seq"), exc)
                 continue
-        elif (
-            sensor_trigger is not None
-            and msg.get("type") == SENSOR
-            and _is_int(msg.get("node"))
-            and sensor_trigger.hit(msg["node"])
-        ):
-            player, key = msg["node"], None
         else:
             continue
         # Logged here, not in emit, so A and B share it. The AI code should log the same line.
@@ -341,22 +293,6 @@ async def receiver(
             time_field(msg.get("timestamp")),
             time_field(received_at),
         )
-        if result is None and msg.get("type") == SENSOR:
-            try:
-                result = windows.classify(player)
-            except gesture.ClassifierError as exc:
-                log.warning("no AI event: classifier failed on node %d (%s)", player, exc)
-                continue
-            if result is None:
-                without_imu = windows.without_imu(player)
-                log.info(
-                    "no AI event: node %d has %d of %d samples%s",
-                    player,
-                    windows.size(player),
-                    gesture.WINDOW,
-                    f"; the last {without_imu} had no IMU reading" if without_imu else "",
-                )
-                continue
         try:
             await events.emit(writer, player, key, result)
         except (OSError, FramingError) as exc:
@@ -398,7 +334,6 @@ async def one_session(
     host: str,
     port: int,
     event_every: float = 0.0,
-    sensor_every: int = 0,
     classifier=None,
     gesture_flag: bool = False,
 ) -> None:
@@ -421,16 +356,13 @@ async def one_session(
     stop = asyncio.Event()
     # Fresh per session, so a reconnect restarts the AI event sequence
     events = EventSource()
-    sensor_trigger = SensorTrigger(sensor_every) if sensor_every > 0 else None
-    # new per session, so a reconnect starts with empty gesture windows
+    # new per session, so a reconnect starts with no gesture in progress
     windows = None
-    if sensor_every > 0 or gesture_flag:
-        windows = gesture.Windows(
-            classifier or gesture.load_classifier(gesture_flag), per_sample=gesture_flag
-        )
+    if gesture_flag:
+        windows = gesture.Windows(classifier or gesture.load_classifier())
     tasks = [
         asyncio.create_task(sender(writer, stop)),
-        asyncio.create_task(receiver(reader, writer, stop, events, sensor_trigger, windows)),
+        asyncio.create_task(receiver(reader, writer, stop, events, windows)),
     ]
     if event_every > 0:
         tasks.append(asyncio.create_task(event_ticker(writer, stop, events, event_every)))
@@ -457,22 +389,19 @@ async def run(
     host: str,
     port: int,
     event_every: float = 0.0,
-    sensor_every: int = 0,
     gesture_flag: bool = False,
     ai_h5=None,
 ) -> None:
     """Maintain the Ultra96 TCP connection, reconnecting automatically after failures,
     waiting RECONNECT_BACKOFF_S between attempts.
     """
-    use_flag = gesture_flag or bool(ai_h5)   # a Keras .h5 is always a per-sample model
-    classifier = gesture.load_classifier(use_flag, ai_h5=ai_h5) if sensor_every > 0 or use_flag else None
+    use_flag = gesture_flag or bool(ai_h5)  # a Keras model always runs on the flag path
+    classifier = gesture.load_classifier(ai_h5=ai_h5) if use_flag else None
     if classifier is not None:
         log.info("classifier: %s", type(classifier).__name__)
     while True:
         try:
-            await one_session(
-                host, port, event_every, sensor_every, classifier, gesture_flag=use_flag
-            )
+            await one_session(host, port, event_every, classifier, gesture_flag=use_flag)
         except (OSError, asyncio.TimeoutError) as exc:
             log.warning("connect failed: %s", exc)
         except Exception:
@@ -481,18 +410,9 @@ async def run(
         await asyncio.sleep(RECONNECT_BACKOFF_S)
 
 
-def add_sensor_triggers(parser):
-    """Add the two ways SENSOR packets make AI events, which can't be used together."""
-    triggers = parser.add_mutually_exclusive_group()
-    triggers.add_argument(
-        "--sensor-trigger",
-        type=int,
-        default=0,
-        metavar="PACKETS",
-        help="latency runs: also emit an AI event every ~PACKETS SENSOR packets per node, "
-        "drawn at random between half and 1.5x (default: off). notes/latency.md 3.9",
-    )
-    triggers.add_argument(
+def add_gesture_flag(parser):
+    """Add --gesture-flag, which A and B share."""
+    parser.add_argument(
         "--gesture-flag",
         action="store_true",
         help="pass every SENSOR packet to AI and emit an AI event for each gesture the "
@@ -521,10 +441,10 @@ def main() -> None:
         "--ai-h5",
         default=None,
         metavar="PATH",
-        help="local test: run a Keras .h5 model instead of the FPGA bitstream (implies the "
-        "per-sample gesture path). See AI/board/keras_stream.py.",
+        help="local test: run a Keras .h5 model instead of the FPGA bitstream (implies "
+        "--gesture-flag). See AI/board/keras_stream.py.",
     )
-    add_sensor_triggers(parser)
+    add_gesture_flag(parser)
     args = parser.parse_args()
     log_file = setup_logging(args.verbose)
     log.info("logging to %s", log_file)
@@ -534,7 +454,6 @@ def main() -> None:
                 args.host,
                 args.port,
                 args.event_every,
-                args.sensor_trigger,
                 gesture_flag=args.gesture_flag,
                 ai_h5=args.ai_h5,
             )

@@ -405,19 +405,11 @@ async def test_sync_also_copies_the_ai_teams_module_that_gesture_imports():
     conn = SimpleNamespace(start_sftp_client=lambda: Opened())
     await asyncio.wait_for(run_board.sync_sources(conn), timeout=DEADLINE_S)
 
-    assert {"gesture.py", "tcp_client.py", "ai_api.py", "gesture_min_q.xsa"} <= set(put)
-    assert {"wk10_integration.py", "baseline_improved.xsa"} <= set(put)
+    assert {"gesture.py", "tcp_client.py", "wk10_integration.py", "baseline_improved.xsa"} <= set(put)
 
 
-def test_sync_copies_the_bitstream_ai_api_loads():
-    """run_board names the bitstream separately, so the two names must not drift apart."""
-    import gesture  # ultra96/, on sys.path via conftest
-
-    assert run_board.BITSTREAM.name == gesture.ai_api.BITSTREAM.name
-
-
-def test_sync_copies_the_per_sample_model_and_bitstream_gesture_loads():
+def test_sync_copies_the_model_and_bitstream_gesture_loads():
     import gesture
 
-    assert run_board.AI_STREAM_MODULE.stem == gesture.AI_MODULE
-    assert run_board.AI_STREAM_BITSTREAM.name == gesture.AI_BITSTREAM
+    assert run_board.AI_MODULE.stem == gesture.AI_MODULE
+    assert run_board.AI_BITSTREAM.name == gesture.AI_BITSTREAM

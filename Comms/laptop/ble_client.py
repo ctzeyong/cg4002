@@ -27,7 +27,6 @@ from ble_packet import (
     IMU_FIELD_COUNT,
     RESERVED_FIELD_COUNT,
     TYPE_ECHO,
-    TYPE_EVENT,
     TYPE_SENSOR,
     BlePacket,
     ImuCheck,
@@ -56,7 +55,7 @@ P2_SENSOR_CHAR_UUID = "b1160002-0000-4000-8000-000000000002"
 P2_CMD_CHAR_UUID    = "b1160003-0000-4000-8000-000000000002"
 
 # Types this client accepts from the SENSOR notification characteristic.
-UPLINK_TYPES = (TYPE_SENSOR, TYPE_EVENT, TYPE_ECHO)
+UPLINK_TYPES = (TYPE_SENSOR, TYPE_ECHO)
 
 # seq is 8 bits and wraps 255 -> 0. A jump of 128 or more "forwards" is read as the
 # packet going backwards (a repeat or a late packet), not as 128+ lost packets.

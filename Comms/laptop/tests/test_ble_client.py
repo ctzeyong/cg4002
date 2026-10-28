@@ -425,16 +425,17 @@ async def test_bad_crc_counted_separately_and_dropped():
 
 
 @pytest.mark.asyncio
-async def test_unknown_type_counted_every_time_but_logged_once():
+@pytest.mark.parametrize("packet_type", [0x09, 0x02], ids=["unknown", "retired EVENT"])
+async def test_unknown_type_counted_every_time_but_logged_once(packet_type):
     queue = asyncio.Queue(maxsize=100)
     stats = NodeStats()
     handler = make_notify_handler(NODES[0], queue, stats)
 
-    handler(None, make_packet(0x09, 1))
-    handler(None, make_packet(0x09, 2))
+    handler(None, make_packet(packet_type, 1))
+    handler(None, make_packet(packet_type, 2))
 
     assert stats.bad_type == 2
-    assert stats.unknown_types == {0x09}
+    assert stats.unknown_types == {packet_type}
     assert queue.empty()
 
 

@@ -29,8 +29,7 @@ from tcp_client import (
     CONNECT_TIMEOUT_S,
     RECONNECT_BACKOFF_S,
     TICKER_PLAYER,
-    SensorTrigger,
-    add_sensor_triggers,
+    add_gesture_flag,
     event_ticker,
     receiver,
     sender,
@@ -101,10 +100,7 @@ class MqttEventSource:
         return event
 
 
-async def one_session(
-    host, port, events, event_every=0.0, sensor_every=0, classifier=None, gesture_flag=False,
-    resample=False,
-):
+async def one_session(host, port, events, event_every=0.0, classifier=None, gesture_flag=False):
     """Run one TCP connection until it ends.
 
     MQTT is not in here; `run` keeps it separate, so one failing leaves the other up.
@@ -115,19 +111,14 @@ async def one_session(
     )
     log.info("connected")
     stop = asyncio.Event()
-    sensor_trigger = SensorTrigger(sensor_every) if sensor_every > 0 else None
-    # new per session, so a reconnect starts with empty gesture windows
+    # new per session, so a reconnect starts with no gesture in progress
     windows = None
-    if sensor_every > 0 or gesture_flag:
-        windows = gesture.Windows(
-            classifier or gesture.load_classifier(gesture_flag),
-            per_sample=gesture_flag,
-            resample=resample,
-        )
+    if gesture_flag:
+        windows = gesture.Windows(classifier or gesture.load_classifier())
 
     tasks = [
         asyncio.create_task(sender(writer, stop)),
-        asyncio.create_task(receiver(reader, writer, stop, events, sensor_trigger, windows)),
+        asyncio.create_task(receiver(reader, writer, stop, events, windows)),
     ]
     if event_every > 0:
         tasks.append(asyncio.create_task(event_ticker(writer, stop, events, event_every)))
@@ -149,16 +140,13 @@ async def one_session(
         log.info("session ended")
 
 
-async def run_tcp(
-    host, port, outbound, stats, event_every=0.0, sensor_every=0, gesture_flag=False,
-    resample=False,
-):
+async def run_tcp(host, port, outbound, stats, event_every=0.0, gesture_flag=False):
     """Keep the TCP connection up, reconnecting forever. Same as `tcp_client.run`."""
     # One source for the whole run: a new one would restart seq at 0, and the phone
     # would drop the repeated event_ids as duplicates.
     events = MqttEventSource(outbound, stats)
 
-    classifier = gesture.load_classifier(gesture_flag) if sensor_every > 0 or gesture_flag else None
+    classifier = gesture.load_classifier() if gesture_flag else None
     if classifier is not None:
         log.info("classifier: %s", type(classifier).__name__)
     while True:
@@ -168,10 +156,8 @@ async def run_tcp(
                 port,
                 events,
                 event_every,
-                sensor_every,
                 classifier,
                 gesture_flag=gesture_flag,
-                resample=resample,
             )
         except (OSError, asyncio.TimeoutError) as exc:
             log.warning("connect failed: %s", exc)
@@ -184,10 +170,7 @@ async def run_tcp(
         await asyncio.sleep(RECONNECT_BACKOFF_S)
 
 
-async def run(
-    host, port, broker_host, broker_port, event_every=0.0, sensor_every=0, gesture_flag=False,
-    resample=False,
-):
+async def run(host, port, broker_host, broker_port, event_every=0.0, gesture_flag=False):
     """Run TCP and the MQTT publisher.
 
     Both should run continuously.
@@ -204,9 +187,7 @@ async def run(
                 outbound,
                 stats,
                 event_every,
-                sensor_every,
                 gesture_flag=gesture_flag,
-                resample=resample,
             )
         ),
         asyncio.create_task(
@@ -241,18 +222,9 @@ def main():
         default=0.0,
         help="emit a dummy AI event every N seconds, with no ECHO trigger",
     )
-    add_sensor_triggers(parser)
-    parser.add_argument(
-        "--resample",
-        action="store_true",
-        help="resample each flagged gesture to the model's training window before "
-        "classifying (matches the hann-sinc4-v1 data-collection preprocessing); "
-        "needs --gesture-flag",
-    )
+    add_gesture_flag(parser)
     parser.add_argument("-v", "--verbose", action="store_true")
     args = parser.parse_args()
-    if args.resample and not args.gesture_flag:
-        parser.error("--resample needs --gesture-flag; it only applies to the gesture-flag path")
 
     log_file = setup_logging(args.verbose, LOG_FILE)
     log.info("logging to %s", log_file)
@@ -264,9 +236,7 @@ def main():
                 args.broker_host,
                 args.broker_port,
                 args.event_every,
-                args.sensor_trigger,
                 gesture_flag=args.gesture_flag,
-                resample=args.resample,
             )
         )
     except KeyboardInterrupt:
