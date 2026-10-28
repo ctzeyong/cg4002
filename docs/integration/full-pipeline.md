@@ -201,8 +201,9 @@ other key goes to every glove. Use it to check the phone half without gesturing.
    `Hardware/Data Collection/esp32_continuous_pipeline_test/`).
 2. Every 10 ms, [`firebeetle.ino`](../../Comms/firebeetle/firebeetle.ino) sends the newest reading
    as six raw counts, the [`ImuStatus`](../../Comms/firebeetle/imu.h) in `reserved[0]` and
-   `gestureFlag()` in `reserved[1]`: `1` while the detector's segmenter is in a gesture, else
-   `0`. Only status `IMU_OK` (`1`) represents a real sensor reading.
+   `gestureFlag()` in `reserved[1]`: `1` while the detector's segmenter is in a gesture, `2` once
+   on the packet after a gesture the segmenter rejected, else `0`. Only status `IMU_OK` (`1`)
+   represents a real sensor reading.
 3. [`ble_client.py`](../../Comms/laptop/ble_client.py) checks the packet, obtains the player from
    the BLE connection, and adds `timestamp = time.perf_counter()` when the notification is
    received. This timestamp is a laptop receive time, not the time of the physical measurement.
@@ -211,7 +212,8 @@ other key goes to every glove. Use it to check the phone half without gesturing.
 5. [`gesture.Windows`](../../Comms/ultra96/gesture.py) applies the rules below to each player,
    then passes every remaining sample to AI's `feed(IMUSample(...), player)`: `ax`..`gz`,
    `end_of_gesture` and `timestamp`. `end_of_gesture` is `True` on the first sample after the
-   flag drops from 1 to 0.
+   flag drops from 1 to 0. A drop to 2 means the glove rejected the gesture, so it never ends and
+   AI never classifies it.
 6. [`wk10_integration.py`](../../AI/board/wk10_integration.py) converts the counts to m/s² and
    rad/s and appends them to that player's 150-sample window. On `end_of_gesture` it quantises
    the window (900 inputs), runs the FPGA accelerator, and returns a gesture name and confidence.
@@ -255,15 +257,19 @@ longer a continuous record of the hand.
 - **The flag ends after the gesture.** Hardware's detector raises the flag about 300 ms after
   the movement starts and drops it 150–200 ms after it ends. AI's 150-sample window ends at that
   drop, so it holds the gesture plus the moments before and after.
-- **Every drop of the flag asks AI for an answer.** That includes a candidate the detector
-  rejects (over 6 s of motion, or one cut short by a restart or the previous gesture), and AI's
-  confidence threshold is currently `0.0`. So every flagged movement, once AI's window is full,
-  becomes a game action. Compare the glove's `ended` + `rejected` counts with the board's events.
-- **The motor has not buzzed on a glove yet.** The firmware now pulses the motor on GPIO 2 for
-  200 ms when a VIBRATE CMD arrives and prints `[MOTOR] VIBRATE seq=...` on serial. It still echoes
-  the CMD, which the laptop logs as `node N: VIBRATE seq=... echoed, not forwarded`. This is
-  compiled but not yet flashed. GPIO 2 is an ESP32 strapping pin, so check the glove still boots
-  and flashes with the motor driver attached.
+- **A gesture the glove rejects never reaches AI.** The detector rejects a candidate that runs
+  over 6 s (about 5.7 s after the flag rises), or a short one just after an IMU restart. The glove
+  then sends `2` instead of `0` and buzzes twice, and the client pane logs
+  `no AI event: node N's glove rejected its flagged gesture of K samples`. Every other drop of the
+  flag asks AI for an answer, and AI's confidence threshold is `0.7` (`CONF_THRESHOLD` in
+  `wk10_integration.py`). Compare the glove's `ended` and `rejected` counts with the board's events.
+- **The glove buzzes on its own as well as on a VIBRATE.** The motor on GPIO 2 gives one 200 ms
+  pulse when a VIBRATE CMD arrives and prints `[MOTOR] VIBRATE seq=...` on serial. It also gives
+  one 150 ms pulse when the flag rises, and two 150 ms pulses 500 ms apart on a `2`. A new pattern
+  cuts off the one playing. The firmware still echoes a VIBRATE, which the laptop logs as
+  `node N: VIBRATE seq=... echoed, not forwarded`. The start and reject buzzes are compiled but not
+  yet flashed. GPIO 2 is an ESP32 strapping pin, so check the glove still boots and flashes with
+  the motor driver attached.
 - **Inference holds the board's event loop for about 23 ms**, mostly two fixed 10 ms sleeps in
   AI's DMA wait.
 
@@ -279,7 +285,7 @@ through `ai_api.py`, was removed on `full-pipeline`. The board clients now refus
 | Sensor layout | Six raw `int16` counts: `ax, ay, az, gx, gy, gz` | Hardware and Comms must preserve order and meaning |
 | Sensor rate | IMU 500 Hz, all of it to the detector; 100 Hz packets; AI window 150 samples | Hardware, Comms, and AI coordinate any change |
 | IMU validity | `reserved[0] == 1` means real data | Hardware defines status; Comms enforces it |
-| Gesture flag | `reserved[1] == 1` while Hardware's segmenter is in a gesture | Hardware owns the detector; Comms carries the flag |
+| Gesture flag | `reserved[1]` is `1` while Hardware's segmenter is in a gesture, and `2` once after a gesture it rejected. A Comms test checks the board's values against `firebeetle/imu.h` | Hardware owns the detector; Comms carries the flag |
 | Gyroscope range | Firmware: +/-500 degrees/s; AI: `65.5` counts/(degree/s) | Currently aligned |
 | Accelerometer range | Firmware: +/-4 g and `8192` counts/g; AI: `8192` counts/g | Aligned; a Comms test checks `wk10_integration.py` against `firebeetle/imu.h` |
 | AI deployment | `gesture.AI_BITSTREAM` and `run_board.py` both name `baseline_improved.xsa` | AI and Comms update together |
