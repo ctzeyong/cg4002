@@ -1,8 +1,9 @@
 """The transport rules for the SENSOR stream on the Ultra96, in front of AI's API.
 
 Repeats, late packets and samples with no IMU reading never reach AI, and AI is told when
-a node's stream broke. Every sample that passes goes to AI's wk10_integration.py, which
-buffers and classifies, so a new model changes nothing here.
+a node's stream broke. A gesture the glove rejected is never ended, so AI never classifies it.
+Every sample that passes goes to AI's wk10_integration.py, which buffers and classifies, so a
+new model changes nothing here.
 """
 
 import collections
@@ -42,8 +43,11 @@ RESET_GAP_S = 0.5
 # while the IMU is missing or recovering
 IMU_OK = 1
 
-# reserved[1] carries the glove's gesture flag, 1 for every sample of a possible gesture.
+# reserved[1] carries the glove's gesture flag, as in firebeetle/imu.h. It is 1 for every sample
+# of a possible gesture, and 2 on the sample after a gesture the glove's detector threw away
 FLAG_FIELD = 1
+IN_GESTURE = 1
+REJECTED = 2
 
 # AI's model and the bitstream it loads
 AI_MODULE = "wk10_integration"
@@ -162,13 +166,18 @@ class Windows:
         if accepted is None:
             return None
         node, sample, gap = accepted
-        in_gesture = gesture_flag(msg)
+        flag = gesture_flag(msg)
         flagged = self._flagged.pop(node, None)
-        if in_gesture:
+        if flag == IN_GESTURE:
             # don't count the first flagged sample's gap since it happened before the gesture
             self._flagged[node] = (1, 0) if flagged is None else (flagged[0] + 1, flagged[1] + gap)
+        elif flag == REJECTED and flagged is not None:
+            # AI isn't reset, so its buffer is still full if the player draws again straight away
+            log.info("no AI event: node %d's glove rejected its flagged gesture of %d samples",
+                     node, flagged[0])
+            flagged = None
         # AI classifies on end_of_gesture, so it goes on the first sample after the flag drops
-        ended = flagged is not None and not in_gesture
+        ended = flagged is not None and flag != IN_GESTURE
         started = time.perf_counter()
         answer = self.ai.on_sample(node, to_record(sample, msg, ended))
         if answer is None:

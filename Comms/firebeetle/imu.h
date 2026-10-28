@@ -28,9 +28,15 @@ void imuService();
 // returns IMU_OK, which needs a reading newer than the last call.
 ImuStatus imuRead(int16_t out[6]);
 
-// 1 while Hardware's gesture detector says the hand may be making a gesture, else 0. Called
-// with every reading imuRead() gives, and sent in the packet's reserved[1]
-int16_t gestureFlag(const int16_t sample[6], ImuStatus status);
+// sent in the packet's reserved[1], so the board knows where each gesture ends
+enum GestureFlag : int16_t {
+    GESTURE_NONE = 0,
+    GESTURE_ACTIVE = 1,    // Hardware's gesture detector says the hand may be making a gesture
+    GESTURE_REJECTED = 2,  // sent once, on the packet after the last 1 of a gesture the detector threw away
+};
+
+// Gives the flag for the packet carrying this reading. Called with every reading imuRead() gives
+GestureFlag gestureFlag(const int16_t sample[6], ImuStatus status);
 
 // Prints the detector's counts since the last call to serial, then starts them again.
 void imuPrintStats();

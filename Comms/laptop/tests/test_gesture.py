@@ -264,6 +264,7 @@ def test_each_node_ends_its_own_gesture():
         ([1], False),  # no flag field at all
         ([1, None, 0, 0, 0], False),
         ([1, True, 0, 0, 0], False),
+        ([1, 3, 0, 0, 0], False),  # an unknown flag is not a gesture
     ],
 )
 def test_the_flag_is_read_from_reserved_1(reserved, ends):
@@ -271,6 +272,31 @@ def test_the_flag_is_read_from_reserved_1(reserved, ends):
     w.feed({**packet(0), "reserved": reserved})
     w.feed(packet(1))
     assert ends_seen(w) == [False, ends]
+
+
+def test_the_board_reads_the_flag_values_the_firmware_sends():
+    values = dict(re.findall(r"(GESTURE_\w+) = (\d+),", IMU_H.read_text()))
+    assert gesture.IN_GESTURE == int(values["GESTURE_ACTIVE"])
+    assert gesture.REJECTED == int(values["GESTURE_REJECTED"])
+
+
+def test_a_gesture_the_glove_rejected_never_ends_and_the_next_one_still_does():
+    w = fed()
+    for seq, flag in enumerate((1, 1, 1, 2, 0, 1, 1, 0)):
+        w.feed(packet(seq, flag=flag))
+    assert ends_seen(w) == [False] * 7 + [True]
+    assert resets(w) == []  # so AI still has a full buffer for the next gesture
+
+
+def test_a_rejected_flag_with_no_gesture_flagged_is_an_ordinary_sample(caplog):
+    w = fed()
+    with caplog.at_level(logging.INFO, logger="gesture"):
+        for seq, flag in enumerate((0, 2, 0)):
+            w.feed(packet(seq, imu=(seq, 0, 0, 0, 0, 0), flag=flag))
+    assert seqs_seen(w) == [0, 1, 2]
+    assert ends_seen(w) == [False] * 3
+    assert resets(w) == []
+    assert no_result_lines(caplog) == []
 
 
 def test_the_record_has_no_timestamp_when_the_message_has_none():
@@ -336,6 +362,15 @@ def test_a_flagged_gesture_ai_gives_nothing_for_is_logged_once(caplog):
         w.feed(packet(5))
         w.feed(packet(6))
     assert no_result_lines(caplog) == ["no AI event: node 1's flagged gesture of 5 samples gave no result"]
+    assert caplog.records[0].levelno == logging.INFO
+
+
+def test_a_gesture_the_glove_rejected_is_logged_once(caplog):
+    w = fed(answer=("3", 0.5))
+    with caplog.at_level(logging.INFO, logger="gesture"):
+        for seq, flag in enumerate((1, 1, 1, 2, 0, 0)):
+            assert w.feed(packet(seq, flag=flag)) is None
+    assert no_result_lines(caplog) == ["no AI event: node 1's glove rejected its flagged gesture of 3 samples"]
     assert caplog.records[0].levelno == logging.INFO
 
 

@@ -134,6 +134,22 @@ async def test_with_the_gesture_flag_each_flagged_gesture_makes_one_joinable_eve
 
 
 @pytest.mark.asyncio
+async def test_with_the_gesture_flag_a_gesture_the_glove_rejected_makes_no_event(caplog):
+    caplog.set_level(logging.INFO, logger="gesture")
+    rejected = flagged_gesture(1, 0, 30, 10.0)
+    rejected[-1]["reserved"][1] = gesture.REJECTED  # the glove's 2 where the flag drops
+    frames = rejected + flagged_gesture(1, 31, 30, 10.31) + [ECHO]  # the second ends at seq 61
+    windows = gesture.Windows(gesture.StubAI())
+
+    await _run_receiver(frames, caplog, lambda log: len(_ai_events(log)) == 2, windows)
+
+    counts = latency_report.Counts()
+    events = latency_report.parse_board([PREFIX + m for m in caplog.messages], "A", counts)
+    assert [(e.node, e.ble_seq) for e in events] == [(1, "61"), (1, "0")]  # then the ECHO's
+    assert "no AI event: node 1's glove rejected its flagged gesture of 30 samples" in caplog.messages
+
+
+@pytest.mark.asyncio
 async def test_with_the_gesture_flag_a_failed_gesture_is_skipped_and_the_next_works(caplog):
     class FailsOnce(gesture.StubAI):
         calls = 0
