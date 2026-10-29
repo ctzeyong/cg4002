@@ -10,7 +10,7 @@ namespace BridgeRush.Tracking
 
         [SerializeField] private ArenaFrame arenaFrame;
         [SerializeField] private MatchState matchState;
-        [SerializeField] private float cpuOpponentDistanceMeters = 3f;
+        private const float cpuOpponentDistanceMeters = 2f;
         [SerializeField] private int player1OpponentMarkerId = 1;
         [SerializeField] private int player2OpponentMarkerId = 0;
 
@@ -19,6 +19,7 @@ namespace BridgeRush.Tracking
 
         public SelectedPlayer Selected { get; private set; } = SelectedPlayer.None;
         public bool HasSelected { get; private set; }
+        public bool IsSetupComplete => HasChosenMode && HasSelected;
 
         private void Awake()
         {

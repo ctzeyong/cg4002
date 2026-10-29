@@ -6,8 +6,11 @@ namespace BridgeRush.Networking
 {
     public class MatchNetworkSync : MonoBehaviour
     {
-        private const string StateTopic = "bridgerush/game/state";
-        private const string GestureTopic = "bridgerush/game/gesture";
+        // game/state is contracted in comms/notes/mqtt_topics.md (whole snapshot every tick, QoS 0, not retained).
+        private const string StateTopic = "game/state";
+        // Phone-to-phone only: the client asks the host to spawn/cast. Not in the comms contract yet.
+        // Deliberately NOT game/gesture/{player}, which is the pipeline's glove event going to the phones.
+        private const string RequestTopic = "bridgerush/game/request";
 
         [SerializeField] private MatchSetup matchSetup;
         [SerializeField] private MatchState matchState;
@@ -63,11 +66,11 @@ namespace BridgeRush.Networking
             switch (matchState.Role)
             {
                 case MatchState.NetworkRole.Host:
-                    mqttConnection.Subscribe(GestureTopic, OnGestureMessage);
+                    mqttConnection.Subscribe(RequestTopic, OnGestureMessage);
                     subscribed = true;
                     break;
                 case MatchState.NetworkRole.Client:
-                    mqttConnection.Subscribe(StateTopic, OnStateMessage);
+                    mqttConnection.Subscribe(StateTopic, OnStateMessage, 0);
                     subscribed = true;
                     break;
             }
@@ -79,7 +82,7 @@ namespace BridgeRush.Networking
             if (!mqttConnection.IsConnected) return;
 
             var snapshot = matchState.BuildStateSnapshot();
-            mqttConnection.Publish(StateTopic, JsonUtility.ToJson(snapshot));
+            mqttConnection.Publish(StateTopic, JsonUtility.ToJson(snapshot), false, 0);
         }
 
         private void OnStateMessage(string topic, string payload)
@@ -98,7 +101,7 @@ namespace BridgeRush.Networking
         {
             if (!mqttConnection.IsConnected) return;
             var request = new GestureRequest { action = action, unitType = unitType, spell = spell, hasAim = hasAim, along = along, lat = lat };
-            mqttConnection.Publish(GestureTopic, JsonUtility.ToJson(request));
+            mqttConnection.Publish(RequestTopic, JsonUtility.ToJson(request));
         }
     }
 }

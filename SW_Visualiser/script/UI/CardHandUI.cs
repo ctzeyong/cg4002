@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using BridgeRush.Input;
 using BridgeRush.Match;
 using BridgeRush.Tracking;
 using BridgeRush.Gameplay;
@@ -18,6 +19,8 @@ namespace BridgeRush.UI
         [SerializeField] private ArenaFrame arenaFrame;
         [SerializeField] private MatchCountdown matchCountdown;
         [SerializeField] private PeerReadySync peerReadySync;
+        [Tooltip("Hides the start button until the mode (and player, in VS Player) is chosen. Optional.")]
+        [SerializeField] private MatchSetup matchSetup;
 
         private const float CardWidth = HudLayout.CardWidth;
         private const float CardHeight = HudLayout.CardHeight;
@@ -40,7 +43,23 @@ namespace BridgeRush.UI
             public Image Glow;
             public Image Panel;
             public TextMeshProUGUI CostText;
+            public UnitType? Unit;
+            public string SpellKey;
+            public RectTransform Root;
+            public Image Burst;
+            public Image Flash;
+            public TextMeshProUGUI SummonText;
+            public float PopStart = -10f;
+            public bool Popping;
+            public Image Reject;
+            public Color LabelColor;
+            public float RejectStart = -10f;
+            public bool Rejecting;
         }
+
+        private const float PopSeconds = 0.8f;
+        private const float RejectSeconds = 0.7f;
+        private static readonly Color RejectLabelColor = new(1f, 0.38f, 0.3f);
 
         private void Awake()
         {
@@ -53,6 +72,144 @@ namespace BridgeRush.UI
 
             BuildHand();
             BuildStartGate();
+
+            matchState.OwnUnitSummoned += OnOwnUnitSummoned;
+            matchState.OwnUnitRejected += OnOwnUnitRejected;
+            spellCaster.SpellCast += OnSpellCast;
+            spellCaster.SpellRejected += OnSpellRejected;
+        }
+
+        private void OnDestroy()
+        {
+            if (matchState != null)
+            {
+                matchState.OwnUnitSummoned -= OnOwnUnitSummoned;
+                matchState.OwnUnitRejected -= OnOwnUnitRejected;
+            }
+            if (spellCaster != null)
+            {
+                spellCaster.SpellCast -= OnSpellCast;
+                spellCaster.SpellRejected -= OnSpellRejected;
+            }
+        }
+
+        private void OnOwnUnitRejected(UnitType type, string reason)
+        {
+            foreach (var card in cards)
+            {
+                if (card.Unit == type) StartReject(card, reason);
+            }
+        }
+
+        private void OnSpellRejected(string key, string reason)
+        {
+            foreach (var card in cards)
+            {
+                if (card.SpellKey == key) StartReject(card, reason);
+            }
+        }
+
+        private static void StartReject(CardEntry card, string reason)
+        {
+            ResetPop(card);
+            card.RejectStart = Time.unscaledTime;
+            card.Rejecting = true;
+            card.SummonText.text = $"FAILED!\n<size=65%>{reason}</size>";
+            card.SummonText.color = RejectLabelColor;
+        }
+
+        private static void ResetPop(CardEntry card)
+        {
+            card.Popping = false;
+            card.Root.localScale = Vector3.one;
+            card.Root.localRotation = Quaternion.identity;
+            SetAlpha(card.Burst, 0f);
+            SetAlpha(card.Flash, 0f);
+            SetAlpha(card.Reject, 0f);
+            SetAlpha(card.SummonText, 0f);
+            card.SummonText.rectTransform.anchoredPosition = Vector2.zero;
+        }
+
+        private void OnOwnUnitSummoned(UnitType type)
+        {
+            foreach (var card in cards)
+            {
+                if (card.Unit == type) StartPop(card, "SUMMONED!");
+            }
+        }
+
+        private void OnSpellCast(string key)
+        {
+            foreach (var card in cards)
+            {
+                if (card.SpellKey == key) StartPop(card, "CAST!");
+            }
+        }
+
+        private static void StartPop(CardEntry card, string label)
+        {
+            card.Rejecting = false;
+            ResetPop(card);
+            card.PopStart = Time.unscaledTime;
+            card.Popping = true;
+            card.SummonText.text = label;
+            card.SummonText.color = card.LabelColor;
+        }
+
+        private static float EaseOut(float t) => 1f - (1f - t) * (1f - t);
+
+        // Pop, white flash, glow burst and a rising label on the card that was just used.
+        private static void AnimatePop(CardEntry card)
+        {
+            AnimateReject(card);
+            if (!card.Popping) return;
+
+            float t = (Time.unscaledTime - card.PopStart) / PopSeconds;
+            if (t >= 1f)
+            {
+                ResetPop(card);
+                return;
+            }
+
+            float scale = 1f + 0.28f * Mathf.Sin(Mathf.PI * Mathf.Min(1f, t / 0.45f));
+            card.Root.localScale = new Vector3(scale, scale, 1f);
+
+            card.Burst.rectTransform.localScale = Vector3.one * (1f + 0.9f * EaseOut(t));
+            SetAlpha(card.Burst, Mathf.Pow(1f - t, 1.5f) * 0.9f);
+
+            SetAlpha(card.Flash, Mathf.Max(0f, 1f - t / 0.3f) * 0.6f);
+
+            card.SummonText.rectTransform.anchoredPosition = new Vector2(0f, 14f + 52f * EaseOut(t));
+            SetAlpha(card.SummonText, t < 0.7f ? 1f : (1f - t) / 0.3f);
+        }
+
+        // A refused summon: the card flashes dark red, shakes side to side and shows why.
+        private static void AnimateReject(CardEntry card)
+        {
+            if (!card.Rejecting) return;
+
+            float t = (Time.unscaledTime - card.RejectStart) / RejectSeconds;
+            if (t >= 1f)
+            {
+                card.Rejecting = false;
+                ResetPop(card);
+                return;
+            }
+
+            float shake = Mathf.Sin(t * Mathf.PI * 7f) * (1f - t) * 7f;
+            card.Root.localRotation = Quaternion.Euler(0f, 0f, shake);
+
+            SetAlpha(card.Reject, t < 0.55f ? 0.78f : 0.78f * (1f - (t - 0.55f) / 0.45f));
+
+            card.SummonText.rectTransform.anchoredPosition = new Vector2(0f, 14f + 22f * EaseOut(t));
+            SetAlpha(card.SummonText, t < 0.7f ? 1f : (1f - t) / 0.3f);
+        }
+
+        private static void SetAlpha(Graphic graphic, float alpha)
+        {
+            var color = graphic.color;
+            color.a = alpha;
+            graphic.color = color;
         }
 
         private void Update()
@@ -71,6 +228,7 @@ namespace BridgeRush.UI
                 bool ready = matchState.ManaCurrent >= cost;
 
                 card.CostText.text = cost.ToString("0");
+                AnimatePop(card);
 
                 if (ready)
                 {
@@ -108,19 +266,21 @@ namespace BridgeRush.UI
             fitter.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
             fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
-            AddUnitCard(handRoot, "O", "Warrior", UnitType.Warrior);
-            AddUnitCard(handRoot, "^", "Rogue", UnitType.Rogue);
-            AddUnitCard(handRoot, "~", "Mage", UnitType.Mage);
-            AddUnitCard(handRoot, "^^", "Tank", UnitType.Tank);
-            AddUnitCard(handRoot, "*", "Hero", UnitType.Hero);
+            AddUnitCard(handRoot, CardMotions.For(UnitType.Warrior), "Warrior", UnitType.Warrior);
+            AddUnitCard(handRoot, CardMotions.For(UnitType.Rogue), "Rogue", UnitType.Rogue);
+            AddUnitCard(handRoot, CardMotions.For(UnitType.Mage), "Mage", UnitType.Mage);
+            AddUnitCard(handRoot, CardMotions.For(UnitType.Tank), "Tank", UnitType.Tank);
+            AddUnitCard(handRoot, CardMotions.For(UnitType.Hero), "Hero", UnitType.Hero);
 
-            AddSpellCard(handRoot, "Z", "Lightning", "180 dmg",
+            AddSpellCard(handRoot, CardMotions.ForSpell("lightning"), "Lightning",
+                $"{spellCaster.LightningStrikeDamage:0} dmg AOE", "lightning",
                 () => spellCaster.LightningStrikeManaCost, () => spellCaster.CastLightningStrike());
-            AddSpellCard(handRoot, "oo", "Overcharge", "8s buff",
-                () => spellCaster.OverchargeManaCost, () => spellCaster.CastOvercharge());
+            AddSpellCard(handRoot, CardMotions.ForSpell("fireball"), "Fireball",
+                $"{spellCaster.FireballUnitDamage:0} dmg + burn", "fireball",
+                () => spellCaster.FireballManaCost, () => spellCaster.CastFireball());
         }
 
-        private void AddUnitCard(Transform parent, string glyph, string name, UnitType type)
+        private void AddUnitCard(Transform parent, string gesture, string name, UnitType type)
         {
             System.Func<float> getCost = () =>
                 unitStatsTable.TryGetEntry(type, out var e) ? e.ManaCost : 0f;
@@ -129,22 +289,24 @@ namespace BridgeRush.UI
                     ? $"HP {e2.MaxHP:0}  DPS {e2.AttackDps:0}"
                     : string.Empty;
 
-            var entry = BuildCard(parent, glyph, name, getStats, isSpell: false);
+            var entry = BuildCard(parent, gesture, name, getStats, isSpell: false);
             entry.GetCost = getCost;
+            entry.Unit = type;
             entry.Cast = () => matchState.SpawnUnit(type);
             cards.Add(entry);
         }
 
-        private void AddSpellCard(Transform parent, string glyph, string name, string statsLine,
+        private void AddSpellCard(Transform parent, string gesture, string name, string statsLine, string spellKey,
             System.Func<float> getCost, System.Action cast)
         {
-            var entry = BuildCard(parent, glyph, name, () => statsLine, isSpell: true);
+            var entry = BuildCard(parent, gesture, name, () => statsLine, isSpell: true);
             entry.GetCost = getCost;
+            entry.SpellKey = spellKey;
             entry.Cast = cast;
             cards.Add(entry);
         }
 
-        private CardEntry BuildCard(Transform parent, string glyph, string name, System.Func<string> getStats, bool isSpell)
+        private CardEntry BuildCard(Transform parent, string gesture, string name, System.Func<string> getStats, bool isSpell)
         {
             Color accent = isSpell ? HudPalette.Spell : HudPalette.Gold;
             Color accentDeep = isSpell ? HudPalette.SpellDeep : HudPalette.GoldDark;
@@ -168,6 +330,17 @@ namespace BridgeRush.UI
             glowImage.color = new Color(accent.r, accent.g, accent.b, 0f);
             glowImage.raycastTarget = false;
 
+            var burstGo = UIFactory.CreateRect("Burst", cardRect);
+            var burstRect = burstGo.GetComponent<RectTransform>();
+            burstRect.anchorMin = Vector2.zero;
+            burstRect.anchorMax = Vector2.one;
+            burstRect.offsetMin = new Vector2(-10f, -10f);
+            burstRect.offsetMax = new Vector2(10f, 10f);
+            var burstImage = burstGo.AddComponent<Image>();
+            burstImage.sprite = UITextureFactory.CreateGlow(128, 22, 26);
+            burstImage.color = new Color(1f, 1f, 1f, 0f);
+            burstImage.raycastTarget = false;
+
             var panelGo = UIFactory.CreateRect("Panel", cardRect);
             var panelRect = panelGo.GetComponent<RectTransform>();
             panelRect.anchorMin = Vector2.zero;
@@ -183,6 +356,15 @@ namespace BridgeRush.UI
             button.targetGraphic = panelImage;
             button.transition = Selectable.Transition.None;
 
+            var flashGo = UIFactory.CreateRect("Flash", cardRect);
+            var flashRect = flashGo.GetComponent<RectTransform>();
+            UIFactory.StretchFull(flashRect);
+            var flashImage = flashGo.AddComponent<Image>();
+            flashImage.sprite = UITextureFactory.CreateRoundedPanel(96, 14, Color.white, Color.white, 0, Color.clear);
+            flashImage.type = Image.Type.Sliced;
+            flashImage.color = new Color(1f, 1f, 1f, 0f);
+            flashImage.raycastTarget = false;
+
             var costGo = UIFactory.CreateRect("Cost", cardRect);
             var costRect = costGo.GetComponent<RectTransform>();
             costRect.anchorMin = new Vector2(0f, 1f);
@@ -196,12 +378,18 @@ namespace BridgeRush.UI
             var costText = UIFactory.CreateText(costGo.transform, "0", 20, FontStyles.Bold, new Color(0.02f, 0.2f, 0.24f));
             UIFactory.StretchFull(costText.rectTransform);
 
-            var glyphText = UIFactory.CreateText(cardRect, glyph, 44, FontStyles.Normal, HudPalette.Cream);
-            var glyphRect = glyphText.rectTransform;
-            glyphRect.anchorMin = new Vector2(0f, 0.55f);
-            glyphRect.anchorMax = new Vector2(1f, 1f);
-            glyphRect.offsetMin = Vector2.zero;
-            glyphRect.offsetMax = Vector2.zero;
+            var iconGo = UIFactory.CreateRect("GestureIcon", cardRect);
+            var iconRect = iconGo.GetComponent<RectTransform>();
+            iconRect.anchorMin = new Vector2(0.5f, 0.55f);
+            iconRect.anchorMax = new Vector2(0.5f, 1f);
+            iconRect.sizeDelta = new Vector2(64f, 0f);
+            iconRect.anchoredPosition = Vector2.zero;
+            var iconImage = iconGo.AddComponent<Image>();
+            iconImage.sprite = UITextureFactory.CreateMotionIcon(gesture);
+            iconImage.preserveAspect = true;
+            iconImage.color = HudPalette.Cream;
+            iconImage.raycastTarget = false;
+            MotionTracer.Attach(iconRect, gesture, accent);
 
             var nameText = UIFactory.CreateText(cardRect, name, 15, FontStyles.Bold, HudPalette.Cream);
             var nameRect = nameText.rectTransform;
@@ -217,11 +405,37 @@ namespace BridgeRush.UI
             statsRect.offsetMin = new Vector2(2f, 2f);
             statsRect.offsetMax = new Vector2(-2f, 0f);
 
+            var rejectGo = UIFactory.CreateRect("Reject", cardRect);
+            var rejectRect = rejectGo.GetComponent<RectTransform>();
+            UIFactory.StretchFull(rejectRect);
+            var rejectImage = rejectGo.AddComponent<Image>();
+            rejectImage.sprite = UITextureFactory.CreateRoundedPanel(96, 14, Color.white, Color.white, 0, Color.clear);
+            rejectImage.type = Image.Type.Sliced;
+            rejectImage.color = new Color(0.32f, 0.02f, 0.02f, 0f);
+            rejectImage.raycastTarget = false;
+
+            var summonText = UIFactory.CreateText(cardRect, string.Empty, 24f, FontStyles.Bold, accent);
+            var summonRect = summonText.rectTransform;
+            summonRect.anchorMin = new Vector2(0f, 1f);
+            summonRect.anchorMax = new Vector2(1f, 1f);
+            summonRect.pivot = new Vector2(0.5f, 0f);
+            summonRect.anchoredPosition = Vector2.zero;
+            summonRect.sizeDelta = new Vector2(60f, 34f);
+            summonText.textWrappingMode = TextWrappingModes.NoWrap;
+            summonText.overflowMode = TextOverflowModes.Overflow;
+            SetAlpha(summonText, 0f);
+
             var entry = new CardEntry
             {
                 Glow = glowImage,
                 Panel = panelImage,
-                CostText = costText
+                CostText = costText,
+                Root = cardRect,
+                Burst = burstImage,
+                Flash = flashImage,
+                Reject = rejectImage,
+                SummonText = summonText,
+                LabelColor = accent
             };
 
             button.onClick.AddListener(() => entry.Cast?.Invoke());
@@ -256,6 +470,7 @@ namespace BridgeRush.UI
         {
             if (matchState.MatchStarted) return StartGateState.Hidden;
             if (matchCountdown != null && matchCountdown.HasRequestedStart) return StartGateState.Hidden;
+            if (matchSetup != null && !matchSetup.IsSetupComplete) return StartGateState.Hidden;
 
             bool opponentFound = arenaFrame == null || arenaFrame.HasLane;
             if (!opponentFound) return StartGateState.Searching;
