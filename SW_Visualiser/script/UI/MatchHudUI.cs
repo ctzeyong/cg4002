@@ -1,6 +1,7 @@
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using BridgeRush.Gameplay;
 using BridgeRush.Match;
 using BridgeRush.Tracking;
 using BridgeRush.Networking;
@@ -35,12 +36,12 @@ namespace BridgeRush.UI
 
         private static readonly (string Symbol, string Action, int Mana, string Stats)[] CommandReference =
         {
-            ("Circle", "Warrior", 2, "150 HP / 20 DPS - Melee"),
-            ("Caret", "Rogue", 3, "120 HP / 35 DPS - Melee"),
-            ("Arc", "Mage", 4, "90 HP / 30 DPS - Ranged"),
-            ("Z", "Lightning Strike", 4, "180 burst - Area"),
-            ("Infinity", "Overcharge", 5, "Speed+dmg buff 8s - Allies"),
-            ("Triangle", "Tank", 6, "700 HP / 25 DPS - Melee"),
+            ("Chop", "Warrior", 2, "150 HP / 20 DPS - Melee"),
+            ("Jab", "Rogue", 3, "120 HP / 35 DPS - Melee"),
+            ("Circle", "Mage", 4, "90 HP / 30 DPS - Ranged"),
+            ("Lightning", "Lightning Strike", 5, "180 burst - Area"),
+            ("Punch", "Fireball", 6, "120 dmg + burning floor - Area"),
+            ("Shield", "Tank", 6, "700 HP / 25 DPS - Melee"),
             ("Star", "Hero", 8, "450 HP / 70 DPS - Melee"),
         };
 
@@ -59,6 +60,12 @@ namespace BridgeRush.UI
         private TextMeshProUGUI trackingMessage;
 
         private RectTransform offscreenArrow;
+
+        private CanvasGroup doubleManaGroup;
+        private RectTransform doubleManaRect;
+        private float doubleManaElapsed = -1f;
+        private TextMeshProUGUI doubleManaBadge;
+        private const float DoubleManaBannerSeconds = 4.5f;
 
         private CanvasGroup damageFlashGroup;
         private float damageFlashRemaining;
@@ -83,7 +90,18 @@ namespace BridgeRush.UI
             BuildLockTowerButton();
             BuildResultOverlay();
             BuildDamageFlash();
+            BuildDoubleManaBanner();
             previousOwnTowerHP = matchState.OwnTowerHP;
+        }
+
+        private void OnEnable()
+        {
+            if (matchState != null) matchState.DoubleManaStarted += OnDoubleManaStarted;
+        }
+
+        private void OnDisable()
+        {
+            if (matchState != null) matchState.DoubleManaStarted -= OnDoubleManaStarted;
         }
 
         private void Update()
@@ -95,6 +113,87 @@ namespace BridgeRush.UI
             UpdateLockTowerButton();
             UpdateResultOverlay();
             UpdateDamageFlash();
+            UpdateDoubleManaBanner();
+        }
+
+        // The big announcement when the last minute begins: it pops in, holds, then fades.
+        private void BuildDoubleManaBanner()
+        {
+            var go = UIFactory.CreateRect("DoubleManaBanner", canvas.transform);
+            doubleManaRect = go.GetComponent<RectTransform>();
+            doubleManaRect.anchorMin = new Vector2(0.5f, 0.7f);
+            doubleManaRect.anchorMax = new Vector2(0.5f, 0.7f);
+            doubleManaRect.pivot = new Vector2(0.5f, 0.5f);
+            doubleManaRect.sizeDelta = new Vector2(560f, 140f);
+
+            var bg = go.AddComponent<Image>();
+            bg.sprite = UITextureFactory.CreateRoundedPanel(72, 24, HudPalette.Wood, HudPalette.WoodDark, 4, HudPalette.Gold);
+            bg.type = Image.Type.Sliced;
+            bg.raycastTarget = false;
+
+            var title = UIFactory.CreateText(go.transform, "2x MANA!", 58f, FontStyles.Bold, HudPalette.Gold);
+            var titleRect = title.rectTransform;
+            titleRect.anchorMin = new Vector2(0f, 0.42f);
+            titleRect.anchorMax = new Vector2(1f, 1f);
+            titleRect.offsetMin = Vector2.zero;
+            titleRect.offsetMax = Vector2.zero;
+
+            var subtitle = UIFactory.CreateText(go.transform, "Final minute: mana regenerates twice as fast", 22f, FontStyles.Normal, HudPalette.Cream);
+            var subtitleRect = subtitle.rectTransform;
+            subtitleRect.anchorMin = new Vector2(0f, 0.08f);
+            subtitleRect.anchorMax = new Vector2(1f, 0.42f);
+            subtitleRect.offsetMin = Vector2.zero;
+            subtitleRect.offsetMax = Vector2.zero;
+
+            doubleManaGroup = go.AddComponent<CanvasGroup>();
+            doubleManaGroup.alpha = 0f;
+            doubleManaGroup.interactable = false;
+            doubleManaGroup.blocksRaycasts = false;
+
+            // A small "x2" beside the mana bar for as long as the bonus lasts.
+            var badgeParent = manaText.transform.parent;
+            doubleManaBadge = UIFactory.CreateText(badgeParent, "x2", 34f, FontStyles.Bold, HudPalette.Gold);
+            var badgeRect = doubleManaBadge.rectTransform;
+            badgeRect.anchorMin = new Vector2(1f, 0.5f);
+            badgeRect.anchorMax = new Vector2(1f, 0.5f);
+            badgeRect.pivot = new Vector2(0f, 0.5f);
+            badgeRect.anchoredPosition = new Vector2(10f, 0f);
+            badgeRect.sizeDelta = new Vector2(70f, 44f);
+            doubleManaBadge.alignment = TextAlignmentOptions.Left;
+            doubleManaBadge.enabled = false;
+        }
+
+        private void OnDoubleManaStarted()
+        {
+            doubleManaElapsed = 0f;
+            GameAudio.PlayAnnouncement();
+            Haptics.Pulse(Haptics.Strength.Medium);
+        }
+
+        private void UpdateDoubleManaBanner()
+        {
+            if (doubleManaBadge != null)
+            {
+                bool active = matchState.DoubleManaActive;
+                doubleManaBadge.enabled = active;
+                if (active) doubleManaBadge.rectTransform.localScale = Vector3.one * (1f + 0.12f * Mathf.Sin(Time.unscaledTime * 6f));
+            }
+
+            if (doubleManaElapsed < 0f) return;
+            doubleManaElapsed += Time.unscaledDeltaTime;
+            if (doubleManaElapsed >= DoubleManaBannerSeconds)
+            {
+                doubleManaElapsed = -1f;
+                doubleManaGroup.alpha = 0f;
+                return;
+            }
+
+            float fadeIn = Mathf.Clamp01(doubleManaElapsed / 0.25f);
+            float fadeOut = Mathf.Clamp01((DoubleManaBannerSeconds - doubleManaElapsed) / 0.7f);
+            doubleManaGroup.alpha = Mathf.Min(fadeIn, fadeOut);
+            float pop = doubleManaElapsed < 0.35f ? Mathf.Lerp(0.6f, 1.08f, doubleManaElapsed / 0.35f) : Mathf.Lerp(1.08f, 1f, Mathf.Clamp01((doubleManaElapsed - 0.35f) / 0.2f));
+            float beat = 1f + 0.03f * Mathf.Sin(doubleManaElapsed * 10f);
+            doubleManaRect.localScale = Vector3.one * pop * beat;
         }
 
         private void BuildDamageFlash()
@@ -314,14 +413,22 @@ namespace BridgeRush.UI
             lockTowerBg.sprite = locked ? lockedSprite : unlockedSprite;
         }
 
+        private const float BarInset = 4f;
+        private const float BarFillSpeed = 0.8f;
+        private const float BarWidth = 320f;
+
+        private float manaShown;
+        private float ownShown;
+        private float opponentShown;
+
         private void BuildStatusCluster()
         {
             var root = UIFactory.CreateRect("StatusCluster", canvas.transform);
             var rect = root.GetComponent<RectTransform>();
-            rect.anchorMin = new Vector2(0f, 0f);
-            rect.anchorMax = new Vector2(0f, 0f);
-            rect.pivot = new Vector2(0f, 0f);
-            rect.anchoredPosition = new Vector2(28f, HudLayout.HandTotalHeight + 16f);
+            rect.anchorMin = new Vector2(0f, 0.5f);
+            rect.anchorMax = new Vector2(0f, 0.5f);
+            rect.pivot = new Vector2(0f, 0.5f);
+            rect.anchoredPosition = new Vector2(14f, -120f);
 
             var layout = root.AddComponent<VerticalLayoutGroup>();
             layout.spacing = 8f;
@@ -331,13 +438,13 @@ namespace BridgeRush.UI
             fitter.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
             fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
-            manaFill = BuildBar(root.transform, 360f, 54f, HudPalette.Mana, HudPalette.ManaDeep, out manaText, "0/0");
-            ownFill = BuildBar(root.transform, 360f, 40f, HudPalette.Own, HudPalette.OwnDeep, out _, null);
-            opponentFill = BuildBar(root.transform, 360f, 40f, HudPalette.Opponent, HudPalette.OpponentDeep, out _, null);
+            manaFill = BuildBar(root.transform, BarWidth, 54f, HudPalette.Mana, HudPalette.ManaDeep, "MANA", out manaText);
+            ownFill = BuildBar(root.transform, BarWidth, 40f, HudPalette.Own, HudPalette.OwnDeep, "YOU", out _);
+            opponentFill = BuildBar(root.transform, BarWidth, 40f, HudPalette.Opponent, HudPalette.OpponentDeep, "ENEMY", out _);
         }
 
         private Image BuildBar(Transform parent, float width, float height, Color fillColor, Color fillDeep,
-            out TextMeshProUGUI label, string initialLabel)
+            string name, out TextMeshProUGUI valueLabel)
         {
             var go = UIFactory.CreateRect("Bar", parent);
             var rect = go.GetComponent<RectTransform>();
@@ -346,45 +453,80 @@ namespace BridgeRush.UI
             layoutElement.preferredWidth = width;
             layoutElement.preferredHeight = height;
 
-            var bg = go.AddComponent<Image>();
-            bg.sprite = UITextureFactory.CreateRoundedPanel(64, (int)(height * 0.5f), new Color(0f, 0f, 0f, 0.55f), new Color(0f, 0f, 0f, 0.55f), 0, Color.clear);
-            bg.type = Image.Type.Sliced;
+            var track = go.AddComponent<Image>();
+            track.sprite = UITextureFactory.CreateRoundedPanel(64, (int)(height * 0.5f), new Color(0.07f, 0.06f, 0.05f, 0.85f), new Color(0.14f, 0.11f, 0.08f, 0.85f), 3, HudPalette.GoldDark);
+            track.type = Image.Type.Sliced;
+            track.raycastTarget = false;
 
-            var fillGo = UIFactory.CreateRect("Fill", go.transform);
+            var inner = UIFactory.CreateRect("Inner", go.transform);
+            var innerRect = inner.GetComponent<RectTransform>();
+            UIFactory.StretchFull(innerRect);
+            innerRect.offsetMin = new Vector2(BarInset, BarInset);
+            innerRect.offsetMax = new Vector2(-BarInset, -BarInset);
+            int innerRadius = (int)((height - BarInset * 2f) * 0.5f);
+
+            var fillGo = UIFactory.CreateRect("Fill", inner.transform);
             var fillRect = fillGo.GetComponent<RectTransform>();
             UIFactory.StretchFull(fillRect);
             var fillImage = fillGo.AddComponent<Image>();
-            fillImage.sprite = UITextureFactory.CreateRoundedPanel(64, (int)(height * 0.5f), fillColor, fillDeep, 0, Color.clear);
-            fillImage.type = Image.Type.Filled;
-            fillImage.fillMethod = Image.FillMethod.Horizontal;
-            fillImage.fillOrigin = (int)Image.OriginHorizontal.Left;
-            fillImage.fillAmount = 1f;
+            fillImage.sprite = UITextureFactory.CreateRoundedPanel(64, innerRadius, fillColor, fillDeep, 0, Color.clear);
+            fillImage.type = Image.Type.Sliced;
+            fillImage.raycastTarget = false;
 
-            if (initialLabel != null)
+            var gloss = UIFactory.CreateRect("Gloss", fillGo.transform);
+            var glossRect = gloss.GetComponent<RectTransform>();
+            glossRect.anchorMin = new Vector2(0f, 0.5f);
+            glossRect.anchorMax = new Vector2(1f, 1f);
+            glossRect.offsetMin = new Vector2(innerRadius * 0.4f, 0f);
+            glossRect.offsetMax = new Vector2(-innerRadius * 0.4f, -2f);
+            var glossImage = gloss.AddComponent<Image>();
+            glossImage.sprite = UITextureFactory.CreateRoundedPanel(64, innerRadius / 2, new Color(1f, 1f, 1f, 0.28f), new Color(1f, 1f, 1f, 0.06f), 0, Color.clear);
+            glossImage.type = Image.Type.Sliced;
+            glossImage.raycastTarget = false;
+
+            var nameLabel = UIFactory.CreateText(go.transform, name, height * 0.4f, FontStyles.Bold, HudPalette.Cream);
+            UIFactory.StretchFull(nameLabel.rectTransform);
+            nameLabel.alignment = TextAlignmentOptions.Left;
+            nameLabel.margin = new Vector4(height * 0.5f, 0f, 0f, 0f);
+
+            if (name == "MANA")
             {
-                label = UIFactory.CreateText(go.transform, initialLabel, height * 0.5f, FontStyles.Bold, HudPalette.Cream);
-                UIFactory.StretchFull(label.rectTransform);
+                valueLabel = UIFactory.CreateText(go.transform, "0/0", height * 0.5f, FontStyles.Bold, HudPalette.Cream);
+                UIFactory.StretchFull(valueLabel.rectTransform);
+                valueLabel.alignment = TextAlignmentOptions.Right;
+                valueLabel.margin = new Vector4(0f, 0f, height * 0.5f, 0f);
             }
             else
             {
-                label = null;
+                valueLabel = null;
             }
 
             return fillImage;
         }
 
+        private static void SetBar(Image fill, float t)
+        {
+            fill.enabled = t > 0.001f;
+            fill.rectTransform.anchorMax = new Vector2(Mathf.Clamp01(t), 1f);
+        }
+
         private void UpdateStatusCluster()
         {
+            float step = Time.deltaTime * BarFillSpeed;
+
             float manaT = matchState.ManaMax > 0f ? matchState.ManaCurrent / matchState.ManaMax : 0f;
-            manaFill.fillAmount = Mathf.Clamp01(manaT);
+            manaShown = Mathf.MoveTowards(manaShown, Mathf.Clamp01(manaT), step);
+            SetBar(manaFill, manaShown);
             manaText.text = $"{Mathf.FloorToInt(matchState.ManaCurrent)}/{matchState.ManaMax:0}";
             float pulse = 0.85f + Mathf.PingPong(Time.time * 0.8f, 0.3f);
-            manaFill.color = new Color(pulse, pulse, pulse, 1f);
+            manaFill.color = matchState.DoubleManaActive ? new Color(pulse, pulse * 0.88f, pulse * 0.55f, 1f) : new Color(pulse, pulse, pulse, 1f);
 
-            ownFill.fillAmount = matchState.OwnTowerMaxHP > 0f
-                ? Mathf.Clamp01(matchState.OwnTowerHP / matchState.OwnTowerMaxHP) : 0f;
-            opponentFill.fillAmount = matchState.OpponentTowerMaxHP > 0f
-                ? Mathf.Clamp01(matchState.OpponentTowerHP / matchState.OpponentTowerMaxHP) : 0f;
+            float ownT = matchState.OwnTowerMaxHP > 0f ? Mathf.Clamp01(matchState.OwnTowerHP / matchState.OwnTowerMaxHP) : 0f;
+            float opponentT = matchState.OpponentTowerMaxHP > 0f ? Mathf.Clamp01(matchState.OpponentTowerHP / matchState.OpponentTowerMaxHP) : 0f;
+            ownShown = Mathf.MoveTowards(ownShown, ownT, step);
+            opponentShown = Mathf.MoveTowards(opponentShown, opponentT, step);
+            SetBar(ownFill, ownShown);
+            SetBar(opponentFill, opponentShown);
         }
 
         private void BuildTimer()
@@ -490,6 +632,12 @@ namespace BridgeRush.UI
 
         private void UpdateTrackingOverlay()
         {
+            if (matchSetup != null && !matchSetup.IsSetupComplete)
+            {
+                SetOverlay(0f, string.Empty);
+                return;
+            }
+
             if (!arenaFrame.HasLane)
             {
                 SetOverlay(0.55f, "Searching for opponent marker...");

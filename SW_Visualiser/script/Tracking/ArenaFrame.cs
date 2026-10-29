@@ -59,6 +59,11 @@ namespace BridgeRush.Tracking
         // IsLongStale is true only once you've had a real opponent lock, then lost visual tracking, and it's been lost for a while 
         public bool IsLongStale => hasOpponentPose && !IsOpponentTracked && timeSinceLastOpponentUpdate >= longStaleTimeoutSeconds;
         public bool HasLane => Lane.IsValid;
+        // Smoothed 3D position of the opponent's tag (body height, not floor). Only meaningful while HasOpponentPose.
+        public bool HasOpponentPose => hasOpponentPose;
+        public Vector3 OpponentTagPosition => smoothedOpponentPosition;
+        // True when the opponent pose came from SetFakeOpponent (VS CPU), so its height is the camera's, not a worn tag's.
+        public bool IsFakeOpponent { get; private set; }
         public LaneAxis Lane { get; private set; } = LaneAxis.Invalid;
 
         public void SetOpponentMarkerId(int markerId) => opponentMarkerId = markerId;
@@ -72,6 +77,7 @@ namespace BridgeRush.Tracking
 
             var fakePosition = ownDeviceTransform.position + flatForward * distanceMetersAhead;
             OnMarkerUpdated(opponentMarkerId, new Pose(fakePosition, Quaternion.LookRotation(-flatForward, Vector3.up)));
+            IsFakeOpponent = true;
         }
         
         // Locks or unlocks the opponent marker tracking. When locked, the opponent marker will not update its position even if the marker is detected.
@@ -86,6 +92,7 @@ namespace BridgeRush.Tracking
         {
             hasOpponentPose = false;
             IsOpponentTracked = false;
+            IsFakeOpponent = false;
             Lane = LaneAxis.Invalid;
         }
 
@@ -111,6 +118,7 @@ namespace BridgeRush.Tracking
         {   
             // Ignore updates for the opponent if the marker is locked or if the update is for a different marker.
             if (markerId != opponentMarkerId || opponentLocked) return;
+            IsFakeOpponent = false;
 
             // If this is the first update for the opponent, initialize the smoothed position and velocity.
             if (!hasOpponentPose)   

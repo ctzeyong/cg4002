@@ -5,6 +5,7 @@ using BridgeRush.Tracking;
 using BridgeRush.Networking;
 using BridgeRush.Gameplay;
 using BridgeRush.Input;
+using UnityEngine.Serialization;
 
 namespace BridgeRush.Match
 {
@@ -24,7 +25,12 @@ namespace BridgeRush.Match
         [Header("Mana")]
         [SerializeField] private float manaMax = 10f;
         [SerializeField] private float manaStart = 5f;
-        [SerializeField] private float manaRegenPerSecond = 1f / 2.5f;
+        [SerializeField] private float manaRegenPerSecond = 1f;
+
+        [Header("Double mana")]
+        [Tooltip("Mana regenerates faster for the last this many seconds of the match.")]
+        [SerializeField] private float doubleManaLastSeconds = 60f;
+        [SerializeField] private float doubleManaMultiplier = 2f;
 
         [Header("Tick rate")]
         [SerializeField] private float mockTickRateHz = 10f;
@@ -38,8 +44,27 @@ namespace BridgeRush.Match
         [SerializeField] private float matchDurationSeconds = 180f;
 
         [Header("Lane engagement")]
-        [SerializeField] private float engageRangeMeters = 0.8f;
-        private float EngageRangeMeters => engageRangeMeters;
+        [Tooltip("How far away a unit notices an enemy unit and starts walking toward it.")]
+        [FormerlySerializedAs("engageRangeMeters")]
+        [SerializeField] private float noticeRangeMeters = 0.4f;
+        [Tooltip("How close a melee unit must get before it hits. Ranged units use their own Attack Range Meters.")]
+        [SerializeField] private float hitReachMeters = 0.15f;
+        private float NoticeRangeMeters => noticeRangeMeters * ArenaScale;
+        private float HitReachMeters => hitReachMeters * ArenaScale;
+        public float EffectiveNoticeRangeMeters => NoticeRangeMeters;
+        public float EffectiveHitReachMeters => HitReachMeters;
+        private float TowerClearance => towerClearanceMeters * ArenaScale;
+        private float DisengageHysteresis => towerDisengageHysteresisMeters * ArenaScale;
+
+        [Header("Arena scale")]
+        [Tooltip("Lane length the distances in metres are tuned for. At this lane length the scale is 1.")]
+        [SerializeField] private float referenceLaneMeters = 2f;
+        [Tooltip("How strongly sizes and ranges follow the lane length. 0 = never scale, 1 = scale fully, 0.5 = gentle (square root).")]
+        [Range(0f, 1f)]
+        [SerializeField] private float arenaScaleExponent = 0.5f;
+        [SerializeField] private float arenaScaleMin = 0.7f;
+        [SerializeField] private float arenaScaleMax = 1.8f;
+        [SerializeField] private float arenaScaleSmoothSeconds = 0.4f;
 
         [Header("Lane width / spine")]
         [SerializeField] private float laneWidthFraction = 0.55f;
@@ -48,8 +73,8 @@ namespace BridgeRush.Match
         [SerializeField] private float centeringInfluenceRadiusFraction = 0.6f;
 
         [Header("Enemy bot")]
-        [SerializeField] private bool enemyBotEnabled = false;
-        [SerializeField] private float enemyBotSpawnIntervalMinSeconds = 3f;
+        [SerializeField] private bool enemyBotEnabled = true;
+        [SerializeField] private float enemyBotSpawnIntervalMinSeconds = 5f;
         [SerializeField] private float enemyBotSpawnIntervalMaxSeconds = 8f;
 
         [Header("Spawn presentation")]
@@ -57,6 +82,8 @@ namespace BridgeRush.Match
 
         [Header("Bridge span")]
         [SerializeField] private float bridgeFraction = 0.15f;
+        [SerializeField] private bool twoBridges = true;
+        [SerializeField] private float bridgeLateralOffsetFraction = 0.3f;
         [SerializeField] private BridgeVisualizer bridgeVisualizer;
 
         [Header("Arena boundary shape")]
@@ -64,7 +91,7 @@ namespace BridgeRush.Match
         [SerializeField] private float funnelFraction = 0.2f;
         [SerializeField] private float lookAheadMeters = 0.1f;
         [SerializeField] private float rearMarginFraction = 0.05f;
-        [SerializeField] private float groundYOffsetMeters = 0f;
+        [SerializeField] private float groundYOffsetMeters = 0.1f;
 
         [Header("Network role")]
         [SerializeField] private MatchSetup matchSetup;
@@ -83,6 +110,13 @@ namespace BridgeRush.Match
         private Vector3 bridgePosition;
         private Vector3 ownBridgeEdge;
         private Vector3 opponentBridgeEdge;
+        private float[] bridgeLateralOffsets = { 0f };
+        private bool bridgeTieToggle;
+        private float liveArenaScale = 1f;
+        private float arenaScaleVelocity;
+        private bool arenaScaleFrozen;
+        private bool doubleManaAnnounced;
+        private float frozenArenaScale = 1f;
         private float totalLaneLength;
         private Vector3 fixedLaneDirection;
         private static readonly UnitType[] AllUnitTypes = (UnitType[])Enum.GetValues(typeof(UnitType));
@@ -125,12 +159,61 @@ namespace BridgeRush.Match
             ? lockedOwnTowerPosition
             : (arenaFrame.HasLane ? arenaFrame.Lane.Origin : Vector3.zero);
 
+        // Multiplies every distance in metres (unit size, ranges, tower size, lightning radius). Follows the live lane
+        // smoothly until the match starts, then is frozen so nothing resizes mid-game.
+        public float ArenaScale => arenaScaleFrozen ? frozenArenaScale : liveArenaScale;
+        public float ScaledLightningRadius => spellSpec.LightningRadiusMeters * ArenaScale;
+
+        private float ComputeArenaScale(float laneLengthMeters)
+        {
+            if (referenceLaneMeters < 0.0001f || laneLengthMeters < 0.0001f) return 1f;
+            float scale = Mathf.Pow(laneLengthMeters / referenceLaneMeters, Mathf.Clamp01(arenaScaleExponent));
+            return Mathf.Clamp(scale, Mathf.Min(arenaScaleMin, arenaScaleMax), Mathf.Max(arenaScaleMin, arenaScaleMax));
+        }
+
+        private void UpdateLiveArenaScale()
+        {
+            if (arenaScaleFrozen) return;
+            float target = arenaFrame != null && arenaFrame.HasLane ? ComputeArenaScale(arenaFrame.Lane.Length) : 1f;
+            liveArenaScale = Mathf.SmoothDamp(liveArenaScale, target, ref arenaScaleVelocity, Mathf.Max(0.01f, arenaScaleSmoothSeconds));
+        }
+
+        // The last minute of the match: mana comes back faster. Worked out from the time left, so the client sees it too.
+        public bool DoubleManaActive =>
+            matchStarted && Result == MatchResult.None && matchTimeRemaining > 0f && matchTimeRemaining <= doubleManaLastSeconds;
+        public float ManaRegenMultiplier => DoubleManaActive ? Mathf.Max(1f, doubleManaMultiplier) : 1f;
+        public float DoubleManaMultiplier => Mathf.Max(1f, doubleManaMultiplier);
+        public float DoubleManaLastSeconds => doubleManaLastSeconds;
+
+        // Test aid (Debug menu): jump the clock so the last minute starts now. Host and VS CPU only.
+        public void DebugSetTimeRemaining(float seconds)
+        {
+            if (Role != NetworkRole.Client) matchTimeRemaining = Mathf.Max(0f, seconds);
+        }
+
+        // Fired once when the double mana minute begins, on every phone.
+        public event Action DoubleManaStarted;
+
+        private void CheckDoubleMana()
+        {
+            if (doubleManaAnnounced || !DoubleManaActive) return;
+            doubleManaAnnounced = true;
+            DoubleManaStarted?.Invoke();
+        }
+
         public bool HasBridge => homeAnchorsCaptured;
         public Vector3 BridgePosition => bridgePosition;
         public Vector3 OwnHomeAnchor => ownHomeAnchor;
         public Vector3 OpponentHomeAnchor => opponentHomeAnchor;
         public Vector3 OwnBridgeEdge => ownBridgeEdge;
         public Vector3 OpponentBridgeEdge => opponentBridgeEdge;
+        public bool TwoBridges { get => twoBridges; set => twoBridges = value; }
+        public int BridgeCount => bridgeLateralOffsets.Length;
+        public float BridgeWidthMeters => LaneWidthMeters * laneSpineFraction;
+        public Vector3 BridgePositionOf(int index) => bridgePosition + BridgeLateralAxis * bridgeLateralOffsets[index];
+        public Vector3 BridgeOwnEdgeOf(int index) => ownBridgeEdge + BridgeLateralAxis * bridgeLateralOffsets[index];
+        public Vector3 BridgeOpponentEdgeOf(int index) => opponentBridgeEdge + BridgeLateralAxis * bridgeLateralOffsets[index];
+        private Vector3 BridgeLateralAxis => Vector3.Cross(Vector3.up, fixedLaneDirection).normalized;
         public float LaneWidthMeters => laneWidthFraction * totalLaneLength;
         public float IslandWidthMeters => LaneWidthMeters * Mathf.Max(0f, territoryWidthMultiplier);
         public float LaneSpineFraction => laneSpineFraction;
@@ -175,6 +258,10 @@ namespace BridgeRush.Match
         }
 
         public event Action<UnitState> UnitSpawned;
+        // The local player summoned a unit (accepted by SpawnUnit), from any input. Drives the card animation.
+        public event Action<UnitType> OwnUnitSummoned;
+        // A summon was refused, with a short reason for the card (NO MANA, BAD AIM...).
+        public event Action<UnitType, string> OwnUnitRejected;
         public event Action<int> UnitDespawned;
 
         private void Awake()
@@ -189,6 +276,7 @@ namespace BridgeRush.Match
                 UnitDespawned?.Invoke(units[i].Id);
             }
             units.Clear();
+            ClearStrikes();
 
             OwnTowerHP = ownTowerMaxHP;
             OpponentTowerHP = opponentTowerMaxHP;
@@ -198,6 +286,8 @@ namespace BridgeRush.Match
             matchTimeRemaining = matchDurationSeconds;
             timeSinceLastTick = 0f;
             homeAnchorsCaptured = false;
+            arenaScaleFrozen = false;
+            doubleManaAnnounced = false;
             matchStarted = false;
             ownTowerLocked = false;
             Result = MatchResult.None;
@@ -210,19 +300,28 @@ namespace BridgeRush.Match
 
         private void Update()
         {
+            UpdateLiveArenaScale();
             if (!matchStarted || Paused) return;
 
             CaptureHomeAnchorsIfNeeded(); // Check if home anchors have been captured and update the state accordingly.
+            CheckDoubleMana();
 
-            if (Role == NetworkRole.Client) return;
+            // The client does not simulate, but its clock must run so the units glide between the host's updates.
+            if (Role == NetworkRole.Client)
+            {
+                timeSinceLastTick += Time.deltaTime;
+                return;
+            }
 
             if (HasEnded) return;
 
-            ManaCurrent = Mathf.Min(manaMax, ManaCurrent + manaRegenPerSecond * Time.deltaTime);
-            enemyManaCurrent = Mathf.Min(manaMax, enemyManaCurrent + manaRegenPerSecond * Time.deltaTime);
+            float manaRegen = manaRegenPerSecond * ManaRegenMultiplier * Time.deltaTime;
+            ManaCurrent = Mathf.Min(manaMax, ManaCurrent + manaRegen);
+            enemyManaCurrent = Mathf.Min(manaMax, enemyManaCurrent + manaRegen);
             matchTimeRemaining = Mathf.Max(0f, matchTimeRemaining - Time.deltaTime);
             //time.deltatime is used to esnure smoothness of the gamme
             ApplyOutOfBoundsDamage(Time.deltaTime);
+            UpdateStrikes(Time.deltaTime);
             if (enemyBotEnabled) UpdateEnemyBot(Time.deltaTime);
 
             timeSinceLastTick += Time.deltaTime;
