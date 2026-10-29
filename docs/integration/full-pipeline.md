@@ -159,13 +159,13 @@ Each gesture the glove flags should then produce:
 
 ```text
 trigger node=1 seq=... t_laptop_rx=... t_rx=...
-AI event seq=... player=1 key=None gesture=circle t_event=... conf=... t_infer_ms=... missing=... -> game/gesture/1
+AI event seq=... player=1 key=None gesture=warrior t_event=... conf=... t_infer_ms=... missing=... -> game/gesture/1
 VIBRATE node=1 pattern=1 sent
 published ultra96-relay:... to game/gesture/1 t=...
 ```
 
-On the phone that selected that player, the game's feedback label shows `Circle (glove)
-accepted`. `rejected` still means the event arrived; the game refused it, for mana or aim.
+On the phone that selected that player, the game's feedback banner shows `glove -> Warrior`.
+A red banner still means the event arrived; the game refused it, for mana or aim.
 
 If a flagged gesture gets no answer from AI, the board says so instead:
 
@@ -189,9 +189,9 @@ gesture means the detector fires.
 ### Laptop keypresses
 
 A letter or digit typed into terminal 1 travels to the glove as a CMD packet and back as an ECHO,
-then on to the board, which publishes a made-up event without asking AI. `c k a z i t s` pick
-circle, caret, arc, z, infinity, triangle and star. `1` or `2` goes to that player only; any
-other key goes to every glove. Use it to check the phone half without gesturing.
+then on to the board, which publishes a made-up event without asking AI. `w m f r l h s` pick
+warrior, mage, fireball, rogue, lightning, hero and shield. `1` or `2` goes to that player only;
+any other key goes to every glove. Use it to check the phone half without gesturing.
 
 ## How a SENSOR packet becomes an event
 
@@ -225,12 +225,13 @@ other key goes to every glove. Use it to check the phone half without gesturing.
    which the laptop turns into a CMD for that glove.
 8. On each iPhone, the drop-in's `AiGestureHook` subscribes to its own player's topic, ignores
    repeated `event_id`s, maps the name onto the game's `GestureSymbol`, and calls
-   `GesturePad.PerformGesture(symbol, "glove")`. `PerformGesture` is in the Vis build used on
-   20 Oct, but not yet pushed to `origin/Vis`.
+   `GesturePad.PerformGesture(symbol, "glove")`, which Vis pushed in `a26da0b`.
 
 The published payload contains `type`, `player`, `seq`, `gesture` and `timestamp`. Confidence,
-inference time and missing-packet count are log-only. `gesture` is one of the Vis game's seven
-names: `arc`, `caret`, `circle`, `infinity`, `star`, `triangle`, `z`.
+inference time and missing-packet count are log-only. `gesture` is one of AI's seven role names,
+which the Vis game takes: `warrior`, `mage`, `fireball`, `rogue`, `lightning`, `hero`, `shield`.
+Until AI's new model is on the board, the classifier still gives the old names (`arc`, `circle`,
+...), and the game shows those as `unknown gesture`. Keypress events already use the new names.
 
 ## Rules that protect the AI input
 

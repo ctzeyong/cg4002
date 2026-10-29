@@ -74,7 +74,7 @@ namespace Comms.Visualiser
             }
 
             // Letters only, because Enum.TryParse also takes "3" as a value (classifier
-            // label "3" would become Z), trims " star", and splits "circle,star".
+            // label "3" would become Tank), trims " hero", and splits "mage,hero".
             var text = name.Value<string>();
             if (!IsLettersOnly(text))
             {

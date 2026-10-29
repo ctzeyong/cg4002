@@ -101,7 +101,10 @@ TRANSPORT_TYPES = ["CommsTunnelBridge", "SshMqttTunnel", "SshTunnelSettings", "S
 HOOK_TYPES = ["AiGestureHook", "GestureEventParser", "Envelope", "SeenEvents"]
 
 # Gesture names, current and old. None may be spelled out in the drop-in (4.6).
-GESTURE_WORDS = ["circle", "caret", "arc", "z", "infinity", "triangle", "star", "square", "zigzag", "line"]
+GESTURE_WORDS = [
+    "warrior", "mage", "fireball", "rogue", "lightning", "hero", "shield", "tank",
+    "circle", "caret", "arc", "z", "infinity", "triangle", "star", "square", "zigzag", "line",
+]
 
 _COMMENT_BLOCK = re.compile(r"/\*.*?\*/", re.S)
 _COMMENT_LINE = re.compile(r"//[^\n]*")

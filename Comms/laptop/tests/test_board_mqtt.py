@@ -367,12 +367,12 @@ async def test_event_source_publishes_instead_of_writing():
     source = tcp_client_mqtt.MqttEventSource(outbound, stats)
 
     sentinel = object()  # a writer that would explode if touched
-    event = await asyncio.wait_for(source.emit(sentinel, 2, "c"), timeout=DEADLINE_S)
+    event = await asyncio.wait_for(source.emit(sentinel, 2, "w"), timeout=DEADLINE_S)
 
     topic, env, _ = outbound.get_nowait()
     assert topic == "game/gesture/2", "attribution rides in the topic"
     assert env["payload"] == event
-    assert event["gesture"] == "circle", "the pressed key still picks the gesture"
+    assert event["gesture"] == "warrior", "the pressed key still picks the gesture"
     assert source.seq == 1 and source.sent == 1
 
 

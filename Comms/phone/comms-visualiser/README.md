@@ -173,7 +173,8 @@ a fresh one, so repeats aren't deduped.
 ev() { p=${2:-1}; mosquitto_pub -h 127.0.0.1 -q 1 -t "game/gesture/$p" -m "{\"event_id\":\"${3:-manual:$(date +%s%N)}\",\"source\":\"manual\",\"seq\":0,\"ts\":$(date +%s).0,\"payload\":{\"type\":\"AI_EVENT\",\"player\":$p,\"seq\":0,\"gesture\":\"$1\",\"timestamp\":$(date +%s).0}}"; }
 ```
 
-The gesture names are your enum's, in lowercase: `circle caret arc z infinity triangle star`.
+The gesture names are the classifier's: `warrior mage fireball rogue lightning hero shield`.
+Each is a member of your `GestureSymbol` enum. `shield` is the one your enum maps to Tank.
 
 ### V1a — one iPhone connects
 
@@ -182,9 +183,9 @@ The gesture names are your enum's, in lowercase: `circle caret arc z infinity tr
    You should see about one `debug/heartbeat` line a second, carrying your device name. Your
    `DebugMenu` sends these on its own whenever MQTT is connected, at its
    **Mqtt Heartbeat Interval Seconds** (default 1). Ctrl-C to stop.
-3. **Board → phone:** select Player 1, then run `ev circle`. Your feedback label should show
-   `Circle (glove) …`. Outside a match it says `rejected`. That's fine: it proves the event
-   arrived.
+3. **Board → phone:** select Player 1, then run `ev warrior`. Your feedback banner should show
+   `glove -> Warrior`. Outside a match it turns red and says why. That's fine: it proves the
+   event arrived.
 
 ### V1b — both iPhones
 
@@ -203,18 +204,18 @@ The gesture names are your enum's, in lowercase: `circle caret arc z infinity tr
 ### V2 — AI events act like drawn strokes
 
 Run these in a VsPlayer match, with each crosshair on its own half. Send one at a time and
-wait for mana: a `rejected` for mana is not a failure.
+wait for mana: a red banner for mana is not a failure.
 
 | On the board, run this | Expected |
 |---|---|
-| `ev circle 1` | A Warrior spawns on phone 1's side, visible on both phones |
-| `ev circle 2` | Phone 2 sends its request, and the enemy Warrior shows on both phones |
-| `ev caret 1`, `ev arc 1`, `ev triangle 1`, `ev star 1` | Rogue, Mage, Tank, Hero |
-| `ev z 1`, `ev infinity 1` | Lightning Strike, Overcharge |
-| `ev star 2`, watching phone 1 | Phone 1 does nothing. Phone 2 acts |
-| `ev circle 1 rep:1`, then the same again | One spawn. The second shows `duplicate rep:1 ignored`. To repeat this test, use a new id (`rep:2`, …) |
-| `ev circle 1` with the aim off your own half, or outside a match | `rejected`, and nothing else happens |
-| `ev square 1`, `ev 3 1` | An `unknown gesture` line, and nothing else happens |
+| `ev warrior 1` | A Warrior spawns on phone 1's side, visible on both phones |
+| `ev warrior 2` | Phone 2 sends its request, and the enemy Warrior shows on both phones |
+| `ev rogue 1`, `ev mage 1`, `ev shield 1`, `ev hero 1` | Rogue, Mage, Tank, Hero |
+| `ev lightning 1`, `ev fireball 1` | Lightning Strike, Fireball |
+| `ev hero 2`, watching phone 1 | Phone 1 does nothing. Phone 2 acts |
+| `ev warrior 1 rep:1`, then the same again | One spawn. The second shows `duplicate rep:1 ignored`. To repeat this test, use a new id (`rep:2`, …) |
+| `ev warrior 1` with the aim off your own half, or outside a match | A red banner saying why, and nothing else happens |
+| `ev circle 1`, `ev 3 1` | An `unknown gesture` line, and nothing else happens |
 
 Then hold each phone the way it will be held on Thursday: **most AI spawns must be accepted,
 not refused for aim.**
@@ -224,8 +225,8 @@ IMU. Comms has both FireBeetles next to the laptop, because BLE reaches only a f
 laptop and board pipeline run, and Comms presses keys on the laptop. Your phones stay wherever
 you are, on the VPN, as for the tests above, so a call is enough to say what was pressed. Each
 key travels to a FireBeetle and back, then to the board, which publishes the event.
-- A letter goes to both players, and both phones act. `c k a z i t s` pick circle, caret,
-  arc, z, infinity, triangle and star; any other letter picks one at random.
+- A letter goes to both players, and both phones act. `w m f r l h s` pick warrior, mage,
+  fireball, rogue, lightning, hero and shield; any other letter picks one at random.
 - `1` or `2` (a random gesture) goes to that player only, and only that phone acts.
 
 ### What to send Comms afterwards

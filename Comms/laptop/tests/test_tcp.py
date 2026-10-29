@@ -360,7 +360,7 @@ def test_parse_echo_accepts_a_well_formed_echo_with_no_readable_key(code):
 def test_a_mapped_key_always_picks_its_gesture():
     """Repeated: the fallback is random, so one pass agrees by luck 1 time in 7."""
     for _ in range(20):
-        assert ai_events.random_event(1, 0, "z")["gesture"] == "z"
+        assert ai_events.random_event(1, 0, "l")["gesture"] == "lightning"
 
 
 def test_an_unmapped_key_falls_back_to_a_random_gesture():
@@ -373,11 +373,11 @@ def test_an_unmapped_key_falls_back_to_a_random_gesture():
 
 @pytest.mark.asyncio
 async def test_an_echo_produces_the_gesture_matching_the_key_pressed():
-    """Press `c`, see `circle`: the whole Ultra96 half, negation to wire."""
+    """Press `w`, see `warrior`: the whole Ultra96 half, negation to wire."""
     received = asyncio.Queue()
 
     async def echoes_then_listens(reader, writer):
-        await send_message(writer, echo_message("c"))
+        await send_message(writer, echo_message("w"))
         await received.put(await recv_message(reader))
         await asyncio.sleep(DEADLINE_S)  # hold the connection open
 
@@ -396,7 +396,7 @@ async def test_an_echo_produces_the_gesture_matching_the_key_pressed():
                     await task
 
     assert event["type"] == "AI_EVENT"
-    assert event["gesture"] == "circle"
+    assert event["gesture"] == "warrior"
 
 
 @pytest.mark.asyncio
@@ -465,7 +465,7 @@ async def test_a_malformed_echo_is_dropped_and_logged_not_answered(caplog):
 
     async def echoes_then_listens(reader, writer):
         await send_message(writer, bad)
-        await send_message(writer, echo_message("z", node=2, seq=5))
+        await send_message(writer, echo_message("l", node=2, seq=5))
         while True:
             event = await recv_message(reader)
             await received.put(event)
@@ -493,7 +493,7 @@ async def test_a_malformed_echo_is_dropped_and_logged_not_answered(caplog):
                         await task
 
     assert [(e["player"], e["seq"]) for e in events] == [(2, 0)], events
-    assert events[0]["gesture"] == "z"
+    assert events[0]["gesture"] == "lightning"
     dropped = [r.getMessage() for r in caplog.records if "malformed ECHO" in r.getMessage()]
     assert len(dropped) == 1 and "seq=4" in dropped[0], dropped
 

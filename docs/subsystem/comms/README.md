@@ -196,16 +196,16 @@ Gesture message example:
     "type": "AI_EVENT",
     "player": 1,
     "seq": 17,
-    "gesture": "circle",
+    "gesture": "warrior",
     "timestamp": 1792000000.0
   }
 }
 ```
 
 This standalone Comms implementation does not run the FPGA classifier. All `AI_EVENT` messages
-are transport stand-ins: `gesture` is one of the Vis game's seven gestures, its `GestureSymbol`
-enum lowercased (`circle`, `caret`, `arc`, `z`, `infinity`, `triangle`, `star`), picked by the
-pressed key or at random. The game engine prices every action itself, so the event carries no
+are transport stand-ins: `gesture` is one of the classifier's seven role names (`warrior`,
+`mage`, `fireball`, `rogue`, `lightning`, `hero`, `shield`), each a member of the Vis game's
+`GestureSymbol` enum, picked by the pressed key or at random. The game engine prices every action itself, so the event carries no
 game-state value.
 
 ### Current scope
