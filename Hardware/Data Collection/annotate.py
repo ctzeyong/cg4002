@@ -1,5 +1,10 @@
-"""Review raw recordings with an optional synchronized video; save separate labels."""
+"""Review raw recordings with an optional synchronized video; save separate labels.
+
+Opens Hardware's 500 Hz USB recordings (record.py) and the 100 Hz BLE recordings that
+Comms/laptop/record_ble.py writes (sessions/ble/); the sample period comes from the .meta.json.
+"""
 import argparse
+import collections
 import json
 from pathlib import Path
 import time
@@ -7,13 +12,25 @@ import numpy as np
 from core import GESTURES, RAW_PERIOD_US, recording_metadata, load_csv, labels_for
 from video_sync import VideoSync, VideoReader
 
+BLE_HZ = 100                                   # Comms/laptop/record_ble.py
+VARIANT_KEYS = ('drawing_mode', 'direction', 'posture')
+
+
+def recording_period(path):
+    """(sample period in us, meta): 10000 for a 100 Hz BLE recording, else the usual checked
+    500 Hz recording (2000)."""
+    meta = json.loads(Path(path).with_suffix('.meta.json').read_text())
+    if meta.get('transport') == 'ble' and meta.get('raw_hz') == BLE_HZ:
+        return 1_000_000 // BLE_HZ, meta
+    return RAW_PERIOD_US, recording_metadata(path)
+
 
 class Annotator:
     def __init__(self,path,video=None):
         import matplotlib.pyplot as plt
         from matplotlib.widgets import SpanSelector, RadioButtons, Button, Slider, CheckButtons
         self.path=Path(path)
-        recording_metadata(path)
+        self.period_us,self.meta=recording_period(path)
         self.seq,self.times,self.x=load_csv(path)
         self.seconds=(self.times-self.times[0])/1e6
         if len(self.times)<2: raise ValueError('Annotation requires at least two samples')
@@ -42,7 +59,9 @@ class Annotator:
         self.video_ax=self.fig.add_axes([.67,.38,.31,.48]); self.video_ax.axis('off')
         self.image=None
         if not self.reader: self.video_ax.text(.1,.5,'Plot-only mode\nUse --video to load a recording.')
-        self.radio=RadioButtons(self.fig.add_axes([.01,.43,.10,.43]),(*GESTURES,'ignore'))
+        choices=(*GESTURES,'ignore')   # start on the recording's own symbol when it is known
+        self.radio=RadioButtons(self.fig.add_axes([.01,.43,.10,.43]),choices,
+                                active=choices.index(self.default_symbol()))
         self.widgets.append(self.radio)
         self.link=CheckButtons(self.fig.add_axes([.67,.29,.17,.06]),['Link timelines'],[bool(self.points)])
         self.widgets.append(self.link)
@@ -67,7 +86,7 @@ class Annotator:
         button([.875,.17,.095,.04],'Frame >',lambda _:self.step_frame(1))
         button([.67,.11,.145,.04],'Add sync point',lambda _:self.add_sync())
         button([.83,.11,.14,.04],'Reset sync',lambda _:self.reset_sync())
-        self.spans=[SpanSelector(ax,self.select,'horizontal',useblit=True,props=dict(alpha=.2,facecolor='orange'),minspan=RAW_PERIOD_US/1e6) for ax in self.axes]
+        self.spans=[SpanSelector(ax,self.select,'horizontal',useblit=True,props=dict(alpha=.2,facecolor='orange'),minspan=self.period_us/1e6) for ax in self.axes]
         self.fig.canvas.mpl_connect('button_press_event',self.click)
         self.fig.canvas.mpl_connect('close_event',self.close)
         self.timer=self.fig.canvas.new_timer(interval=40); self.timer.add_callback(self.tick)
@@ -154,18 +173,40 @@ class Annotator:
         if self.cursor<=self.mark: self.message('End must be after start.'); return
         if self.select(self.mark,self.cursor): self.mark=None
 
+    def default_symbol(self):
+        """The recording's symbol: from its meta (record_ble.py), else the commonest label
+        already in the file, else the first gesture."""
+        symbol=self.meta.get('symbol')
+        if symbol not in GESTURES:
+            used=collections.Counter(a['label'] for a in self.doc['intervals'] if a['label'] in GESTURES)
+            symbol=used.most_common(1)[0][0] if used else GESTURES[0]
+        return symbol
+
+    def variant(self):
+        """drawing_mode/direction/posture for a new symbol interval: the recording's meta when it
+        has them (record_ble.py), else the commonest set already on its intervals (live labels)."""
+        if all(self.meta.get(k) for k in VARIANT_KEYS):
+            return {k:self.meta[k] for k in VARIANT_KEYS}
+        sets=collections.Counter(tuple(a[k] for k in VARIANT_KEYS) for a in self.doc['intervals']
+                                 if a['label']!='ignore' and all(a.get(k) for k in VARIANT_KEYS))
+        return dict(zip(VARIANT_KEYS,sets.most_common(1)[0][0])) if sets else {}
+
     def select(self,a,b):
         if self.toolbar_active(): return False
         start=max(int(self.times[0]),int(self.times[0])+round(a*1e6))
-        end=min(int(self.times[-1])+RAW_PERIOD_US,int(self.times[0])+round(b*1e6))
-        if end-start<RAW_PERIOD_US: self.message('Select at least 2 ms. Zoom before labelling.'); return False
+        end=min(int(self.times[-1])+self.period_us,int(self.times[0])+round(b*1e6))
+        if end-start<self.period_us:
+            self.message(f'Select at least {self.period_us/1000:g} ms. Zoom before labelling.'); return False
         if any(start<s['end_us'] and end>s['start_us'] for s in self.doc['intervals']):
             self.message('Intervals cannot overlap. Delete at cursor or Undo last first.'); return False
-        if self.radio.value_selected!='ignore':
-            gaps=np.flatnonzero((np.diff(self.seq)!=1)|(np.diff(self.times)!=RAW_PERIOD_US))
+        label=self.radio.value_selected
+        interval=dict(label=label,start_us=start,end_us=end)
+        if label!='ignore':
+            gaps=np.flatnonzero((np.diff(self.seq)!=1)|(np.diff(self.times)!=self.period_us))
             if any(start<self.times[k+1] and end>self.times[k] for k in gaps):
                 self.message('Symbol crosses a sensor gap. Mark the unusable interval ignore instead.'); return False
-        self.doc['intervals'].append(dict(label=self.radio.value_selected,start_us=start,end_us=end))
+            interval.update(self.variant())   # export keeps drawing mode/direction/posture
+        self.doc['intervals'].append(interval)
         self.changed(); return True
 
     def changed(self): self.doc['reviewed']=False; self.dirty=True; self.redraw()
@@ -195,7 +236,7 @@ class Annotator:
         temp.write_text(json.dumps(self.doc,indent=2))
         # Validate before replacing existing annotations. Drafts validate using a reviewed copy.
         check=dict(self.doc,reviewed=True); temp.write_text(json.dumps(check,indent=2))
-        try: labels_for(temp,self.times)
+        try: labels_for(temp,self.times,self.period_us)
         except ValueError as e: self.message(f'Not saved: {e}'); return
         temp.write_text(json.dumps(self.doc,indent=2)); temp.replace(self.out)
         self.dirty=False; self.message(f'Saved {"reviewed" if reviewed else "draft"} labels to {self.out.name}.')

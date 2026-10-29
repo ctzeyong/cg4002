@@ -254,6 +254,9 @@ def main(argv=None):
                 firmware="Comms/firebeetle/firebeetle.ino", default_output_steps=100, dlpf=3,
                 accel_range_g=4, gyro_range_dps=500, participant=args.participant,
                 session=args.session, notes=args.notes, started_unix=time.time(),
+                # so annotate.py can label after the fact with the right symbol and variant
+                symbol=args.symbol, drawing_mode=args.drawing_mode, direction=args.direction,
+                posture=args.posture,
                 channels=list(CHANNELS),
                 timestamp_basis="firmware SENSOR seq unwrapped x 10 ms (nominal 100 Hz), "
                                 "not BLE arrival time")
