@@ -162,6 +162,7 @@ Example decoded SENSOR message:
 | Topic | Producer → consumer | QoS | Retained | Current use in Configuration B |
 |---|---|---:|---|---|
 | `game/gesture/{player}` | Ultra96 → phones | 1 | No | Live gesture event. Phones subscribe to `game/gesture/+`; player attribution comes from the final topic segment. |
+| `status/gloves` | Ultra96 → phones | 1 | Yes, with a last will | Whether each glove is streaming: `{"player1": "ready", "player2": "down"}` inside the envelope. `ready` is at least 50 packets with an IMU reading in the last second; `down` is fewer than 25 (in between, a glove keeps its last state, so one near 50 Hz doesn't flip); `offline` means the board's client stopped or died (published on a clean stop, and by the broker as the client's will). Published on each change and again after every reconnect. The phone hook shows each change. |
 | `viz/ready/{player}` | Phone → broker | 1 | No | Phone publishes an envelope whose inner payload is `{"status":"ready","player":N}` after subscribing. Diagnostic only in B: the current Ultra96 code is publish-only, so nothing consumes it. |
 | `comms/ping` | Diagnostic client → same diagnostic client | Configurable, default 1 | No | Used only by `mqtt_ping.py` for broker round-trip measurements; not part of the game pipeline. |
 

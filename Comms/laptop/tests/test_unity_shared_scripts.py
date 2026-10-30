@@ -91,14 +91,14 @@ SSH_NET_DLLS = [
 
 DROPIN_FILES = sorted(
     ["README.md", "Hook/AiGestureHook.cs", "Hook/GestureEventParser.cs",
-     "Transport/CommsTunnelBridge.cs", "Transport/link.xml"]
+     "Hook/GloveStatusParser.cs", "Transport/CommsTunnelBridge.cs", "Transport/link.xml"]
     + list(DROPIN_COPIES)
     + [f"Transport/Plugins/SshNet/{name}" for name in SSH_NET_DLLS]
 )
 
 # Types each half declares. Neither half may name the other's.
 TRANSPORT_TYPES = ["CommsTunnelBridge", "SshMqttTunnel", "SshTunnelSettings", "SshHopSettings", "TunnelConfig"]
-HOOK_TYPES = ["AiGestureHook", "GestureEventParser", "Envelope", "SeenEvents"]
+HOOK_TYPES = ["AiGestureHook", "GestureEventParser", "GloveStatusParser", "Envelope", "SeenEvents"]
 
 # Gesture names, current and old. None may be spelled out in the drop-in (4.6).
 GESTURE_WORDS = [

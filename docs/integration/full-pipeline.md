@@ -76,8 +76,8 @@ first. In particular:
 ### 1. Flash the gloves
 
 Flash [`firebeetle.ino`](../../Comms/firebeetle/firebeetle.ino) from the Arduino IDE onto each
-glove, with `#define PLAYER_ID` set to that glove's player. **The committed value is `2`**, so
-change it to `1` for player 1's glove. A board with no IMU, or another board with the same
+glove, with `#define PLAYER_ID` set to that glove's player. **The committed value is `1`**, so
+change it to `2` for player 2's glove. A board with no IMU, or another board with the same
 `PLAYER_ID`, should be switched off: the laptop connects to whichever answers first.
 
 With the Serial Monitor open at 115200, you should see:
@@ -153,6 +153,15 @@ found no FPGA:
 
 ```text
 classifier: AI
+```
+
+It also reports each glove's status, and publishes it to the phones on `status/gloves`. A glove
+is `ready` once the board receives at least 50 packets a second from it with an IMU reading, and
+`down` again only below 25 a second:
+
+```text
+gloves: player1=down player2=down
+gloves: player1=ready player2=down
 ```
 
 Each gesture the glove flags should then produce:

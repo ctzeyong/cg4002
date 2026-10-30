@@ -199,6 +199,7 @@ async def receiver(
     stop: asyncio.Event,
     events: EventSource,
     windows: gesture.Windows = None,
+    gloves=None,
 ) -> None:
     """Receive messages from the laptop and handle AI event triggers.
 
@@ -208,7 +209,8 @@ async def receiver(
     resulting events are sent back to the laptop.
 
     An ECHO is always a trigger and gets a dummy gesture. With `windows`, every SENSOR
-    packet goes to AI, and a packet is a trigger when AI answers with a gesture.
+    packet goes to AI, and a packet is a trigger when AI answers with a gesture. With
+    `gloves` (configuration B's GloveStatus), every SENSOR packet is also counted there.
     """
     count = 0
     window_count = 0
@@ -265,6 +267,8 @@ async def receiver(
 
         if not isinstance(msg, dict):
             continue
+        if gloves is not None and msg.get("type") == SENSOR:
+            gloves.add(msg, now)
         result = None
         if windows is not None and msg.get("type") == SENSOR:
             try:

@@ -14,6 +14,9 @@ namespace Comms.Visualiser
     ///
     /// Works the same under configurations A and B: it needs only a connected MqttConnection,
     /// however that connection reaches the broker. notes/integration/vis_integration.md 4.4.
+    ///
+    /// It also shows each change in the gloves' status from status/gloves, e.g. "gloves: player 2 down".
+    /// Only the board publishes that topic, so under A nothing shows.
     /// </summary>
     public class AiGestureHook : MonoBehaviour
     {
@@ -37,6 +40,9 @@ namespace Comms.Visualiser
         // The topic the last Update acted on, so each change of player is shown once.
         private string _actingOn;
 
+        // Each glove's last shown state, so only a change is shown.
+        private string[] _gloves;
+
         private string _line;
         private float _lineUntil;
 
@@ -49,6 +55,20 @@ namespace Comms.Visualiser
             {
                 Debug.LogError($"{nameof(AiGestureHook)}: needs an Mqtt Connection, a Match Setup and a Gesture Pad.", this);
                 enabled = false;
+            }
+        }
+
+        private void Start()
+        {
+            // One topic for both gloves, whichever player this phone is. It is retained, so
+            // the current state arrives as soon as the phone subscribes.
+            try
+            {
+                mqttConnection.Subscribe(GloveStatusParser.Topic, OnGloveStatus);
+            }
+            catch (Exception exc)
+            {
+                Show($"subscribe to {GloveStatusParser.Topic} failed, retried on reconnect: {exc.Message}");
             }
         }
 
@@ -149,11 +169,39 @@ namespace Comms.Visualiser
             Acted++;
         }
 
-        private void Show(string message)
+        /// <summary>
+        /// Shows the gloves whose state changed, on one line. Never throws, like OnMessage.
+        /// Gets the envelope's inner payload, since MqttConnection removes the envelope first.
+        /// </summary>
+        private void OnGloveStatus(string topic, string payload)
         {
-            _line = "AI: " + message;
+            try
+            {
+                if (!GloveStatusParser.TryRead(payload, out var gloves, out var reason))
+                {
+                    Show(reason, "gloves");
+                    return;
+                }
+
+                var changed = new List<string>();
+                for (var i = 0; i < gloves.Length; i++)
+                    if (_gloves == null || _gloves[i] != gloves[i])
+                        changed.Add($"player {i + 1} {gloves[i]}");
+                _gloves = gloves;
+
+                if (changed.Count > 0) Show(string.Join(", ", changed), "gloves");
+            }
+            catch (Exception exc)
+            {
+                Show($"hook error on {topic}: {exc.GetType().Name}: {exc.Message}", "gloves");
+            }
+        }
+
+        private void Show(string message, string label = "AI")
+        {
+            _line = $"{label}: {message}";
             _lineUntil = Time.realtimeSinceStartup + LineSeconds;
-            Debug.Log($"[ai-hook] {message}");
+            Debug.Log($"[ai-hook] {_line}");
         }
 
         private void OnGUI()

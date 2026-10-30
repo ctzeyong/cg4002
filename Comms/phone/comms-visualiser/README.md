@@ -121,6 +121,11 @@ Comms sends the real values privately. They aren't written anywhere in the repo.
   game/gesture/2` on each later switch, `no player selected: events are ignored` after a
   debug reset, or why an event was dropped (`unknown gesture 'square'`,
   `duplicate … ignored`, `ignored game/gesture/2: this phone listens on game/gesture/1`).
+  It also shows each change in the gloves' status from the board (`status/gloves`), for
+  example `gloves: player 1 ready, player 2 down` once the phone connects, then
+  `gloves: player 2 down` if that glove stops streaming mid-match. `offline` means the
+  board's client is not running. The hook subscribes to this topic by itself, so there is
+  nothing to wire.
 - **Your own feedback label:** `Circle (glove) accepted`, or `rejected - no match, aim or
   mana`.
 - **A note on switching players:** after a switch, the phone stays subscribed to the old

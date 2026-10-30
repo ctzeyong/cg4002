@@ -383,12 +383,12 @@ async def test_configuration_b_run_passes_the_flag_to_every_session(gesture_flag
     seen = []
 
     async def failing_session(
-        host, port, events, event_every=0.0, classifier=None, gesture_flag=False
+        host, port, events, event_every=0.0, classifier=None, gesture_flag=False, gloves=None
     ):
         seen.append((gesture_flag, classifier))
         raise OSError("refused")
 
-    async def idle_publisher(host, port, outbound, stop, stats):
+    async def idle_publisher(host, port, outbound, stop, stats, gloves):
         await stop.wait()
 
     monkeypatch.setattr(tcp_client_mqtt, "one_session", failing_session)
