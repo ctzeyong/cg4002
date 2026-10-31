@@ -232,15 +232,16 @@ any other key goes to every glove. Use it to check the phone half without gestur
    event in the envelope and publishes it to `game/gesture/<player>` through the board's local
    broker. It then sends `{"type": "VIBRATE", "node": <player>, "pattern": 1}` down the tunnel,
    which the laptop turns into a CMD for that glove.
-8. On each iPhone, the drop-in's `AiGestureHook` subscribes to its own player's topic, ignores
-   repeated `event_id`s, maps the name onto the game's `GestureSymbol`, and calls
-   `GesturePad.PerformGesture(symbol, "glove")`, which Vis pushed in `a26da0b`.
+8. On each iPhone, Vis's `GloveGestureReceiver` subscribes to its own player's topic and runs
+   the name through `GestureBindings`, the same path as a card. `MqttConnection` drops repeated
+   `event_id`s first. The drop-in's `AiGestureHook` doesn't act on gestures. It only echoes each
+   one on `viz/echo/<player>` and shows the gloves' status.
 
 The published payload contains `type`, `player`, `seq`, `gesture` and `timestamp`. Confidence,
 inference time and missing-packet count are log-only. `gesture` is one of AI's seven role names,
 which the Vis game takes: `warrior`, `mage`, `fireball`, `rogue`, `lightning`, `hero`, `shield`.
 Until AI's new model is on the board, the classifier still gives the old names (`arc`, `circle`,
-...), and the game shows those as `unknown gesture`. Keypress events already use the new names.
+...), which the game ignores, with nothing on screen. Keypress events already use the new names.
 
 ## Rules that protect the AI input
 
@@ -341,7 +342,8 @@ that evidence.
 3. Decide whether a rejected candidate should still be classified, and set AI's confidence
    threshold.
 4. Flash the motor code and check each player's glove buzzes after its own gestures only.
-5. Push `GesturePad.PerformGesture` to the Vis branch.
+5. Vis imports the updated hook and rebuilds both iPhones (drop-in README, "Updating your
+   existing copy").
 6. Confirm recovery after a real DMA timeout; AI's module reports the error but does not reset the
    DMA or reload the overlay.
 
