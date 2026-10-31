@@ -17,6 +17,8 @@ namespace Comms.Visualiser
     ///
     /// It also shows each change in the gloves' status from status/gloves, e.g. "gloves: player 2 down".
     /// Only the board publishes that topic, so under A nothing shows.
+    ///
+    /// And it echoes every gesture on viz/echo/{player} for latency (GestureEcho).
     /// </summary>
     public class AiGestureHook : MonoBehaviour
     {
@@ -70,12 +72,20 @@ namespace Comms.Visualiser
             {
                 Show($"subscribe to {GloveStatusParser.Topic} failed, retried on reconnect: {exc.Message}");
             }
+
+            try
+            {
+                mqttConnection.Subscribe(GestureEcho.GestureFilter, OnGestureForEcho);
+            }
+            catch (Exception exc)
+            {
+                Show($"subscribe to {GestureEcho.GestureFilter} failed, retried on reconnect: {exc.Message}");
+            }
         }
 
         private void Update()
         {
-            // His dispatch matches topics exactly, so subscribe to this player's own topic,
-            // never game/gesture/+ (which would receive every event and dispatch none).
+            // act only on this player's topic, since Start's game/gesture/+ is only for the echo
             var topic = CurrentTopic();
             if (topic == _actingOn) return;
             _actingOn = topic;
@@ -110,13 +120,20 @@ namespace Comms.Visualiser
         /// <summary>game/gesture/1 or /2 for the player this phone selected, or null before a choice.</summary>
         private string CurrentTopic()
         {
-            if (!matchSetup.HasSelected) return null;
+            var player = CurrentPlayer();
+            return player == 0 ? null : MqttConfig.GestureTopic(player);
+        }
+
+        /// <summary>1 or 2 for the player this phone selected, or 0 before a choice.</summary>
+        private int CurrentPlayer()
+        {
+            if (!matchSetup.HasSelected) return 0;
 
             switch (matchSetup.Selected)
             {
-                case MatchSetup.SelectedPlayer.Player1: return MqttConfig.GestureTopic(1);
-                case MatchSetup.SelectedPlayer.Player2: return MqttConfig.GestureTopic(2);
-                default: return null;
+                case MatchSetup.SelectedPlayer.Player1: return 1;
+                case MatchSetup.SelectedPlayer.Player2: return 2;
+                default: return 0;
             }
         }
 
@@ -167,6 +184,25 @@ namespace Comms.Visualiser
             // Accepted or rejected, the result shows in GesturePad's own feedback label.
             gesturePad.PerformGesture(symbol, "glove");
             Acted++;
+        }
+
+        /// <summary>Echo any player's gesture, at QoS 0 since a lost echo is only one lost sample. Never throws.</summary>
+        private void OnGestureForEcho(string topic, string payload)
+        {
+            try
+            {
+                var player = CurrentPlayer();
+                if (player == 0) return;
+
+                if (GestureEcho.TryBuild(payload, out var echo, out var reason))
+                    mqttConnection.Publish(GestureEcho.Topic(player), echo, qos: 0);
+                else
+                    Show(reason, "echo");
+            }
+            catch (Exception exc)
+            {
+                Show($"hook error on {topic}: {exc.GetType().Name}: {exc.Message}", "echo");
+            }
         }
 
         /// <summary>

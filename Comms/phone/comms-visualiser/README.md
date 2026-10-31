@@ -20,6 +20,7 @@ comms-visualiser/
   Hook/                       works with any broker
     AiGestureHook.cs          subscribes, maps the name onto GestureSymbol, calls PerformGesture
     GestureEventParser.cs, Envelope.cs, SeenEvents.cs
+    GestureEcho.cs            the latency echo (§5)
 ```
 
 **The order:** import (§1) → wire the scene (§2) → build to each iPhone → per-phone setup (§3)
@@ -126,6 +127,9 @@ Comms sends the real values privately. They aren't written anywhere in the repo.
   `gloves: player 2 down` if that glove stops streaming mid-match. `offline` means the
   board's client is not running. The hook subscribes to this topic by itself, so there is
   nothing to wire.
+- **The latency echo** (not shown): once a player is selected, the hook answers every gesture
+  on `viz/echo/{player}` so the board can time the phone hop. Nothing to wire. An `echo: …`
+  line means a gesture had no `seq` or `timestamp`.
 - **Your own feedback label:** `Circle (glove) accepted`, or `rejected - no match, aim or
   mana`.
 - **A note on switching players:** after a switch, the phone stays subscribed to the old
