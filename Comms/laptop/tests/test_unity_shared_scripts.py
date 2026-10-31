@@ -90,7 +90,7 @@ SSH_NET_DLLS = [
 ]
 
 DROPIN_FILES = sorted(
-    ["README.md", "Hook/AiGestureHook.cs", "Hook/GestureEcho.cs", "Hook/GestureEventParser.cs",
+    ["README.md", "Hook/AiGestureHook.cs", "Hook/GestureEcho.cs",
      "Hook/GloveStatusParser.cs", "Transport/CommsTunnelBridge.cs", "Transport/link.xml"]
     + list(DROPIN_COPIES)
     + [f"Transport/Plugins/SshNet/{name}" for name in SSH_NET_DLLS]
@@ -98,7 +98,7 @@ DROPIN_FILES = sorted(
 
 # Types each half declares. Neither half may name the other's.
 TRANSPORT_TYPES = ["CommsTunnelBridge", "SshMqttTunnel", "SshTunnelSettings", "SshHopSettings", "TunnelConfig"]
-HOOK_TYPES = ["AiGestureHook", "GestureEcho", "GestureEventParser", "GloveStatusParser", "Envelope", "SeenEvents"]
+HOOK_TYPES = ["AiGestureHook", "GestureEcho", "GloveStatusParser", "Envelope", "SeenEvents"]
 
 # Gesture names, current and old. None may be spelled out in the drop-in (4.6).
 GESTURE_WORDS = [
@@ -179,6 +179,22 @@ def test_no_dropin_script_starts_itself():
     """The Vis scene wires these in; a self-starting one would fight the bridge for 1883."""
     for path in sorted(_DROPIN.rglob("*.cs")):
         assert "RuntimeInitializeOnLoadMethod" not in _code(path), path.name
+
+
+_SUBSCRIBE = re.compile(r"\.Subscribe\(\s*([^,)]+)")
+_VIS_NETWORKING = _COMMS.parent / "SW_Visualiser" / "script" / "Networking"
+
+
+def test_hook_leaves_each_players_gesture_topic_to_the_apps_receiver():
+    """The app keeps one handler per topic, so a hook subscription to game/gesture/N would replace the receiver's."""
+    hook = _code(_DROPIN / "Hook" / "AiGestureHook.cs")
+    assert sorted(_SUBSCRIBE.findall(hook)) == ["GestureEcho.GestureFilter", "GloveStatusParser.Topic"]
+    assert _names(hook, ["GesturePad", "GestureTopic"]) == []
+
+    assert 'GestureFilter = "game/gesture/+";' in _code(_DROPIN / "Hook" / "GestureEcho.cs")
+
+    receiver = _code(_VIS_NETWORKING / "Glove" / "GloveGestureReceiver.cs")
+    assert "mqtt.Subscribe(MqttConfig.GestureTopic(player), OnGesture" in receiver
 
 
 def test_dropin_keeps_no_list_of_gesture_names():
