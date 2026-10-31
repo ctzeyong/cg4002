@@ -231,6 +231,16 @@ namespace BridgeRush.Match
         public void DamageOwnTower(float amount) => OwnTowerHP = Mathf.Max(0f, OwnTowerHP - amount);
         public float ManaCurrent { get; private set; }
         public float ManaMax => manaMax;
+
+        // Debug only: keeps your mana and your tower HP full and makes summons and spells free. Runs on the phone that
+        // simulates the match (VS CPU or the host); a client's mana and HP come from the host's snapshots, so it does nothing there.
+        public bool GodMode { get; set; }
+
+        private void ApplyGodMode()
+        {
+            ManaCurrent = manaMax;
+            OwnTowerHP = ownTowerMaxHP;
+        }
         public float TickIntervalSeconds => 1f / Mathf.Max(0.01f, mockTickRateHz);
         public float TimeSinceLastTick => timeSinceLastTick;
 
@@ -315,6 +325,7 @@ namespace BridgeRush.Match
 
             if (HasEnded) return;
 
+            if (GodMode) ApplyGodMode();
             float manaRegen = manaRegenPerSecond * ManaRegenMultiplier * Time.deltaTime;
             ManaCurrent = Mathf.Min(manaMax, ManaCurrent + manaRegen);
             enemyManaCurrent = Mathf.Min(manaMax, enemyManaCurrent + manaRegen);
@@ -334,6 +345,7 @@ namespace BridgeRush.Match
                 StateTicked?.Invoke();
             }
 
+            if (GodMode) ApplyGodMode();
             CheckForMatchEnd();
         }
 

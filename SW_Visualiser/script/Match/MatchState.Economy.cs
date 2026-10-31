@@ -41,7 +41,7 @@ namespace BridgeRush.Match
 
             if (!CreateUnit(type, UnitSide.Own))
             {
-                ManaCurrent += manaCost;
+                if (!GodMode) ManaCurrent += manaCost;
                 return false;
             }
             OwnUnitSummoned?.Invoke(type);
@@ -162,6 +162,7 @@ namespace BridgeRush.Match
 
         public bool TrySpendMana(float amount)
         {
+            if (GodMode) return true;
             if (ManaCurrent < amount) return false;
             ManaCurrent -= amount;
             return true;

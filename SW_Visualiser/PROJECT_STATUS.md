@@ -1,6 +1,6 @@
 # Bridge Rush: Project Status (living document)
 
-Last updated: 2026-10-29
+Last updated: 2026-10-31
 
 This file is the single current-state summary for the Software Visualiser. It replaces reading `CLAUDE.md` (a long dated log of the old `BattleCatsAR` project) and `Milestone.md` (a roadmap plus the same log) to find out where things stand. Those two files stay as history. **When something changes, edit this file and add one line to the Changelog at the bottom.**
 
@@ -34,7 +34,7 @@ Game rules (see `Game_logic.md` if it still exists):
 | `Hardware/` | Hardware team code. | Not covered here |
 | `My project/CLAUDE.md`, `Milestone.md` | Old project log and roadmap (`BattleCatsAR`, `Assets/Scripts/`). | History only |
 
-Git: `main`, remote `JuvenLimHY/CG4002`. Recent commits are the visualiser import (`8be21dce5`) and the `Vis` merge (`7fb754cdc`). **Uncommitted:** edits to 11 visualiser scripts plus the new bubble, glove and comms files, `integration_update.md` and the `Comms/` folder.
+Git: remote `ctzeyong/cg4002` (the team repo). The visualiser lives on branch `Vis`; the 2026-10-29 push (`a26da0b96`) put the whole `SW_Visualiser/` tree there (scripts, `plugins/iOS`, the three docs) but not the preview GIFs, WAVs and PNGs, which stay local. The local checkout is still on `main` (19 commits behind `origin/main`), and `Comms/` is untracked here. Edits made after that push are uncommitted.
 
 ## 3. Current architecture (`SW_Visualiser/script/`)
 
@@ -100,7 +100,7 @@ Design decisions that still hold:
 
 **C. Decisions that need the comms team**
 
-- Game engine on the Ultra96 instead of the laptop or host phone, to cut hops (Comms proposal, after the Thursday demo).
+- Game engine on the Ultra96 instead of the laptop or host phone, to cut hops (Comms proposal, after the Thursday demo). Per the user (2026-10-29), the Ultra96 is the intended home; the Player 1 phone host is a stand-in until then.
 - Who runs the game logic. The visualiser is host-authoritative today. The comms notes assume the laptop or Ultra96. If that moves, `MatchState` moves and `game/state` becomes engine output.
 - Agree `viz/bubble_captured/{player}`. The Ultra96 must validate it, award the mana and feed it back. Until then nothing changes on screen, except through the offline mock toggle on `BubbleSync`.
 - Add the phone-to-phone topics (`bridgerush/ready|lock|match/countdown|game/request|bubble`) to the topic contract, or move them onto contracted topics.
@@ -126,6 +126,12 @@ Design decisions that still hold:
 - Not built: MQTT backoff and negotiation to stop both phones picking Player 1, per-unit HP bars, real unit and spell art (the models are still the HEROES pack, spells are primitives), HUD icons (the default font is Latin-only), and SFX and VFX.
 - The mock mana award only works on the host or local phone. A client's mana is overwritten by host snapshots.
 
+**E. Tutorial mode for the demo (planned 2026-10-31, not started, design not agreed)**
+
+- Idea (user): a guided mode where the player performs each gesture in turn to summon or cast, so the audience sees how the glove controls work. Reuse the card motion pictures (`CardMotions`, `MotionTracer`) as the prompt, advance when the gesture is recognised, and cover all seven: Warrior, Rogue, Mage, Tank (Shield), Hero, Lightning, Fireball.
+- Open questions: how a step counts as done (a real glove event, or also a tap fallback for when the glove misreads, since accuracy is unverified); whether it is a menu choice beside VS CPU / VS Player or a step before a match; whether units actually spawn (needs a local match) or only a "recognised" confirmation shows.
+- Interaction with the engine move (`engine_move.md`, not in this repo): after D4 the board performs glove gestures and the phone no longer does, so a tutorial that needs to react to a gesture must listen to the `game/gesture/+` echo, or run in the local role (VS CPU, C# rules, D1). Decide this before building.
+
 ## 6. Setup facts and gotchas
 
 - Unity `6000.5.9f1`. AR Foundation and ARKit/ARCore 6.5.0, XRI 3.5.1, URP 17.0.3, Input System 1.19.0, Newtonsoft 3.2.2. `jp.keijiro.apriltag` comes from GitHub.
@@ -146,6 +152,11 @@ Design decisions that still hold:
 
 | Date | Change |
 | --- | --- |
+| 2026-10-31 | Added open item E: a tutorial mode for the demo where the player performs each gesture in turn. Planned only, no code. Docs only. |
+| 2026-10-29 | Recorded that the game logic is meant to run on the Ultra96 (user), with the Player 1 phone host as a stand-in (open item C); `TeamJournal_Week11.md` wording fixed to match. Docs only. |
+| 2026-10-29 | Added `SW_Visualiser/TeamJournal_Week11.md`: the Visualiser's Week 11 entry in the Week 8/9 team-journal format, written from `Week11.md`, to paste into the OneNote Team Journal. Docs only. |
+| 2026-10-29 | Debug menu God mode (its own row at the top of the menu, above the Match category, so it is reachable without opening a category). `MatchState.GodMode` pins your mana at max and your tower HP at max every update (before and after the simulation, so the match cannot end on your tower), and makes `TrySpendMana` free. Covers your tower only: your units still take damage and the enemy tower is unchanged. It works on VS CPU and the host phone; on the client phone it does nothing (mana and HP come from host snapshots) and the row says so. Not saved between launches and kept across Restart. Both script trees updated. The whole game assembly (`Assembly-CSharp.csproj`, includes this and the glove-name change) builds outside the Editor with 0 errors; not run in Unity. |
+| 2026-10-29 | Pushed `SW_Visualiser/` to `origin/Vis` as one commit (`a26da0b96`, on top of `7347ead24`), built in a separate worktree so the `main` checkout was untouched. Kept the upstream README heading removal. Preview media and `.DS_Store` left out. Not compiled from the pushed commit. |
 | 2026-10-29 | Glove gesture names changed to the unit and spell names. `GestureSymbol` is now Warrior, Rogue, Mage, Tank, Hero, Lightning, Fireball, plus Shield as an alias of Tank (the AI model's current name for it); `FromSymbol` and `GloveGestures` (Debug menu test buttons) updated; the old chop, jab, circle, star, z and punch names are removed, so the board's old classes are rejected until it emits the new names. HUD command list and card pictures unchanged (they show the physical motion). `GestureBindings.cs` and `GesturePad.cs` mirrored to `My project/Assets/Script/`. README glove-bindings bullet updated. Not compiled in Unity; not tested with the glove. |
 | 2026-10-27 | Fetched `origin` and reviewed the comms changes since the 2026-10-20 sync (`new-gestures`, `main`, `mvp-full-pipeline`). `Comms/` here was **not** re-synced. The phone drop-in is unchanged, so no visualiser code change is forced; the open mismatch is the role-name vocabulary (see open item C, glove bindings). Docs only. |
 | 2026-10-27 | No filled circles: the spell area sprite (`ReticleArt.Area`) is now an outline with a small centre dot, and the fireball burning patch no longer has an orange fill (the red dotted ring flickers and embers rise). Preview regenerated. Type-checks only; not seen in Unity. |
