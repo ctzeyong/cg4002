@@ -42,6 +42,9 @@ The broker listens on the board's loopback only, so it can only be reached throu
 | `phone/demo-visualiser/` | Configuration A's client (not used in B) |
 | `scripts/` | Launchers. B is `run_pipeline.ps1` + `run_board.ps1` |
 
+Comments such as `notes/latency.md 3.13` point to Comms' design notes, which are kept outside this
+repo. Ask Comms for the section.
+
 ## Network rule
 
 The laptop and every phone each log in to stujump (the SoC student jump host) themselves.

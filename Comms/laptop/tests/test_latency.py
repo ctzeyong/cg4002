@@ -7,6 +7,8 @@ so a renamed field fails here rather than as an empty report after a hardware ru
 
 import asyncio
 import contextlib
+import csv
+import io
 import logging
 import sys
 from pathlib import Path
@@ -21,6 +23,7 @@ from framing import recv_message, send_message
 from helpers import DEADLINE_S, connected, serving
 
 import ai_events  # noqa: E402 - ultra96/, on sys.path via conftest
+import gesture  # noqa: E402
 import mqtt_publisher  # noqa: E402
 import tcp_client  # noqa: E402
 import tcp_client_mqtt  # noqa: E402
@@ -110,7 +113,10 @@ async def test_server_ack_carries_t1_and_t2_as_numbers():
 
 
 async def _run_receiver(server_handler, caplog, until, events=None):
-    """Run the real receiver against `server_handler` until `until(caplog)` holds."""
+    """Run the real receiver against `server_handler` until `until(caplog)` holds.
+
+    Return whether the receiver ended by itself before the test stopped it.
+    """
     events = events or tcp_client.EventSource()
     async with serving(server_handler) as port:
         async with connected(port) as (reader, writer):
@@ -122,12 +128,14 @@ async def _run_receiver(server_handler, caplog, until, events=None):
                         if until(caplog) or task.done():
                             break
                         await asyncio.sleep(0.01)
+                # checked before stopping it, since stop then lets it end cleanly
+                ended_by_itself = task.done()
             finally:
                 stop.set()
                 task.cancel()
                 with contextlib.suppress(asyncio.CancelledError):
                     await task
-            return task
+            return ended_by_itself
 
 
 @pytest.mark.asyncio
@@ -136,25 +144,36 @@ async def test_receiver_survives_bad_acks_and_reports_the_offset(monkeypatch, ca
     after them reaches the 1 Hz line, where latency_report reads it."""
     monkeypatch.setattr(tcp_client, "PROGRESS_INTERVAL_S", 0.01)
 
-    async def acks(reader, writer):
-        for ack in (
-            {"type": "HEARTBEAT_ACK", "seq": 0},
-            {"type": "HEARTBEAT_ACK", "seq": 0, "t1": None, "t2": "x"},
-            {"type": "HEARTBEAT_ACK"},
-            {"type": "HEARTBEAT_ACK", "seq": 5, "t1": tcp_client.time.time(), "t2": 12.5},
-        ):
-            await send_message(writer, ack)
-            await asyncio.sleep(0.02)
-        await asyncio.sleep(DEADLINE_S)
-
     def has_offset(log):
         return any(
             latency_report.RATE.search(m) for m in log.messages if "uplink rx:" in m
         )
 
-    task = await _run_receiver(acks, caplog, has_offset)
+    bad_acks = (
+        {"type": "HEARTBEAT_ACK", "seq": 0},
+        {"type": "HEARTBEAT_ACK", "seq": 0, "t1": None, "t2": "x"},
+        {"type": "HEARTBEAT_ACK"},
+    )
 
-    assert not task.done() or task.cancelled(), "the receiver ended on a bad ACK"
+    async def acks(reader, writer):
+        # resend until each line is logged, since the receiver's clock ticks every 15.6 ms on Windows
+        for _ in range(int(DEADLINE_S / 0.02)):
+            if any("offset=- rtt=-" in m for m in caplog.messages):
+                break
+            for ack in bad_acks:
+                await send_message(writer, ack)
+            await asyncio.sleep(0.02)
+        for _ in range(int(DEADLINE_S / 0.02)):
+            if has_offset(caplog):
+                break
+            good = {"type": "HEARTBEAT_ACK", "seq": 5, "t1": tcp_client.time.time(), "t2": 12.5}
+            await send_message(writer, good)
+            await asyncio.sleep(0.02)
+        await asyncio.sleep(DEADLINE_S)
+
+    ended_by_itself = await _run_receiver(acks, caplog, has_offset)
+
+    assert not ended_by_itself, "the receiver ended on a bad ACK"
     rates = [m for m in caplog.messages if "uplink rx:" in m]
     assert any("offset=- rtt=-" in m for m in rates)
     assert has_offset(caplog)
@@ -221,6 +240,49 @@ async def test_configuration_b_emit_logs_the_events_timestamp(fixed_event_time, 
     )
     assert [e.t_event for e in events] == [pytest.approx(FIXED_EVENT_TIME, abs=1e-6)]
     assert events[0].player == "2"
+
+
+class _NullWriter:
+    def write(self, data):
+        pass
+
+    async def drain(self):
+        pass
+
+
+@pytest.mark.asyncio
+async def test_both_emits_t_infer_ms_becomes_the_inference_row(caplog, tmp_path):
+    """Both emits' real lines give a classified event an inference row, and a dummy none."""
+    result = gesture.Result("mage", 0.75, 5.25, 0)
+    source_b = tcp_client_mqtt.MqttEventSource(asyncio.Queue(maxsize=8), mqtt_publisher.PublishStats())
+    board = []
+    for config, emit, logger in (
+        ("A", lambda r: tcp_client.EventSource().emit(_NullWriter(), 1, None, r), "tcp_client"),
+        ("B", lambda r: source_b.emit(_NullWriter(), 1, None, r), "tcp_client_mqtt"),
+    ):
+        caplog.clear()
+        with caplog.at_level(logging.INFO, logger=logger):
+            await emit(result)
+            await emit(None)  # a dummy event, so no inference time
+        board = lines(
+            "uplink rx: total=1 rate=1.0 msg/s, 0 AI events sent, offset=1000.000000 rtt=2.000ms",
+            *(m for m in caplog.messages if m.startswith("AI event")),
+        )
+        run = latency_report.report(board, config)
+
+        classified, dummy = run.events
+        assert classified.t_infer_ms == 5.25, (config, board)
+        assert classified.hops["inference"] == 5.25
+        assert dummy.t_infer_ms is None and "inference" not in dummy.hops
+
+    out = io.StringIO()
+    latency_report.print_summary(run, "B", out=out)
+    (row,) = [line for line in out.getvalue().splitlines() if "inference (t_infer_ms)" in line]
+    assert row.split()[-4:] == ["1", "5.250", "5.250", "5.250"]  # n, median, p95, max
+
+    latency_report.write_csv(run, tmp_path / "e.csv")
+    with open(tmp_path / "e.csv", newline="", encoding="utf-8") as f:
+        assert [r["inference"] for r in csv.DictReader(f)] == ["5.25", ""]
 
 
 # --- the publish and downlink lines, as the real code writes them -----------
@@ -373,6 +435,20 @@ def test_missing_links_are_counted_not_dropped():
     assert counts.events_without_trigger == 1  # the ticker's event
     assert counts.published_unmatched == 1
     assert counts.events_without_published == 2
+
+
+def test_a_downlink_whose_key_cannot_be_hashed_is_unmatched_not_a_crash():
+    """A list where the board seq should be counts as an unmatched downlink."""
+    board = lines(
+        "uplink rx: total=1 rate=1.0 msg/s, 0 AI events sent, offset=1000.000000 rtt=2.000ms",
+        "AI event seq=0 player=1 key='c' gesture=circle mana=10 t_event=1010.004000",
+    )
+    laptop = lines(
+        "downlink seq=0 t=10.010000 -> game/gesture/1: {'type': 'AI_EVENT', 'player': 1, "
+        "'seq': [0], 'gesture': 'circle', 'timestamp': 1010.004}",
+    )
+    _, counts = joined(board, "A", laptop)
+    assert counts.downlinks_unmatched == 1
 
 
 def test_a_trigger_never_pairs_with_another_players_event():
