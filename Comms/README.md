@@ -37,10 +37,10 @@ The broker listens on the board's loopback only, so it can only be reached throu
 |---|---|
 | `firebeetle/` | Arduino sketch for both FireBeetles; `#define PLAYER_ID 1` or `2` |
 | `laptop/` | The relay: BLE, TCP server, SSH tunnel. Tests in `laptop/tests/` |
-| `ultra96/` | Board client and MQTT publisher |
+| `ultra96/` | Board client and MQTT publisher. Also the game engine being moved to the board (`game_engine.py`, `run_engine.sh`), not finished yet |
 | `phone/tunnelled-visualiser/` | Unity test client for Configuration B |
 | `phone/demo-visualiser/` | Configuration A's client (not used in B) |
-| `scripts/` | Launchers. B is `run_pipeline.ps1` + `run_board.ps1` |
+| `scripts/` | Launchers. B is `run_pipeline.ps1` + `run_board.ps1`. `fake_phone.py` stands in for one player's phone when testing the engine without Unity |
 
 Comments such as `notes/latency.md 3.13` point to Comms' design notes, which are kept outside this
 repo. Ask Comms for the section.
@@ -142,7 +142,7 @@ follow.
 
 Then press Connect in the phone app. Events appear in the app's own log; that log, not the
 broker, is the proof the phone received them. `.\scripts\run_board.ps1 --stop` stops the board
-client. The other options are in the
+client, and the game engine if it is running. The other options are in the
 [docs](../docs/subsystem/comms/README.md#2-run-configuration-b).
 
 ## Testing the model in the comms pipeline (laptop, before bitstream)
