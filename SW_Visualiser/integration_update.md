@@ -114,3 +114,29 @@ These distances were tuned for 0.15 m units and live as serialized fields on `Ma
 - The `bridgerush/bubble/player{N}` stream is a stub and should be added to the topic contract or moved onto a contracted topic.
 - The mock mode awards mana only on the host or local phone; a client phone's mana is overwritten by the host's snapshots.
 - Not compiled and not tested on a device.
+
+---
+
+## 6. Board engine (written 2026-11-01, STILL TESTING: not yet confirmed on two phones)
+
+VS PLAYER can run on the Ultra96 game engine instead of the host phone. It is off by default. The phone's role is then `BoardClient`: it simulates nothing, sends its inputs, and draws the engine's snapshots for the player it chose.
+
+Topics the phone uses in that role (`engine_spec.md` section 1; it stops using `bridgerush/game/request`, `bridgerush/match/countdown` and `bridgerush/ready/player{N}`):
+
+| Topic | Direction | Used by |
+| --- | --- | --- |
+| `viz/lane/{player}` | phone to engine, QoS 0, about 10 Hz once locked in | `EngineLink`: tower position and crosshair in lane units |
+| `game/request/{player}` | phone to engine, QoS 1 | `EngineLink`: card taps, START, rematch |
+| `viz/bubble_captured/{player}` | phone to engine, QoS 1 | `BubbleSync`, now with `match_id` |
+| `game/match` | engine to phones, retained | phase, countdown, reason, who pressed START |
+| `game/event` | engine to phones | the result of each tap, glove gesture and bubble |
+| `game/state` | engine to phones, QoS 0 | the snapshot, per player |
+
+Editor setup (not done in the saved scene yet):
+
+1. Add `EngineLink` to the `CommsTunnel` object (or any object) and wire Mqtt Connection, Match Setup, Match State and Peer Ready Sync.
+2. Wire the same `EngineLink` into `MatchState` (Engine Link) and `MatchNetworkSync` (Engine Link).
+3. Run the engine on a broker both phones reach (`Comms/ultra96/game_engine.py`, with `SW_Visualiser/engine` as `--core-dir`).
+4. Debug menu, row "VS PLAYER engine": switch to BOARD, then pick VS PLAYER and a player. Saved on the phone (`use_board_engine`).
+5. VS CPU is unchanged and never uses the board.
+
