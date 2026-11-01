@@ -11,12 +11,17 @@ real one is fixed.
 import asyncio
 import contextlib
 import json
+import shutil
+import socket
 import struct
+import subprocess
+import time
 
 # Every await in the suite is wrapped in a deadline. A regression on this leg
 # presents as a hang, not an exception, so an unbounded await would turn a
 # failing test into a stuck suite.
 DEADLINE_S = 2.0
+BROKER_DEADLINE_S = 8.0  # covers a reconnect's backoff
 
 
 @contextlib.asynccontextmanager
@@ -66,3 +71,45 @@ def frame(obj):
     """Encode `obj` the way send_message would, for tests that need raw bytes."""
     payload = json.dumps(obj, separators=(",", ":")).encode("utf-8")
     return struct.pack(">I", len(payload)) + payload
+
+
+MOSQUITTO = shutil.which("mosquitto") or r"C:\Program Files\Mosquitto\mosquitto.exe"
+
+
+class Broker:
+    """A Mosquitto of the test's own, on a free loopback port. Only this process is stopped."""
+
+    def __init__(self):
+        with socket.socket() as probe:
+            probe.bind(("127.0.0.1", 0))
+            self.port = probe.getsockname()[1]
+        self.process = None
+
+    def start(self):
+        self.process = subprocess.Popen(
+            [MOSQUITTO, "-p", str(self.port)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+        )
+        deadline = time.monotonic() + DEADLINE_S
+        while True:
+            try:
+                socket.create_connection(("127.0.0.1", self.port), timeout=0.2).close()
+                return
+            except OSError:
+                if time.monotonic() > deadline:
+                    raise
+                time.sleep(0.05)
+
+    def stop(self):
+        if self.process is not None:
+            self.process.kill()
+            self.process.wait()
+            self.process = None
+
+
+def on_selector(coro, timeout=BROKER_DEADLINE_S * 2):
+    """Run `coro` on a selector loop, which aiomqtt needs and Windows doesn't use by default."""
+    loop = asyncio.SelectorEventLoop()
+    try:
+        return loop.run_until_complete(asyncio.wait_for(coro, timeout))
+    finally:
+        loop.close()

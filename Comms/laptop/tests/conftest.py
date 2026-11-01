@@ -13,6 +13,7 @@ sys.path.insert(0, str(_LAPTOP))
 sys.path.append(str(_LAPTOP.parent / "ultra96"))
 
 import tcp_server  # noqa: E402 - needs the sys.path above
+from helpers import MOSQUITTO, Broker  # noqa: E402
 
 
 @pytest.fixture(autouse=True)
@@ -26,3 +27,14 @@ def reset_current_writer():
     tcp_server._current = None
     yield
     tcp_server._current = None
+
+
+@pytest.fixture
+def broker():
+    """A Mosquitto of the test's own, stopped after the test. Skipped if it isn't installed."""
+    if not pathlib.Path(MOSQUITTO).exists():
+        pytest.skip("needs Mosquitto")
+    broker = Broker()
+    broker.start()
+    yield broker
+    broker.stop()
