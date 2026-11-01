@@ -55,6 +55,7 @@ namespace BridgeRush.Gameplay
             opponentTower.SetParent(tagAnchor, false);
             opponentTower.localPosition = new Vector3(0f, -tagToGroundOffsetMeters, 0f);
             tagAnchor.gameObject.SetActive(false);
+            Debug.Log($"[TowerRadius] own {ownFootprintRadius:F4} m, opponent {opponentFootprintRadius:F4} m: put {Mathf.Max(ownFootprintRadius, opponentFootprintRadius):F4} in engine/rules.json TowerController.TowerRadius");
         }
 
         private Transform CreateTower(string name, Color color, GameObject prefabOverride, float height, float widthMultiplier, out float footprintRadius)
