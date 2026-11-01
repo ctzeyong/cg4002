@@ -6,6 +6,7 @@ namespace BridgeRush.Match
     {
         public bool SpawnUnit(UnitType type)
         {
+            if (Role == NetworkRole.BoardClient) return BoardSendSummon(type);
             bool done = SpawnUnitCore(type);
             if (!done) OwnUnitRejected?.Invoke(type, ShortSpawnFailure(type));
             return done;
@@ -61,6 +62,7 @@ namespace BridgeRush.Match
 
         public string DescribeSpawnFailure(UnitType type)
         {
+            if (Role == NetworkRole.BoardClient) return BoardRefusalText;
             switch (GetSpawnBlock(type))
             {
                 case SpawnBlock.NotStarted: return "The match hasn't started yet. Press Start Game first.";
@@ -86,7 +88,7 @@ namespace BridgeRush.Match
         // without it, an enemy unit has no aim of its own and spawns at the tower, same as the random bot.
         public bool TrySpawnEnemyUnit(UnitType type, Vector3? explicitSpawnPosition = null)
         {
-            if (!matchStarted) return false;
+            if (!matchStarted || Role == NetworkRole.BoardClient) return false;
             Vector3 opponentCurrentPosition = Vector3.zero;
             bool hasOpponentPosition = false;
             if (arenaFrame.HasLane)

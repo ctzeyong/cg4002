@@ -47,7 +47,8 @@ namespace BridgeRush.Networking
 
         private void Update()
         {
-            if (matchState.Role == MatchState.NetworkRole.Local)
+            // The board engine decides when both players can start, so there is no peer to wait for on the phone.
+            if (matchState.Role == MatchState.NetworkRole.Local || matchState.Role == MatchState.NetworkRole.BoardClient)
             {
                 PeerReady = true;
                 return;
@@ -63,6 +64,7 @@ namespace BridgeRush.Networking
 
         private void PublishReady()
         {
+            if (matchState.Role == MatchState.NetworkRole.BoardClient) return;
             if (mqttConnection.IsConnected && myTopic != null)
             {
                 mqttConnection.Publish(myTopic, "{\"ready\":true}");

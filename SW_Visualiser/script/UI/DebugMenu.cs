@@ -128,13 +128,21 @@ namespace BridgeRush.UI
             float start = top + TitleHeight * s;
             float y = start;
 
-            bool godModeAvailable = matchState.Role != MatchState.NetworkRole.Client;
+            bool godModeAvailable = matchState.Role == MatchState.NetworkRole.Local || matchState.Role == MatchState.NetworkRole.Host;
             string godModeLabel = !godModeAvailable
-                ? "God mode: N/A (client)"
+                ? (matchState.IsBoardClient ? "God mode: N/A (board)" : "God mode: N/A (client)")
                 : $"God mode: {(matchState.GodMode ? "ON" : "OFF")}";
             if (Row(godModeLabel, left, ref y, rowWidth, matchState.GodMode ? new Color(1f, 0.85f, 0.3f) : new Color(1f, 0.95f, 0.7f)) && godModeAvailable)
             {
                 matchState.GodMode = !matchState.GodMode;
+            }
+
+            if (matchNetworkSync != null && matchNetworkSync.BoardEngineWired)
+            {
+                bool board = matchNetworkSync.UseBoardEngine;
+                if (Row($"VS PLAYER engine: {(board ? "BOARD" : "HOST PHONE")} (next match)", left, ref y, rowWidth,
+                        board ? new Color(0.6f, 0.9f, 1f) : Color.white))
+                    matchNetworkSync.UseBoardEngine = !board;
             }
 
             y = DrawCategory(Category.Match, "Match", left, y, rowWidth, s, DrawMatch);

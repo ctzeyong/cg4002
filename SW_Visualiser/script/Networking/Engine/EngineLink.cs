@@ -30,6 +30,9 @@ namespace BridgeRush.Networking
         public EngineLinkCore Core => core;
         public EngineMatchInfo Match => core.Match;
         public EngineLinkState LinkState => core.State(Now);
+        public bool EngineIsOffline => core.Offline;
+        // This phone has locked in, so it has a frame to send positions from. True when no PeerReadySync is wired.
+        public bool IsLockedIn => peerReady == null || peerReady.HasLockedIn;
 
         public event Action<string> MatchChanged { add => core.MatchChanged += value; remove => core.MatchChanged -= value; }
         public event Action EngineOffline { add => core.EngineOffline += value; remove => core.EngineOffline -= value; }

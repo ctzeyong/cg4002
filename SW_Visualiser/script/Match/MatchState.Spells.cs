@@ -115,7 +115,7 @@ namespace BridgeRush.Match
         // Host and local only. The strike lands after the telegraph, hitting everything of the other side in the radius.
         public void QueueLightning(UnitSide caster, Vector3 center)
         {
-            if (Role == NetworkRole.Client) return;
+            if (DoesNotSimulate) return;
 
             var strike = new PendingStrike
             {
@@ -132,7 +132,7 @@ namespace BridgeRush.Match
         // stop for units on the way), explodes there and leaves a burning patch on the floor.
         public void QueueFireball(UnitSide caster, Vector3 target)
         {
-            if (Role == NetworkRole.Client) return;
+            if (DoesNotSimulate) return;
 
             Vector3 start = FlattenY(CasterTowerPosition(caster));
             Vector3 end = FlattenY(target);
@@ -292,14 +292,16 @@ namespace BridgeRush.Match
             }
         }
 
-        private void ApplyStrikeSnapshots(StateSnapshot snapshot)
+        private void ApplyStrikeSnapshots(StateSnapshot snapshot) => ApplyStrikeSnapshots(snapshot.strikes);
+
+        private void ApplyStrikeSnapshots(List<StrikeSnapshot> list)
         {
-            if (snapshot.strikes == null) return;
-            foreach (var strike in snapshot.strikes)
+            if (list == null) return;
+            foreach (var strike in list)
             {
                 if (!seenStrikeIds.Add(strike.id)) continue;
                 Vector3 center = FlattenY(FromCanonical(strike.along, strike.lat));
-                bool byLocal = strike.owner == "player2";
+                bool byLocal = strike.owner == LocalOwnerName;
                 if (strike.kind == "fireball")
                 {
                     Vector3 start = FlattenY(FromCanonical(strike.fromAlong, strike.fromLat));

@@ -38,6 +38,9 @@ namespace BridgeRush.Networking
         // Goes up with every accepted snapshot. The game applies the latest one when this is newer than the last it applied.
         public int StateCounter { get; private set; }
 
+        // True from an `offline` game/match until the next real one.
+        public bool Offline { get; private set; }
+
         public event Action<string> MatchChanged;     // a game/match with a new match id
         public event Action EngineOffline;
         public event Action<EngineMatchInfo> MatchUpdated;
@@ -72,9 +75,11 @@ namespace BridgeRush.Networking
             if (info.Phase == EnginePhase.Offline)
             {
                 // The will names no match: it applies to whatever is shown, which stays as it is.
+                Offline = true;
                 EngineOffline?.Invoke();
                 return;
             }
+            Offline = false;
             Match = info;
             if (changed)
             {

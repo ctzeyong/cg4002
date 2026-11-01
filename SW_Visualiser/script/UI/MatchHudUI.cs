@@ -333,6 +333,12 @@ namespace BridgeRush.UI
 
         private void RestartToSetup()
         {
+            // On the board engine Play Again is the rematch press: the next match starts when both players have pressed it.
+            if (matchState.IsBoardClient && matchState.HasEnded)
+            {
+                matchState.BoardPressRematch();
+                return;
+            }
             matchState.ResetMatch();
             arenaFrame.DebugForgetOpponent();
             matchSetup?.DebugReset();
@@ -649,6 +655,10 @@ namespace BridgeRush.UI
             else if (!arenaFrame.IsOpponentTracked)
             {
                 SetOverlay(0.3f, "Opponent tracking lost - holding last known position");
+            }
+            else if (matchState.IsBoardClient && matchState.BoardStatusMessage.Length > 0)
+            {
+                SetOverlay(0.3f, matchState.BoardStatusMessage);
             }
             else if (!matchState.MatchStarted && peerReadySync != null && !peerReadySync.PeerReady)
             {

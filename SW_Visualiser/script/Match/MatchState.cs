@@ -121,7 +121,8 @@ namespace BridgeRush.Match
         private Vector3 fixedLaneDirection;
         private static readonly UnitType[] AllUnitTypes = (UnitType[])Enum.GetValues(typeof(UnitType));
 
-        public enum NetworkRole { Local, Host, Client }
+        // BoardClient: the Ultra96 game engine runs the match and this phone only draws its snapshots (see MatchState.Engine.cs).
+        public enum NetworkRole { Local, Host, Client, BoardClient }
         public NetworkRole Role { get; private set; } = NetworkRole.Local;
 
         public void SetNetworkRole(NetworkRole role)
@@ -188,7 +189,7 @@ namespace BridgeRush.Match
         // Test aid (Debug menu): jump the clock so the last minute starts now. Host and VS CPU only.
         public void DebugSetTimeRemaining(float seconds)
         {
-            if (Role != NetworkRole.Client) matchTimeRemaining = Mathf.Max(0f, seconds);
+            if (!DoesNotSimulate) matchTimeRemaining = Mathf.Max(0f, seconds);
         }
 
         // Fired once when the double mana minute begins, on every phone.
@@ -225,7 +226,7 @@ namespace BridgeRush.Match
         public float OpponentTowerMaxHP => opponentTowerMaxHP;
         public void DamageOpponentTower(float amount)
         {
-            if (Role == NetworkRole.Client) return;
+            if (DoesNotSimulate) return;
             OpponentTowerHP = Mathf.Max(0f, OpponentTowerHP - amount);
         }
         public void DamageOwnTower(float amount) => OwnTowerHP = Mathf.Max(0f, OwnTowerHP - amount);
@@ -241,7 +242,7 @@ namespace BridgeRush.Match
             ManaCurrent = manaMax;
             OwnTowerHP = ownTowerMaxHP;
         }
-        public float TickIntervalSeconds => 1f / Mathf.Max(0.01f, mockTickRateHz);
+        public float TickIntervalSeconds => 1f / Mathf.Max(0.01f, Role == NetworkRole.BoardClient && boardTickHz > 0 ? boardTickHz : mockTickRateHz);
         public float TimeSinceLastTick => timeSinceLastTick;
 
         public float MatchTimeRemainingSeconds => Mathf.Max(0f, matchTimeRemaining);
@@ -311,6 +312,11 @@ namespace BridgeRush.Match
         private void Update()
         {
             UpdateLiveArenaScale();
+            if (Role == NetworkRole.BoardClient)
+            {
+                UpdateBoardClient();
+                return;
+            }
             if (!matchStarted || Paused) return;
 
             CaptureHomeAnchorsIfNeeded(); // Check if home anchors have been captured and update the state accordingly.

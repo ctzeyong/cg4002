@@ -84,6 +84,9 @@ namespace BridgeRush.Networking
             Received++;
             LastGesture = name ?? "";
 
+            // The board engine joins this gesture with the aim it streams and performs it itself (game/event reports back).
+            if (match.Role == MatchState.NetworkRole.BoardClient) return;
+
             var action = GestureBindings.FromGlove(name);
             if (action == GameAction.None)
             {
