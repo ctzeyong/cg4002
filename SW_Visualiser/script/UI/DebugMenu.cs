@@ -128,6 +128,15 @@ namespace BridgeRush.UI
             float start = top + TitleHeight * s;
             float y = start;
 
+            bool godModeAvailable = matchState.Role != MatchState.NetworkRole.Client;
+            string godModeLabel = !godModeAvailable
+                ? "God mode: N/A (client)"
+                : $"God mode: {(matchState.GodMode ? "ON" : "OFF")}";
+            if (Row(godModeLabel, left, ref y, rowWidth, matchState.GodMode ? new Color(1f, 0.85f, 0.3f) : new Color(1f, 0.95f, 0.7f)) && godModeAvailable)
+            {
+                matchState.GodMode = !matchState.GodMode;
+            }
+
             y = DrawCategory(Category.Match, "Match", left, y, rowWidth, s, DrawMatch);
             y = DrawCategory(Category.Opponent, "Opponent", left, y, rowWidth, s, DrawOpponent);
             y = DrawCategory(Category.Gestures, "Gestures", left, y, rowWidth, s, DrawGestures);
