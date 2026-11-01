@@ -1,5 +1,5 @@
 {
-  "version": "draft-2-scene-checked-1nov",
+  "version": "scene-checked-1nov-r1",
   "_about": "Draft by Comms from the C# code defaults at a26da0b, which matched the scene on 22 Oct (Week11.md section 15). Vis checks it against the saved scene and UnitStatsTable.asset, fills in TowerController.TowerRadius and changes version on every edit. Keys are the C# field names. Keys starting with _ are notes and the core ignores them. _sources paths are under SW_Visualiser/ and the lines are the same at a26da0b and 5a79e14.",
   "MatchState": {
     "ownTowerMaxHP": 1000,
@@ -98,7 +98,7 @@
     }
   },
   "TowerController": {
-    "TowerRadius": null
+    "TowerRadius": 0.1188
   },
   "gestures": {
     "warrior": ["spawn", "Warrior"],
@@ -110,7 +110,7 @@
     "lightning": ["spell", "lightning"],
     "fireball": ["spell", "fireball"]
   },
-  "_scene_check": "1 Nov 2026 against Assets/Scenes/BridgeRush.unity (saved 29 Oct) and UnitStatsTable.asset. Taken from the scene: noticeRangeMeters 0.45, holdTimeSeconds 1.5, reward Amount 2. UnitStatsTable matches, Mage range 0.35 is saved. KEPT AT THE DECIDED VALUES although the saved scene still holds the old ones: manaRegenPerSecond 1 (scene 0.4), LightningManaCost 5 (scene 6), FireballManaCost 6 (scene 7); set those three in the Inspector. TowerController.TowerRadius is still null: read it from the Console log '[TowerRadius]' written by TowerController.Start.",
+  "_scene_check": "1 Nov 2026 against Assets/Scenes/BridgeRush.unity (saved 29 Oct) and UnitStatsTable.asset. Taken from the scene: noticeRangeMeters 0.45, holdTimeSeconds 1.5, reward Amount 2. UnitStatsTable matches, Mage range 0.35 is saved. KEPT AT THE DECIDED VALUES although the saved scene still holds the old ones: manaRegenPerSecond 1 (scene 0.4), LightningManaCost 5 (scene 6), FireballManaCost 6 (scene 7); set those three in the Inspector. TowerController.TowerRadius 0.1188 m at scale 1, read from the Editor Console ([TowerRadius] log, own and opponent equal) on 1 Nov; the core multiplies it by the arena scale.",
   "_sources": {
     "MatchState.ownTowerMaxHP": "script/Match/MatchState.cs:20 (own = the host = player 1)",
     "MatchState.opponentTowerMaxHP": "script/Match/MatchState.cs:21 (opponent = player 2)",

@@ -115,6 +115,8 @@ def test_a_glove_without_a_phone_is_refused_without_calling_the_core(session):
 
 def test_engine_refuses_a_rules_file_without_a_tower_radius(tmp_path):
     shutil.copy(HERE / "match.py", tmp_path / "match.py")
-    shutil.copy(HERE / "rules.json", tmp_path / "rules.json")  # TowerRadius is still null
+    rules = json.loads((HERE / "rules.json").read_text(encoding="utf-8"))
+    rules["TowerController"]["TowerRadius"] = None
+    (tmp_path / "rules.json").write_text(json.dumps(rules), encoding="utf-8")
     with pytest.raises(ge.EngineFatal):
         ge.load_core(tmp_path)
