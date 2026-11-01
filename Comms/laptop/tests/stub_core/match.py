@@ -6,9 +6,6 @@ It accepts every action and counts ticks, unless a test tells it to refuse, rais
 import math
 from dataclasses import dataclass
 
-RULES_VERSION = "stub-1"
-
-
 @dataclass(frozen=True)
 class Action:
     kind: str
@@ -22,6 +19,35 @@ class Result:
     action: str
     what: str
     unit_id: int | None
+
+
+@dataclass(frozen=True)
+class UnitView:
+    id: int
+    type: str
+    owner: int
+    along: float
+    lat: float
+    hp: float
+    max_hp: float
+    state: str
+    target: int | None
+    range: float
+    face_along: float
+    face_lat: float
+
+
+@dataclass(frozen=True)
+class StrikeView:
+    id: int
+    owner: int
+    kind: str
+    along: float
+    lat: float
+    delay: float
+    from_along: float
+    from_lat: float
+    burn: float
 
 
 @dataclass(frozen=True)
@@ -75,6 +101,8 @@ class Match:
             return Result(False, "not_running", action, what, None)
         if self.refuse:
             return Result(False, self.refuse, action, what, None)
+        if action != "spawn":
+            return Result(True, "", action, what, None)  # only a spawn makes a unit
         unit_id, self._next_unit = self._next_unit, self._next_unit + 1
         return Result(True, "", action, what, unit_id)
 

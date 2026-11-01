@@ -2,18 +2,39 @@
 
 Session decides phases, phones, gloves and actions, with the time passed in and no I/O, so a
 fake clock can test it. It takes parsed messages, so no MQTT field name appears in it.
+The rest of this file runs it over MQTT, and engine_wire.py reads and writes the messages.
+
+    ~/comms-venv/bin/python game_engine.py --core-dir ~/comms/engine
+
+run_engine.sh runs it like this and restarts it after a crash.
 """
 
+import argparse
+import asyncio
+import importlib.util
+import json
 import logging
+import pathlib
 import random
+import sys
+import time
 from collections import Counter, deque
 from dataclasses import dataclass, field
+
+import aiomqtt
+
+import engine_wire as wire
+import envelope
+from board_logging import DEFAULT_LOG_FILE, setup_logging
+from engine_wire import GameEvent, Lane, MatchInfo
+from mqtt_publisher import GOOD_RUN_S, MAX_BACKOFF_S, MIN_BACKOFF_S
+from tcp_client_mqtt import stop_on_interrupt
 
 TICK_HZ = 10  # the phones' mockTickRateHz, so their smoothing is unchanged
 TICK_S = 1 / TICK_HZ
 PHONE_FRESH_S = 1.0  # a phone silent this long is gone, and the match pauses
 AIM_FRESH_S = 0.5  # an older aim is where the crosshair was, not where it is
-RESUME_S = 1.0  # everything good this long before a pause ends, so a flapping link doesn't strobe
+RESUME_S = 1.0  # steady this long before a pause ends or an aim counts again after a gap
 COUNTDOWN_S = 3.0  # MatchCountdown.countdownSeconds on the phone
 MAX_CATCHUP_TICKS = 5  # a longer stall skips ahead instead of fast-forwarding the game
 PAUSE_CAP_S = 180.0  # outlasts the phone's reconnect ladder
@@ -23,6 +44,7 @@ LANE_MIN_M = 0.3
 LANE_MAX_M = 10.0
 REASON_MAX = 80
 PLAYERS = (1, 2)
+RESULTS = ("player1", "player2", "draw")
 
 WAITING, COUNTDOWN, RUNNING, PAUSED, ENDED = "waiting", "countdown", "running", "paused", "ended"
 
@@ -31,57 +53,6 @@ log = logging.getLogger("game_engine")
 
 class EngineFatal(Exception):
     """A failure that would repeat on every start, so the engine exits with code 3."""
-
-
-@dataclass(frozen=True)
-class Lane:
-    """One viz/lane sample. None where the phone has no lane, position or aim."""
-
-    match_id: str
-    lane_m: float | None
-    position: tuple[float, float] | None
-    aim: tuple[float, float] | None
-
-
-@dataclass(frozen=True)
-class Request:
-    """One game/request. `name` is the unit or spell, "" for start and rematch."""
-
-    match_id: str
-    req_id: int
-    action: str
-    name: str
-    aim: tuple[float, float] | None
-
-
-@dataclass(frozen=True)
-class GameEvent:
-    """The result of one action, for game/event."""
-
-    player: int
-    input: str
-    ok: bool
-    reason: str = ""
-    action: str = "none"
-    what: str = ""
-    req_id: int = -1
-    gesture_event_id: str = ""
-    gesture: str = ""
-    unit_id: int = -1
-
-
-@dataclass(frozen=True)
-class MatchInfo:
-    """What game/match says, without countdown_ms, which changes every tick."""
-
-    match_id: str
-    phase: str
-    reason: str
-    phones: tuple[bool, bool]
-    gloves: tuple[bool, bool]
-    starts: tuple[bool, bool]
-    winner: str
-    rules_version: str
 
 
 class Seen:
@@ -128,7 +99,7 @@ class Session:
     """The engine's decisions for one process, one match after another."""
 
     def __init__(self, core, rules, encode, engine_id, now):
-        """`core` is match.py's module and `encode(snapshot, match_id)` returns bytes or raises."""
+        """`core` is match.py's module. `encode` returns the game/state payload or raises."""
         self.core = core
         self.rules = rules
         self.encode = encode
@@ -144,7 +115,7 @@ class Session:
         self.reason = ""
         self.winner = "none"
         self.failed = False  # the core raised, so it is never asked again this match
-        self.last_good = b""
+        self.last_good = None  # the last game/state payload that could be sent
         self.countdown_end = 0.0
         self.last_ran = 0.0
         self.next_tick = now + TICK_S
@@ -197,6 +168,13 @@ class Session:
         self.update(now)
         return events
 
+    def on_bad_request(self, player, source, req_id, action, event_id, now):
+        """Refuse a card tap that failed its checks. Return its game/event, none for a repeat."""
+        self.update(now)
+        if not (self._seen_events.add(event_id) and self._seen_requests.add((source, req_id))):
+            return []
+        return [GameEvent(player, "tap", False, "bad_request", action=action, req_id=req_id)]
+
     def on_gesture(self, player, name, event_id, now):
         """Take one glove gesture from game/gesture. Return its game/event."""
         self.update(now)
@@ -228,7 +206,7 @@ class Session:
         return events
 
     def on_tick(self, now):
-        """Advance one tick if one is due and the match runs, and return the game/state bytes.
+        """Advance one tick if one is due and the match runs, and return the game/state payload.
 
         Call it at `next_tick`, in every phase, so the deadline never falls behind in a pause.
         """
@@ -245,10 +223,13 @@ class Session:
             if snapshot is not _FAILED:
                 try:
                     self.last_good = self.encode(snapshot, self.match_id)
-                except (TypeError, ValueError) as exc:
-                    self._fail(f"its snapshot can't be sent: {exc}")
+                except Exception as exc:
+                    self._fail(f"its snapshot can't be sent: {exc!r}")
         if self.phase == RUNNING and self.match.result is not None:
-            self._end(self.match.result, "")
+            if self.match.result in RESULTS:
+                self._end(self.match.result, "")
+            else:
+                self._fail(f"its result {self.match.result!r} isn't a player or a draw")
         self._refresh(now)
         return self.last_good
 
@@ -458,7 +439,11 @@ class Session:
         refusal = self._refusal(player, source, request.match_id)
         if refusal:
             return [_refused(event, refusal)]
-        action = self.core.Action(request.action, request.name)
+        try:
+            action = self.core.Action(request.action, request.name)
+        except Exception as exc:
+            self._fail(f"Action raised {exc!r}")
+            return [_refused(event, "engine_error")]
         return [self._apply(event, "request", player, action, request.aim)]
 
     def _refusal(self, player, source, match_id):
@@ -475,6 +460,9 @@ class Session:
     def _apply(self, event, method, *args):
         """Ask the core, and turn its Result into the event."""
         result = self._call_core(method, *args)
+        if result is not _FAILED and not _good_result(result):
+            self._fail(f"{method} returned {result!r}")
+            result = _FAILED
         if result is _FAILED:
             return _refused(event, "engine_error")
         return GameEvent(
@@ -502,7 +490,7 @@ class Session:
             gloves=tuple(p.glove_ready for p in self.players.values()),
             starts=tuple(self._counts_press(p, now) for p in self.players.values()),
             winner=self.winner,
-            rules_version=str(getattr(self.core, "RULES_VERSION", "")),
+            rules_version=str(self.rules.get("version", "")),
         )
         if view != self._view:
             self._view = view
@@ -512,8 +500,402 @@ class Session:
 _FAILED = object()  # what _call_core returns when the core raised
 
 
+def _good_result(result):
+    """Whether the core's Result holds only values game/event allows."""
+    try:
+        ok, reason, action, what = result.ok, result.reason, result.action, result.what
+        unit_id = result.unit_id
+    except AttributeError:
+        return False
+    if ok is True and action == "spawn":  # only a spawn makes a unit
+        good_id = type(unit_id) is int and 0 <= unit_id <= wire.ID_MAX
+    else:
+        good_id = unit_id is None
+    good_reason = reason == "" if ok is True else reason in wire.CORE_REASONS
+    # a string first, since a list can't be looked up in a dict
+    names = wire.EVENT_NAMES.get(action, ()) if type(action) is str else ()
+    return type(ok) is bool and good_id and good_reason and what in names
+
+
 def _refused(event, reason):
     return GameEvent(
         event.player, event.input, ok=False, reason=reason, action=event.action, what=event.what,
         req_id=event.req_id, gesture_event_id=event.gesture_event_id, gesture=event.gesture,
     )
+
+
+# --- loading the core ------------------------------------------------------------
+
+
+def load_core(core_dir):
+    """Return Vis's match.py module and the rules from rules.json, both in `core_dir`.
+
+    Raises EngineFatal if either can't be used, since that would fail on every start.
+    """
+    core_dir = pathlib.Path(core_dir)
+    rules_path = core_dir / "rules.json"
+    try:
+        rules = json.loads(rules_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise EngineFatal(f"can't read {rules_path}: {exc}") from exc
+    if not isinstance(rules, dict):
+        raise EngineFatal(f"{rules_path} is not a JSON object")
+    version = rules.get("version")
+    if type(version) is not str or not version:
+        raise EngineFatal(f"{rules_path} has no version, which game/match reports")
+    unfilled = _unfilled(rules)
+    if unfilled:
+        raise EngineFatal(f"{rules_path} has no value yet for {unfilled}")
+    try:
+        spec = importlib.util.spec_from_file_location("match", core_dir / "match.py")
+        core = importlib.util.module_from_spec(spec)
+        sys.modules["match"] = core  # dataclasses look their module up here
+        spec.loader.exec_module(core)
+    except Exception as exc:
+        raise EngineFatal(f"can't load {core_dir / 'match.py'}: {exc!r}") from exc
+    return core, rules
+
+
+def _unfilled(value, path=""):
+    """Return where the first null in the rules is, or "". Keys starting with _ are notes."""
+    if value is None:
+        return path
+    if isinstance(value, dict):
+        items = [(k, v) for k, v in value.items() if not k.startswith("_")]
+    elif isinstance(value, list):
+        items = list(enumerate(value))
+    else:
+        items = []
+    for key, item in items:
+        found = _unfilled(item, f"{path}.{key}" if path else str(key))
+        if found:
+            return found
+    return ""
+
+
+def _bubble_count(rules):
+    section = rules.get("BubbleCaptureManager")
+    count = section.get("bubbleCount") if isinstance(section, dict) else None
+    if type(count) is not int or count < 1:
+        raise EngineFatal(f"rules.json's BubbleCaptureManager.bubbleCount is {count!r}")
+    return count
+
+
+# --- MQTT --------------------------------------------------------------------------
+
+CLIENT_ID = "ultra96-engine"  # also the envelopes' source, so its event_ids never collide
+KEEPALIVE_S = 15
+QOS = 1  # every topic but game/state, which is QoS 0
+EVENTS_MAXSIZE = 256
+EVENT_TTL_S = 2.0  # the phone stops waiting for a tap's result after this
+OFFLINE_TIMEOUT_S = 2.0  # how long a stop waits to mark the engine offline
+EXIT_FATAL = 3  # tells run_engine.sh not to restart
+STOPPED = "game engine stopped"
+ENGINE_ERROR = "engine error"
+
+MATCH_TOPIC = "game/match"
+STATE_TOPIC = "game/state"
+EVENT_TOPIC = "game/event"
+INPUTS = {  # topic without its player, and its name in the counts
+    "viz/lane": "lane",
+    "game/request": "request",
+    "viz/bubble_captured": "bubble",
+    "game/gesture": "gesture",
+}
+SUBSCRIPTIONS = [f"{topic}/+" for topic in INPUTS] + [envelope.GLOVES_TOPIC]
+PLAYER_OF = {"1": 1, "2": 2}
+
+CLOCK_STEP_S = time.get_clock_info("monotonic").resolution
+LOG_FILE = DEFAULT_LOG_FILE.with_name("game_engine.log")
+
+
+class Engine:
+    """The Session plus what its MQTT messages need. It lasts across reconnects."""
+
+    def __init__(self, session):
+        self.session = session
+        self.bubble_count = _bubble_count(session.rules)
+        self.changed = asyncio.Event()  # set after anything that may change game/match
+        # game/events wait here across reconnects, each in the envelope it is retried in
+        self.events = asyncio.Queue(maxsize=EVENTS_MAXSIZE)
+        self.pending = []  # the event being published, until the broker acknowledges it
+        self._seq = 0
+        self._warned = set()
+
+    def wrap(self, payload):
+        """Return `payload` as JSON in a new envelope, so the phones never drop a repeat."""
+        env = envelope.build_envelope(payload, self._seq, source=CLIENT_ID)
+        self._seq += 1
+        return json.dumps(env, allow_nan=False)
+
+    def match_message(self, now):
+        info = self.session.match_info()
+        return self.wrap(wire.match_payload(info, self.session.countdown_ms(now), TICK_HZ))
+
+    def queue_event(self, event, now):
+        """Queue a game/event to publish. A full queue throws away the oldest."""
+        message = self.wrap(wire.event_payload(event, self.session.match_id))
+        if self.events.full():
+            self.events.get_nowait()
+            self.session.counts["event_dropped"] += 1
+        self.events.put_nowait((message, event, now))
+
+    def offline_message(self, reason):
+        rules_version = self.session.match_info().rules_version
+        return self.wrap(wire.offline_payload(reason, TICK_HZ, rules_version))
+
+    def handle(self, topic, raw, now):
+        """Apply one inbound message and return the game/events it causes.
+
+        A message that fails a check is dropped and counted. Only the first of each kind is logged.
+        """
+        session = self.session
+        kind, _, player_text = topic.rpartition("/")
+        if topic == envelope.GLOVES_TOPIC:
+            name, player = "gloves", None
+        else:
+            name, player = INPUTS.get(kind), PLAYER_OF.get(player_text)
+            if name is None or player is None:
+                session.counts["no_player"] += 1  # game/gesture/0, which is nobody's
+                return []
+        try:
+            event_id, source, payload = wire.read_envelope(raw)
+            if name == "gloves":
+                session.on_gloves(wire.read_gloves(payload), now)
+            elif name == "lane":
+                session.on_lane(player, source, wire.read_lane(payload), now)
+            elif name == "request":
+                return self._request(topic, player, source, payload, event_id, now)
+            elif name == "bubble":
+                match_id, bubble_id = wire.read_bubble(payload, self.bubble_count)
+                return session.on_bubble(player, source, match_id, bubble_id, event_id, now)
+            else:
+                name = wire.read_gesture(payload, player)
+                return session.on_gesture(player, name, event_id, now)
+        except wire.BadMessage as exc:
+            self._drop(topic, name, exc)
+        return []
+
+    def _request(self, topic, player, source, payload, event_id, now):
+        try:
+            request = wire.read_request(payload)
+        except wire.BadMessage as exc:
+            self._drop(topic, "request", exc)
+            tap = wire.refusable_tap(payload)
+            if tap is None:
+                return []
+            return self.session.on_bad_request(player, source, *tap, event_id, now)
+        return self.session.on_request(player, source, request, event_id, now)
+
+    def _drop(self, topic, name, exc):
+        self.session.counts[f"bad_{name}"] += 1
+        if (name, exc.field) not in self._warned:
+            self._warned.add((name, exc.field))
+            log.warning("dropping a bad message on %s: %s (more are only counted)", topic, exc)
+
+
+def describe(event):
+    """Describe a game/event in one log line."""
+    outcome = f"ok, unit {event.unit_id}" if event.ok else f"refused {event.reason}"
+    gesture = f" for {event.gesture_event_id}" if event.gesture_event_id else ""
+    return f"player {event.player} {event.input} {event.action} {event.what!r}: {outcome}{gesture}"
+
+
+async def _receive(client, engine):
+    """Apply each inbound message and queue its game/events. Ends when the connection drops."""
+    async for message in client.messages:
+        now = time.monotonic()
+        for event in engine.handle(message.topic.value, message.payload, now):
+            engine.queue_event(event, now)
+        engine.changed.set()
+
+
+async def _tick(client, engine, ended):
+    """Publish one game/state per tick, in every phase."""
+    session = engine.session
+    while not ended.is_set():
+        now = time.monotonic()
+        if now < session.next_tick:
+            # asyncio can wake up to one clock step early, so never wait less than a step
+            await asyncio.sleep(max(session.next_tick - now, CLOCK_STEP_S))
+            continue
+        state = session.on_tick(now)
+        engine.changed.set()
+        await client.publish(STATE_TOPIC, engine.wrap(state), qos=0)
+
+
+async def _publish_match(client, engine, ended, sent):
+    """Publish game/match, retained, whenever it changes. Only the latest is sent."""
+    session = engine.session
+    while not ended.is_set():
+        engine.changed.clear()
+        if session.version == sent:
+            try:
+                await asyncio.wait_for(engine.changed.wait(), timeout=1.0)
+            except asyncio.TimeoutError:
+                pass
+            continue
+        sent = session.version
+        message = engine.match_message(time.monotonic())
+        await client.publish(MATCH_TOPIC, message, qos=QOS, retain=True)
+
+
+async def _publish_events(client, engine, ended):
+    """Publish each game/event in order, on its own so game/state never waits for an ack.
+
+    An event not yet acknowledged when the link drops is sent again after the reconnect, in
+    the same envelope, unless it is older than EVENT_TTL_S.
+    """
+    pending = engine.pending
+    while not ended.is_set():
+        if not pending:
+            try:
+                pending.append(await asyncio.wait_for(engine.events.get(), timeout=1.0))
+            except asyncio.TimeoutError:
+                pass
+            continue  # check ended again, since wait_for can swallow a cancel
+        message, event, queued_at = pending[0]
+        if time.monotonic() - queued_at > EVENT_TTL_S:
+            engine.session.counts["event_stale"] += 1
+            log.warning("discarding a stale event %s", describe(event))
+            pending.clear()
+            continue
+        await client.publish(EVENT_TOPIC, message, qos=QOS)  # on a lost link it stays pending
+        pending.clear()
+        log.info("event %s", describe(event))
+
+
+async def _publish_offline(client, engine, reason):
+    """Mark the engine offline before a clean disconnect, which would suppress the will."""
+    try:
+        message = engine.offline_message(reason)
+        await client.publish(MATCH_TOPIC, message, qos=QOS, retain=True, timeout=OFFLINE_TIMEOUT_S)
+        log.info("game/match: offline, %s", reason)
+    except aiomqtt.MqttError as exc:
+        log.warning("could not mark the engine offline: %s", exc)
+
+
+async def _serve(client, engine, stop):
+    """Run the engine on one connection until `stop` is set or a task fails."""
+    session = engine.session
+    session.on_mqtt_lost(time.monotonic())  # only this session's status/gloves counts
+    sent = session.version
+    # first, since the will or a broker restart may have replaced it
+    await client.publish(MATCH_TOPIC, engine.match_message(time.monotonic()), qos=QOS, retain=True)
+    for topic in SUBSCRIPTIONS:
+        await client.subscribe(topic, qos=QOS)
+
+    ended = asyncio.Event()  # set before cancelling, so a task that swallows the cancel still stops
+    loops = [
+        asyncio.create_task(_tick(client, engine, ended)),
+        asyncio.create_task(_publish_match(client, engine, ended, sent)),
+        asyncio.create_task(_publish_events(client, engine, ended)),
+    ]
+    watchers = [
+        asyncio.create_task(stop.wait()),
+        asyncio.create_task(_receive(client, engine)),
+    ]
+    try:
+        await asyncio.wait([*loops, *watchers], return_when=asyncio.FIRST_COMPLETED)
+    finally:
+        ended.set()  # before cancelling, as everywhere
+        engine.changed.set()  # wake the match loop now
+        # publishers too, since a dropped link leaves a publish waiting 10 s for its ack
+        for task in [*loops, *watchers]:
+            task.cancel()
+        await asyncio.gather(*loops, *watchers, return_exceptions=True)
+    for task in [*loops, *watchers]:
+        if not task.cancelled():
+            task.result()  # re-raise a failure
+
+
+async def one_session(host, port, engine, stop):
+    """Connect to the broker once and run the engine until `stop` is set or the link fails."""
+    will = aiomqtt.Will(MATCH_TOPIC, engine.offline_message(STOPPED), qos=QOS, retain=True)
+    async with aiomqtt.Client(
+        hostname=host, port=port, identifier=CLIENT_ID, keepalive=KEEPALIVE_S, will=will
+    ) as client:
+        log.info("connected to mqtt://%s:%d as %s", host, port, CLIENT_ID)
+        try:
+            await _serve(client, engine, stop)
+        except aiomqtt.MqttError:
+            raise  # the link is gone, so the will says offline
+        except Exception:
+            await _publish_offline(client, engine, ENGINE_ERROR)
+            raise
+        await _publish_offline(client, engine, STOPPED)
+
+
+async def run(host, port, engine, stop):
+    """Keep the engine connected, and reconnect with backoff until `stop` is set.
+
+    Raises EngineFatal for a failure that would repeat on every start.
+    """
+    backoff = MIN_BACKOFF_S
+    while not stop.is_set():
+        started = time.monotonic()
+        try:
+            await one_session(host, port, engine, stop)
+        except aiomqtt.MqttError as exc:
+            log.warning("mqtt session failed: %s", exc)
+        if stop.is_set():
+            break
+
+        elapsed = time.monotonic() - started
+        if elapsed >= GOOD_RUN_S:
+            backoff = MIN_BACKOFF_S
+        log.info("reconnecting to the broker in %.0fs", backoff)
+        try:
+            await asyncio.wait_for(stop.wait(), timeout=backoff)
+        except asyncio.TimeoutError:
+            pass
+        if elapsed < GOOD_RUN_S:
+            backoff = min(backoff * 2, MAX_BACKOFF_S)
+
+
+async def serve(host, port, core_dir):
+    """Load the core and run the engine until Ctrl-C. Nothing connects if the core can't load."""
+    core, rules = load_core(core_dir)
+    session = Session(core, rules, wire.state_payload, envelope.SESSION_ID, time.monotonic())
+    engine = Engine(session)
+    log.info("engine %s, rules %s", envelope.SESSION_ID, rules.get("version"))
+    stop = asyncio.Event()
+    restore_interrupt = stop_on_interrupt(stop)
+    try:
+        await run(host, port, engine, stop)
+    finally:
+        restore_interrupt()
+        log.info("engine stopped, dropped: %s", dict(session.counts) or "none")
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--host", default=envelope.LOOPBACK_HOST, help="this board's broker")
+    parser.add_argument("--port", type=int, default=envelope.PLAINTEXT_PORT)
+    parser.add_argument(
+        "--core-dir",
+        default=pathlib.Path(__file__).resolve().parent / "engine",
+        help="folder with match.py and rules.json (default %(default)s)",
+    )
+    parser.add_argument("-v", "--verbose", action="store_true")
+    args = parser.parse_args(argv)
+
+    log_file = setup_logging(args.verbose, LOG_FILE)
+    log.info("logging to %s", log_file)
+    if sys.platform == "win32":
+        # aiomqtt needs the selector loop, which Windows doesn't use by default
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+    try:
+        asyncio.run(serve(args.host, args.port, args.core_dir))
+    except EngineFatal as exc:
+        log.error("not restarting, since this fails on every start: %s", exc)
+        sys.exit(EXIT_FATAL)
+    except KeyboardInterrupt:
+        log.info("interrupted")
+    except Exception:
+        log.exception("engine crashed")
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

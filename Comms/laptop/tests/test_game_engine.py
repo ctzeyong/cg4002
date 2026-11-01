@@ -2,11 +2,14 @@
 
 import itertools
 import json
+import types
+from pathlib import Path
 
 import pytest
 
-import game_engine as ge  # noqa: E402 - ultra96/, on sys.path via conftest
-from game_engine import Lane, Request
+import ai_events  # noqa: E402 - ultra96/, on sys.path via conftest
+import game_engine as ge  # noqa: E402
+from engine_wire import Lane, Request
 from stub_core import match as stub
 
 T0 = 1000.0
@@ -14,9 +17,10 @@ ids = itertools.count()
 
 
 def encode(snapshot, match_id):
-    """As the wire will, but only the fields the tests read, and NaN refused."""
+    """As the wire does, but only the fields the tests read, and NaN refused."""
     fields = {"match_id": match_id, "tick": snapshot.tick, "time_left": snapshot.time_left}
-    return json.dumps(fields, allow_nan=False).encode()
+    json.dumps(fields, allow_nan=False)
+    return fields
 
 
 class Game:
@@ -50,7 +54,7 @@ class Game:
                     if source:
                         self.s.on_lane(player, source, self.lane(player), self.now)
             if self.now >= self.s.next_tick:
-                self.states.append(json.loads(self.s.on_tick(self.now)))
+                self.states.append(self.s.on_tick(self.now))
 
     def gloves(self, one=True, two=True):
         self.s.on_gloves({1: one, 2: two}, self.now)
@@ -480,6 +484,17 @@ def test_a_nan_snapshot_ends_the_match_once_and_the_core_is_not_asked_again():
     assert g.states[-1] == last
 
 
+def test_a_snapshot_missing_a_field_ends_the_match_too():
+    g = running_game()
+
+    def encode_missing(snapshot, match_id):
+        raise AttributeError("'Snapshot' object has no attribute 'units'")
+
+    g.s.encode = encode_missing
+    g.run(ge.TICK_S + 0.01)
+    assert (g.s.phase, g.info.reason) == (ge.ENDED, "engine error")
+
+
 def test_a_nan_opening_state_at_startup_is_fatal():
     with pytest.raises(ge.EngineFatal):
         Game(rules={"nan": True})
@@ -560,3 +575,284 @@ def test_match_info_changes_only_when_something_in_it_does():
     assert g.s.version == version
     g.gloves(one=False)
     assert g.s.version == version + 1
+
+
+def test_a_result_that_isnt_a_winner_ends_the_match_as_an_engine_error():
+    g = running_game()
+    g.match.result = "player3"
+    g.run(ge.TICK_S + 0.01)
+    assert (g.s.phase, g.info.winner, g.info.reason) == (ge.ENDED, "none", "engine error")
+
+
+# --- inbound messages, through Engine.handle -------------------------------------------
+
+RULES = {"version": "r-1", "BubbleCaptureManager": {"bubbleCount": 1}}
+
+
+def message(payload, source="phone-b", event_id=None):
+    """One MQTT message's bytes, in an envelope as the phone sends it."""
+    env = {"event_id": event_id or f"ev-{next(ids)}", "source": source, "seq": 1, "ts": 0.0,
+           "payload": payload}
+    return json.dumps(env).encode()
+
+
+def lane_payload(g, **fields):
+    return dict({"match_id": g.s.match_id, "hasLane": True, "lane_length_m": 2.0,
+                 "hasPosition": True, "along": 1.0, "lat": 0.2, "locked": True, "hasAim": True,
+                 "aimAlong": 0.75, "aimLat": 0.0}, **fields)
+
+
+def tap_payload(g, **fields):
+    return dict({"match_id": g.s.match_id, "req_id": next(ids), "action": "spawn",
+                 "unitType": "Rogue", "spell": "", "hasAim": True, "along": 0.75, "lat": 0.0},
+                **fields)
+
+
+def test_each_topic_reaches_its_handler():
+    g = running_game(dict(RULES))
+    engine = ge.Engine(g.s)
+    engine.handle("viz/lane/2", message(lane_payload(g)), g.now)
+    assert g.match.positions[2] == (1.0, 0.2)
+
+    [tap] = engine.handle("game/request/2", message(tap_payload(g)), g.now)
+    assert (tap.input, tap.what, tap.ok) == ("tap", "Rogue", True)
+
+    relay = message(ai_events._event(1, 0, "warrior"), source="ultra96-relay", event_id="r:1:0")
+    [glove] = engine.handle("game/gesture/1", relay, g.now)
+    assert (glove.input, glove.gesture_event_id, glove.ok) == ("glove", "r:1:0", True)
+
+    bubble = {"match_id": g.s.match_id, "bubble_id": 0, "event": "captured", "player": 2}
+    [captured] = engine.handle("viz/bubble_captured/2", message(bubble), g.now)
+    assert (captured.input, captured.ok) == ("bubble", True)
+
+    gloves = {"player1": "ready", "player2": "down"}
+    engine.handle("status/gloves", message(gloves, source="ultra96-gloves"), g.now)
+    assert (g.s.phase, g.info.reason) == (ge.PAUSED, "player 2 glove down")
+
+
+def test_a_gesture_with_no_player_is_ignored():
+    g = running_game(dict(RULES))
+    engine = ge.Engine(g.s)
+    assert engine.handle("game/gesture/0", message(ai_events._event(0, 0, "warrior")), g.now) == []
+    assert g.s.counts["no_player"] == 1
+    assert g.match.calls == []
+
+
+def test_a_bad_message_is_counted_and_only_the_first_of_each_kind_logged(caplog):
+    g = Game(dict(RULES))
+    engine = ge.Engine(g.s)
+    for _ in range(3):
+        engine.handle("viz/lane/1", message(lane_payload(g, hasLane="yes")), g.now)
+    engine.handle("viz/lane/1", message(lane_payload(g, along=11.0)), g.now)
+    engine.handle("viz/lane/1", b"not json", g.now)
+    assert g.s.counts["bad_lane"] == 5
+    warnings = [r.getMessage() for r in caplog.records if r.levelname == "WARNING"]
+    assert len(warnings) == 3
+    assert "viz/lane/1" in warnings[0] and "hasLane" in warnings[0]
+
+
+def test_a_bad_tap_gets_one_bad_request_event_and_a_bad_start_none():
+    g = running_game(dict(RULES))
+    engine = ge.Engine(g.s)
+    bad_tap = message(tap_payload(g, unitType="Dragon", req_id=77))
+    [event] = engine.handle("game/request/2", bad_tap, g.now)
+    assert (event.ok, event.reason, event.req_id) == (False, "bad_request", 77)
+    assert event.action == "spawn"
+    assert engine.handle("game/request/2", bad_tap, g.now) == []  # the broker's redelivery
+
+    w = Game(dict(RULES))
+    w.run(0.2)
+    w.gloves()
+    engine = ge.Engine(w.s)
+    bad_start = tap_payload(w, action="start", unitType="", hasAim="yes")
+    assert engine.handle("game/request/1", message(bad_start, source="phone-a"), w.now) == []
+    assert w.info.starts == (False, False)
+    assert w.s.counts["bad_request"] == 1
+
+
+def test_a_bubble_outside_the_count_is_dropped():
+    g = running_game(dict(RULES))
+    engine = ge.Engine(g.s)
+    bubble = {"match_id": g.s.match_id, "bubble_id": 1, "event": "captured", "player": 2}
+    assert engine.handle("viz/bubble_captured/2", message(bubble), g.now) == []
+    assert g.s.counts["bad_bubble"] == 1
+    assert g.match.calls == []
+
+
+def test_the_same_retained_glove_status_after_a_reconnect_still_sets_the_gloves():
+    """The broker sends the same retained envelope again, so a dedupe here would stall the match."""
+    g = running_game(dict(RULES))
+    engine = ge.Engine(g.s)
+    retained = message({"player1": "ready", "player2": "ready"}, event_id="ultra96-gloves:ab:3")
+    engine.handle("status/gloves", retained, g.now)
+    g.s.on_mqtt_lost(g.now)
+    assert g.info.gloves == (False, False)
+    engine.handle("status/gloves", retained, g.now)
+    assert g.info.gloves == (True, True)
+
+
+def test_a_bad_glove_status_leaves_the_gloves_as_they_were():
+    g = running_game(dict(RULES))
+    engine = ge.Engine(g.s)
+    engine.handle("status/gloves", b'{"payload": {"player1": "down"}}', g.now)
+    assert g.info.gloves == (True, True)
+    assert g.s.counts["bad_gloves"] == 1
+
+
+def test_offline_names_no_match_even_after_a_rematch():
+    """The will is fixed when the engine connects, so it must never name a match."""
+    g = running_game(dict(RULES))
+    engine = ge.Engine(g.s)
+    end_by_result(g)
+    g.press(1, action="rematch")
+    g.press(2, action="rematch")
+    assert g.s.match_id == "e1-2"
+    offline = json.loads(engine.offline_message(ge.STOPPED))["payload"]
+    assert (offline["match_id"], offline["phase"]) == ("", "offline")
+
+
+def test_every_message_the_engine_wraps_gets_a_new_event_id():
+    engine = ge.Engine(Game(dict(RULES)).s)
+    ids_sent = {json.loads(engine.wrap({"x": 1}))["event_id"] for _ in range(3)}
+    assert len(ids_sent) == 3
+    assert all(i.startswith("ultra96-engine:") for i in ids_sent)
+
+
+# --- loading the core and rules.json ------------------------------------------------------
+
+STUB_DIR = Path(stub.__file__).parent
+VIS_ENGINE = Path(__file__).resolve().parents[3] / "SW_Visualiser" / "engine"
+
+
+def core_dir(tmp_path, rules=RULES, match_py=None):
+    (tmp_path / "match.py").write_text(match_py or (STUB_DIR / "match.py").read_text())
+    if rules is not None:
+        text = rules if isinstance(rules, str) else json.dumps(rules)
+        (tmp_path / "rules.json").write_text(text)
+    return tmp_path
+
+
+def test_a_core_dir_loads_match_py_and_rules_json(tmp_path):
+    core, rules = ge.load_core(core_dir(tmp_path))
+    assert rules == RULES and hasattr(core, "Match")
+    ge.Session(core, rules, lambda *_: {}, "e1", 0.0)
+
+
+@pytest.mark.parametrize(
+    "rules, match_py",
+    [
+        (None, None),  # no rules.json
+        ("{not json", None),
+        ("[1, 2]", None),
+        (dict(RULES, TowerController={"TowerRadius": None}), None),
+        ({"BubbleCaptureManager": {"bubbleCount": 1}}, None),  # no version
+        (dict(RULES, version=""), None),
+        (dict(RULES, version=3), None),
+        (RULES, "raise ImportError('broken core')\n"),
+    ],
+)
+def test_a_core_that_cant_be_used_is_fatal(tmp_path, rules, match_py):
+    with pytest.raises(ge.EngineFatal):
+        ge.load_core(core_dir(tmp_path, rules, match_py))
+
+
+def test_a_missing_match_py_is_fatal(tmp_path):
+    (tmp_path / "rules.json").write_text(json.dumps(RULES))
+    with pytest.raises(ge.EngineFatal):
+        ge.load_core(tmp_path)
+
+
+def test_a_null_inside_a_note_key_is_allowed():
+    assert ge._unfilled({"_left_out": {"x": None}, "a": [1, {"b": 2}]}) == ""
+    assert ge._unfilled({"a": [1, {"b": None}]}) == "a.1.b"
+
+
+def test_the_draft_rules_json_cant_start_the_engine_until_vis_gives_the_tower_radius():
+    with pytest.raises(ge.EngineFatal, match="TowerController.TowerRadius"):
+        ge.load_core(VIS_ENGINE)
+
+
+@pytest.mark.parametrize("rules", [{}, {"BubbleCaptureManager": {"bubbleCount": 0}},
+                                   {"BubbleCaptureManager": {"bubbleCount": True}},
+                                   {"BubbleCaptureManager": 1}])
+def test_an_engine_needs_a_bubble_count(rules):
+    with pytest.raises(ge.EngineFatal):
+        ge.Engine(Game(rules).s)
+
+
+def test_the_bubble_respawn_cooldown_is_no_longer_than_its_hold_time():
+    """Otherwise the core's cooldown could refuse a real second capture."""
+    bubbles = json.loads((VIS_ENGINE / "rules.json").read_text())["BubbleCaptureManager"]
+    assert bubbles["respawnCooldownSeconds"] <= bubbles["holdTimeSeconds"]
+
+
+def test_game_match_reports_the_version_in_rules_json():
+    assert Game(dict(RULES, version="r-7")).info.rules_version == "r-7"
+
+
+# --- a core that misbehaves on an action ---------------------------------------------------
+
+
+def test_an_action_class_that_raises_ends_the_match():
+    g = running_game(dict(RULES))
+
+    def broken_action(kind, name):
+        raise TypeError("Action takes 3 arguments")
+
+    g.s.core = types.SimpleNamespace(Match=stub.Match, Action=broken_action)
+    [event] = g.tap(2)
+    assert (event.ok, event.reason) == (False, "engine_error")
+    assert (g.s.phase, g.info.reason) == (ge.ENDED, "engine error")
+
+
+@pytest.mark.parametrize(
+    "result",
+    [
+        stub.Result(False, "no_mana", "spell", "fireball", None),
+        stub.Result(True, "", "spell", "lightning", None),
+        stub.Result(True, "", "spawn", "Tank", 9),
+        stub.Result(False, "unknown_gesture", "none", "", None),
+    ],
+)
+def test_a_result_the_spec_allows_is_passed_on(result):
+    g = running_game(dict(RULES))
+    g.match.request = lambda *args: result
+    [event] = g.tap(2)
+    assert (event.ok, event.reason, event.action, event.what) == (
+        result.ok, result.reason, result.action, result.what)
+    assert event.unit_id == (-1 if result.unit_id is None else result.unit_id)
+    assert g.s.phase == ge.RUNNING
+
+
+@pytest.mark.parametrize(
+    "result",
+    [
+        None,
+        stub.Result(True, "", "spawn", "Warrior", 3_000_000_000),  # too big for the phone's int
+        stub.Result(True, "", "spawn", "Warrior", 2.0),
+        stub.Result(True, "", "spawn", "Warrior", float("nan")),
+        stub.Result(1, "", "spawn", "Warrior", 2),
+        stub.Result(True, None, "spawn", "Warrior", 2),
+        types.SimpleNamespace(ok=True, reason="", action="spawn", what="Warrior"),  # no unit_id
+        stub.Result(True, "", "nuke", "Warrior", 2),
+        stub.Result(True, "", "spawn", "Dragon", 2),
+        stub.Result(False, "bogus", "spawn", "Warrior", None),
+        stub.Result(False, "", "spawn", "Warrior", None),  # refused with no reason
+        stub.Result(True, "no_mana", "spawn", "Warrior", 2),  # accepted with a reason
+        stub.Result(False, "no_mana", "spawn", "Warrior", 42),  # a unit id for a refusal
+        stub.Result(True, "", "spawn", "Warrior", None),  # a spawn with no unit
+        stub.Result(True, "", "spell", "fireball", 7),  # a spell makes no unit
+        stub.Result(True, "", "spell", "Warrior", None),
+        stub.Result(True, "", "spawn", "lightning", 2),
+        stub.Result(True, "", "bubble", "Warrior", None),
+        stub.Result(True, "", [], "Warrior", 2),  # an action that can't be a dict key
+        stub.Result(False, ["no_mana"], "spawn", "Warrior", None),
+    ],
+)
+def test_a_result_the_phones_cant_read_ends_the_match(result):
+    g = running_game(dict(RULES))
+    g.match.request = lambda *args: result
+    [event] = g.tap(2)
+    assert (event.ok, event.reason, event.unit_id) == (False, "engine_error", -1)
+    assert (g.s.phase, g.info.reason) == (ge.ENDED, "engine error")
+    json.dumps(ge.wire.event_payload(event, g.s.match_id), allow_nan=False)
