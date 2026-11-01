@@ -253,6 +253,9 @@ async def stop_client(board):
         log.warning("could not stop the board client and the engine (%s); --stop ends them", exc)
         return
     log.info("%s", result.stdout.strip() or "no output")
+    # pkill prints nothing when there was nothing to kill, any stderr means the stop failed
+    if (result.stderr or "").strip():
+        log.warning("the board said: %s", result.stderr.strip())
 
 
 async def attach(board, command):

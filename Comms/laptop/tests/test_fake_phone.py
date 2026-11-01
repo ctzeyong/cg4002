@@ -228,17 +228,20 @@ def test_it_logs_each_event_and_skips_what_isnt_an_envelope(broker, caplog):
 
 def test_a_lost_broker_ends_it(broker, caplog, monkeypatch):
     """It has no reconnect, so it must end rather than hang."""
-    # One sample a second, and the broker stopped between two, so no write is in flight.
-    # Mid-write on Windows, aiomqtt 2.5.1 can leave the closed socket in the selector, and
-    # select() then stops the whole loop, which would hide a hang here.
-    monkeypatch.setattr(fake_phone, "LANE_HZ", 1)
+    # Stop the broker only while nothing is sending. On Windows, aiomqtt 2.5.1 can crash the whole
+    # event loop (WinError 10038) if the broker goes away in the middle of a send, and then this
+    # test couldn't show whether the phone hangs. So the phone sends once every 5 s, and the
+    # broker is stopped just after the first sample has arrived.
+    monkeypatch.setattr(fake_phone, "LANE_HZ", 0.2)
     phone = fake_phone.Phone(2)
 
     async def scenario():
-        task = asyncio.create_task(fake_phone.run(phone, "127.0.0.1", broker.port))
-        await wait_until(lambda: "on mqtt://" in caplog.text, BROKER_DEADLINE_S)
-        await asyncio.sleep(0.3)
-        broker.stop()
+        async with aiomqtt.Client("127.0.0.1", broker.port, identifier="test-watch") as watch:
+            await watch.subscribe("viz/lane/2")
+            task = asyncio.create_task(fake_phone.run(phone, "127.0.0.1", broker.port))
+            # A subscriber has the first sample, so that send is over, and the next is 5 s away
+            await asyncio.wait_for(anext(watch.messages), BROKER_DEADLINE_S)
+        broker.stop()  # after the subscriber has disconnected, so it isn't sending either
         with pytest.raises(aiomqtt.MqttError):
             await asyncio.wait_for(task, BROKER_DEADLINE_S)
 

@@ -303,6 +303,7 @@ class FakeBoard:
         self.lines = lines
         self.hang = hang
         self.commands = []
+        self.stderr = ""
 
     async def _stdout(self):
         for line in self.lines:
@@ -315,7 +316,7 @@ class FakeBoard:
 
     async def run(self, command, check=False):
         self.commands.append(command)
-        return SimpleNamespace(stdout="STOPPED\n")
+        return SimpleNamespace(stdout="STOPPED\n", stderr=self.stderr)
 
 
 @pytest.fixture
@@ -329,6 +330,16 @@ def captured_stop(monkeypatch):
 
     monkeypatch.setattr(run_board, "install_interrupt_handler", install)
     return events
+
+
+@pytest.mark.asyncio
+async def test_a_stop_the_board_refuses_is_shown_not_reported_as_nothing_to_stop(caplog):
+    board = FakeBoard([], hang=False)
+    board.stderr = "sudo: a password is required\n"
+    with caplog.at_level(logging.INFO, logger="run_board"):
+        await run_board.stop_client(board)
+    warnings = [r.getMessage() for r in caplog.records if r.levelno == logging.WARNING]
+    assert warnings == ["the board said: sudo: a password is required"]
 
 
 @pytest.mark.asyncio
