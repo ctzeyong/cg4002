@@ -382,6 +382,22 @@ def test_a_relaunched_app_takes_over_once_the_old_one_is_quiet():
     assert g.tap(2, source="phone-c")[0].ok
 
 
+def test_a_phone_replaced_while_running_pauses_the_match_until_the_new_one_has_streamed():
+    """Player 2's app is reopened, and the new copy starts sending before the old one has been
+    silent for a full second. The match must still pause, and resume only once the new copy has
+    sent for RESUME_S."""
+    g = running_game()
+    g.sources[2] = None
+    g.run(0.85)
+    g.sources[2] = "phone-c"
+    g.run(0.3)
+    assert g.s.phase == ge.PAUSED
+    assert g.tap(2, source="phone-c")[0].reason == "not_running"
+    g.run(ge.RESUME_S + 0.2)
+    assert (g.s.phase, g.s.players[2].bound) == (ge.RUNNING, "phone-c")
+    assert g.tap(2, source="phone-c")[0].ok
+
+
 def test_a_gesture_uses_the_latest_aim_of_the_bound_phone():
     g = running_game()
     event = g.gesture(2, "rogue", event_id="ultra96-relay:ab:3")[0]
@@ -492,10 +508,27 @@ def test_both_rematches_start_the_next_countdown_with_no_further_start():
     g.press(1, action="rematch")
     assert g.info.starts == (True, False)
     g.press(2, action="rematch")
-    g.run(0.05)
+    g.run(0.15)  # time for each phone to send one sample with the new match_id
     assert g.s.match_id == "e1-2"
     assert g.s.phase == ge.COUNTDOWN
     assert g.info.winner == "none"
+
+
+def test_a_rematch_waits_for_lane_samples_of_the_new_match():
+    """Just after a rematch, the phones' samples from the last match are still recent. They
+    mustn't count: the countdown waits for samples with the new match_id."""
+    g = running_game()
+    end_by_result(g)
+    old = g.s.match_id
+    g.press(1, action="rematch")
+    g.press(2, action="rematch")
+    assert (g.s.match_id, g.s.phase) == ("e1-2", ge.WAITING)
+    g.s.on_lane(1, "phone-a", Lane(old, 2.0, None, None), g.now)
+    g.s.on_lane(2, "phone-b", Lane(old, 2.0, None, None), g.now)
+    assert g.s.phase == ge.WAITING
+    assert g.info.phones == (False, False)
+    g.run(0.15)
+    assert g.s.phase == ge.COUNTDOWN
 
 
 def test_a_start_in_the_ended_phase_is_not_a_rematch():

@@ -366,6 +366,8 @@ class Session:
         self.phase, self.reason = WAITING, ""
         for p in self.players.values():
             p.bound = None
+            # Forget the last match's samples: a phone counts once it sends one for this match.
+            p.streams = {}
             if not carry_presses:
                 p.pressed = None
         log.info("match %s: waiting", match_id)
@@ -393,8 +395,15 @@ class Session:
         return p.pressed is not None and p.pressed == self._current_source(p, now)
 
     def _move_binding(self, p, now):
-        """Move a quiet binding to the one other fresh source, so a relaunched app rejoins."""
-        if p.bound is None or self._fresh(p.streams[p.bound], now):
+        """Rebind to another phone when the currently bound phone goes quiet.
+
+        Only switch when exactly one other phone is actively sending on the player's
+        topic. This handles an app being closed and reopened on another phone.
+
+        Never switch during a running match. The old phone must first pause the match,
+        and the new phone must send steadily for RESUME_S before resuming it.
+        """
+        if p.bound is None or self.phase == RUNNING or self._fresh(p.streams[p.bound], now):
             return
         others = [s for s, stream in p.streams.items() if s != p.bound and self._fresh(stream, now)]
         if len(others) == 1:
