@@ -257,7 +257,7 @@ async def _publish_loop(client, outbound, pending, stats, stop):
         stats.published += 1
         # INFO: once per game event. `.get` because a KeyError here would be a poison
         # pill -- the supervisor would republish and re-raise forever. `t=` is the
-        # PUBACK time for scripts/latency_report.py; notes/latency.md.
+        # PUBACK time for scripts/tools/latency_report.py; notes/latency.md.
         log.info(
             "published %s to %s t=%.6f",
             envelope.get("event_id", "<no id>"),
