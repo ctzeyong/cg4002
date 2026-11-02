@@ -9,7 +9,7 @@ import pytest
 
 import ai_events  # noqa: E402 - ultra96/, on sys.path via conftest
 import game_engine as ge  # noqa: E402
-from engine_wire import Lane, Request
+from engine_wire import Lane, Request, state_payload
 from stub_core import match as stub
 
 T0 = 1000.0
@@ -767,9 +767,10 @@ def test_a_null_inside_a_note_key_is_allowed():
     assert ge._unfilled({"a": [1, {"b": None}]}) == "a.1.b"
 
 
-def test_the_draft_rules_json_cant_start_the_engine_until_vis_gives_the_tower_radius():
-    with pytest.raises(ge.EngineFatal, match="TowerController.TowerRadius"):
-        ge.load_core(VIS_ENGINE)
+def test_vis_rules_json_and_match_py_as_committed_start_the_engine():
+    core, rules = ge.load_core(VIS_ENGINE)
+    session = ge.Session(core, rules, state_payload, "e1", T0)
+    assert session.match_info().rules_version == rules["version"]
 
 
 @pytest.mark.parametrize("rules", [{}, {"BubbleCaptureManager": {"bubbleCount": 0}},
