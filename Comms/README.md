@@ -37,8 +37,9 @@ The broker listens on the board's loopback only, so it can only be reached throu
 |---|---|
 | `firebeetle/` | Arduino sketch for both FireBeetles; `#define PLAYER_ID 1` or `2` |
 | `laptop/` | The relay: BLE, TCP server, SSH tunnel. Tests in `laptop/tests/` |
-| `ultra96/` | Board client and MQTT publisher. Also the game engine being moved to the board (`game_engine.py`, `run_engine.sh`), not finished yet |
+| `ultra96/` | Board client and MQTT publisher. Also the game engine being moved to the board (`game_engine.py`, its messages in `engine_wire.py`, `run_engine.sh`), not run on the board yet |
 | `phone/tunnelled-visualiser/` | Unity test client for Configuration B |
+| `phone/comms-visualiser/` | The drop-in for the team's app: the phone's SSH tunnel, the gloves' status line and the latency echo |
 | `phone/demo-visualiser/` | Configuration A's client (not used in B) |
 | `scripts/` | Launchers. B is `run_pipeline.ps1` + `run_board.ps1`. `fake_phone.py` stands in for one player's phone when testing the engine without Unity |
 

@@ -29,7 +29,7 @@ namespace Comms.Visualiser
         private const int ReleaseWaitMs = 3000;
         private const int MaxLogLines = 15;
         private const float RebuildAfterPauseSeconds = 2f;
-        private const float ReferenceWidth = 800f;
+        private const int ProbesBeforeRebuild = 2;
         private const float LabelWidth = 240f;
 
         [SerializeField] private MqttConnection mqttConnection;
@@ -52,8 +52,6 @@ namespace Comms.Visualiser
         private CancellationTokenSource _cts;
         private Task _run = Task.CompletedTask;
         private SshMqttTunnel _tunnel;
-        private bool _showPanel = true;
-        private bool _collapsedOnce;
         private float _pausedAt = -1f;
         private Vector2 _scroll;
 
@@ -202,6 +200,7 @@ namespace Comms.Visualiser
         /// Inner loop, while the nest is up: whenever his client is down and not mid-connect,
         /// probe the broker and only then call his Connect(), on the same backoff ladder.
         /// His Connect() re-subscribes every topic, so the hook's topic comes back with it.
+        /// Returns after two failed probes in a row, so the outer loop builds a new nest.
         /// </summary>
         private async Task KeepMqttUpAsync(SshMqttTunnel tunnel, int localPort, CancellationToken ct)
         {
@@ -212,6 +211,7 @@ namespace Comms.Visualiser
             var nextAttempt = DateTime.UtcNow;
             DateTime? connectedAt = null;
             var attempting = false;
+            var failedProbes = 0;
             Status = "nest up";
 
             while (!ct.IsCancellationRequested && tunnel.IsReady)
@@ -226,7 +226,6 @@ namespace Comms.Visualiser
                         attempting = false;
                         AddLine("MQTT_CONNECTED");
                         Status = "connected";
-                        CollapseOnce();
                     }
                 }
                 else if (!mqttConnection.IsConnecting)
@@ -250,10 +249,17 @@ namespace Comms.Visualiser
                     {
                         if (await ProbeBrokerAsync(localPort, ct) && tunnel.IsReady)
                         {
+                            failedProbes = 0;
                             AddLine("MQTT_CONNECTING");
                             Status = "connecting MQTT";
                             mqttConnection.Connect();
                             attempting = true;
+                        }
+                        else if (++failedProbes >= ProbesBeforeRebuild && tunnel.IsReady)
+                        {
+                            // the nest can look up while carrying nothing, so build a new one
+                            AddLine($"NEST_REBUILD: {failedProbes} probes failed in a row");
+                            return;
                         }
                         else
                         {
@@ -384,13 +390,6 @@ namespace Comms.Visualiser
             }
         }
 
-        private void CollapseOnce()
-        {
-            if (_collapsedOnce) return;
-            _collapsedOnce = true;
-            _showPanel = false;
-        }
-
         private void EnqueueLog(string line) => _pendingLog.Enqueue(line);
 
         /// <summary>Main thread only. The full line goes to Debug.Log; the screen gets it masked.</summary>
@@ -419,39 +418,14 @@ namespace Comms.Visualiser
             return string.IsNullOrEmpty(value) ? line : line.Replace(value, mask);
         }
 
-        // ---- IMGUI: no Canvas to wire. Top of the screen, clear of the gesture panel. ----
-
-        private void OnGUI()
+        /// <summary>The credential form (while stopped) and the log, for a host panel such as the debug menu.</summary>
+        public void DrawDetails()
         {
-            var scale = Screen.width / ReferenceWidth;
-            var previous = GUI.matrix;
-            GUI.matrix = Matrix4x4.Scale(new Vector3(scale, scale, 1f));
-
-            var height = _showPanel ? Screen.height / scale * 0.6f : 48f;
-            GUILayout.BeginArea(new Rect(10f, 10f, ReferenceWidth - 20f, height), GUI.skin.box);
-
-            GUILayout.BeginHorizontal();
-            GUILayout.Label($"Comms: {Mask(Status)}");
-            if (GUILayout.Button(IsRunning ? "Disconnect" : "Connect", GUILayout.Width(130f), GUILayout.Height(32f)))
-            {
-                if (IsRunning) Disconnect();
-                else Connect();
-            }
-            if (GUILayout.Button(_showPanel ? "Hide" : "Show", GUILayout.Width(80f), GUILayout.Height(32f)))
-                _showPanel = !_showPanel;
-            GUILayout.EndHorizontal();
-
-            if (_showPanel)
-            {
-                _scroll = GUILayout.BeginScrollView(_scroll);
-                if (!IsRunning) DrawForm();
-                GUILayout.Label("Log");
-                foreach (var line in _log) GUILayout.Label(line);
-                GUILayout.EndScrollView();
-            }
-
-            GUILayout.EndArea();
-            GUI.matrix = previous;
+            _scroll = GUILayout.BeginScrollView(_scroll);
+            if (!IsRunning) DrawForm();
+            GUILayout.Label("Log");
+            foreach (var line in _log) GUILayout.Label(line);
+            GUILayout.EndScrollView();
         }
 
         private void DrawForm()

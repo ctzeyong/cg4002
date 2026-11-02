@@ -212,10 +212,10 @@ game-state value.
 ### Current scope
 
 The implemented live output is `game/gesture/{player}`. Actual AI classification is outside this
-standalone Comms baseline. The Configuration B game-engine design places the engine on the
-Ultra96 so gestures can enter it in-process and it can use the board's existing MQTT connection.
-The engine, MQTT subscriptions from the phones, and publishers for `game/state`, `game/event`,
-and `game/match` are **not implemented in this pipeline yet**.
+standalone Comms baseline. Under Configuration B the game engine moves onto the Ultra96 as its
+own process next to the relay, on branch `engine-move`. It subscribes to the phones' topics and
+publishes `game/state`, `game/event` and `game/match`. It has not run on the board yet. Who owns
+which part is in [Game engine on the Ultra96](../../integration/engine-ownership.md).
 
 The Configuration B proof client is
 [`Comms/phone/tunnelled-visualiser`](../../../Comms/phone/tunnelled-visualiser/README.md). It is
@@ -296,6 +296,7 @@ of phone receipt; confirm the event in the phone's own `received` display/log.
 | Ultra96 | [`ultra96/mqtt_publisher.py`](../../../Comms/ultra96/mqtt_publisher.py) | QoS 1 publishing, reconnects, bounded queue, and stale-event expiry. |
 | Ultra96 | [`ultra96/envelope.py`](../../../Comms/ultra96/envelope.py) | MQTT topic and stable message envelope. |
 | Phone | [`phone/tunnelled-visualiser`](../../../Comms/phone/tunnelled-visualiser/README.md) | Nested SSH tunnel, MQTT subscription, deduplication, and proof UI. |
+| Phone | [`phone/comms-visualiser`](../../../Comms/phone/comms-visualiser/README.md) | The team app's drop-in. Nested SSH tunnel with reconnects and a rebuild when nothing answers, the gloves' status line and the latency echo. |
 | Tests | [`laptop/tests`](../../../Comms/laptop/tests) | Software tests for BLE, TCP, MQTT, launchers, and transport behaviour. |
 
 The actual classifier and its label-to-game-action mapping must be integrated separately. The
@@ -320,7 +321,9 @@ These measurements cover the standalone Comms dummy-event path, not classifier p
 They justify B for the network that was tested; they do not prove that MQTT-on-board is
 universally faster. The tested A path used a phone hotspot and Tailscale through a DERP relay.
 Configuration B also has a real operational cost: every phone needs its nested SSH connection and
-jump-host credentials, and the Ultra96 broker must be available.
+jump-host credentials, and the Ultra96 broker must be available. While the broker is down, each
+phone rebuilds its tunnel about once a minute, and each rebuild is two logins on the shared jump
+host.
 
 ## 5. Configuration A: phone Mobile Hotspot and Tailscale
 
