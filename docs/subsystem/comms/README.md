@@ -21,6 +21,7 @@ see [Full pipeline](../../integration/full-pipeline.md).
   - [MQTT envelope and payloads](#mqtt-envelope-and-payloads)
   - [Current scope](#current-scope)
 - [2. Run Configuration B](#2-run-configuration-b)
+  - [All three panes at once: run_all.ps1](#all-three-panes-at-once-run_allps1)
 - [3. Relevant Configuration B files](#3-relevant-configuration-b-files)
 - [4. Why Configuration B was selected](#4-why-configuration-b-was-selected)
 - [5. Configuration A: phone Mobile Hotspot and Tailscale](#5-configuration-a-phone-mobile-hotspot-and-tailscale)
@@ -280,12 +281,34 @@ creation and the later MQTT path. Nor does it prove FPGA inference, because this
 implementation does not run the classifier ([Full pipeline](../../integration/full-pipeline.md) adds it). Broker acceptance is also not proof
 of phone receipt; confirm the event in the phone's own `received` display/log.
 
+### All three panes at once: run_all.ps1
+
+`scripts/run_all.ps1` opens the relay, the board client, and a read-only status dashboard as
+three panes in one Windows Terminal window, instead of the two panes above:
+
+```powershell
+cd <path-to-team>\Comms
+.\scripts\run_all.ps1 --sync
+```
+
+Ctrl-C in the dashboard pane stops all three, each as if Ctrl-C had been pressed in its own
+pane; closing the dashboard pane stops only the dashboard. Each pane still runs the same
+command shown above, so any one of them can be closed and restarted on its own.
+
+**Arguments to `run_all.ps1` go to the board pane only** — the same forwarding rule as
+`run_board.ps1` above, not to the relay. The full flag table (`--sync`, `--stop`,
+`--fetch-logs`, `--event-every`, `--gesture-flag`, `-v`, …) is in
+[full-pipeline.md](../../integration/full-pipeline.md#all-three-panes-at-once-run_allps1),
+since that's where `run_all.ps1` is actually run day to day.
+
 ## 3. Relevant Configuration B files
 
 | Area | File | Responsibility |
 |---|---|---|
 | Launch | [`scripts/run_pipeline.ps1`](../../../Comms/scripts/run_pipeline.ps1) | Starts the laptop half. |
 | Launch | [`scripts/run_board.ps1`](../../../Comms/scripts/run_board.ps1) and [`run_board.py`](../../../Comms/scripts/run_board.py) | Syncs, starts, stops, and tails the Ultra96 client. |
+| Launch | [`scripts/run_all.ps1`](../../../Comms/scripts/run_all.ps1) | Opens both of the above plus the status dashboard as three panes in one window; see [§2](#all-three-panes-at-once-run_allps1). |
+| Launch | [`scripts/dashboard/`](../../../Comms/scripts/dashboard) | Read-only status pane: tails the relay's newest log and runs `mosquitto_sub` on the board over its own SSH connection. Never talks to the relay or board client directly. Started by `run_all.ps1`, but can also run standalone (`python scripts/dashboard`). |
 | Laptop | [`laptop/pipeline_board_broker.py`](../../../Comms/laptop/pipeline_board_broker.py) | Configuration B orchestration; deliberately has no MQTT role. |
 | Laptop | [`laptop/ble_client.py`](../../../Comms/laptop/ble_client.py) | BLE connections, packet queues, CMD/ECHO handling. |
 | Laptop | [`laptop/tcp_server.py`](../../../Comms/laptop/tcp_server.py) | Framed TCP server, heartbeats, and the active board connection. |

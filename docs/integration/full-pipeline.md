@@ -136,6 +136,44 @@ Useful board commands are:
 .\scripts\run_board.ps1 --fetch-logs
 ```
 
+### All three panes at once: run_all.ps1
+
+`scripts/run_all.ps1` opens the relay, the board client, and a read-only status dashboard as
+three panes in one Windows Terminal window, instead of the two terminals above:
+
+```powershell
+cd team\Comms
+.\scripts\run_all.ps1 --sync --gesture-flag
+```
+
+The dashboard pane starts first and waits for the other two to log in before splitting its
+window, so the ssh-agent isn't asked for two logins at once. Ctrl-C in the dashboard pane stops
+all three, each as if Ctrl-C had been pressed in its own pane; closing the dashboard pane stops
+only the dashboard. Each pane still runs the same command as the two-terminal setup above, so
+any one of them can be closed and restarted on its own without touching the other two.
+
+**Arguments typed after `run_all.ps1` go to the board pane only**, not the relay — the same
+forwarding rule as `run_board.ps1` itself. To change the relay's own flags (for example
+`--nodes 1` for a one-glove run), start `run_pipeline.ps1` directly in its own pane instead of
+through `run_all.ps1`.
+
+| Flag | Passed to | Effect |
+|---|---|---|
+| `--sync` | `run_board.py` | Re-copy `ultra96/*.py` and AI's model files to the board, then restart the client. Use on the first run after any change under `ultra96/` or to AI's module/bitstream. |
+| `--stop` | `run_board.py` | Stop the Configuration B client on the Ultra96 and exit; does not start the panes. |
+| `--fetch-logs [YYYY-MM-DD]` | `run_board.py` | Copy that UTC day's board logs into `Comms/logs/board/`, then exit (default: today). |
+| `--port N` | `run_board.py` | Override `TUNNEL_PORT` for this run. |
+| `--gesture-flag` | `tcp_client_mqtt.py` | Turn classification on: pass every SENSOR packet to AI and emit an AI event for each gesture the glove flags. Without it, the board only makes events from laptop keypresses. |
+| `--event-every N` | `tcp_client_mqtt.py` | Publish a dummy AI event every `N` seconds, with no ECHO or gesture trigger. MQTT-only diagnostic, not a substitute for `--gesture-flag`. |
+| `-v`, `--verbose` | `tcp_client_mqtt.py` | Log every packet (the per-packet DEBUG dump; see `notes/logging.md`). |
+| `--host`, `--broker-host`, `--broker-port` | `tcp_client_mqtt.py` | Override the TCP tunnel endpoint or the board's broker address/port the client connects to. Defaults match the tunnel and the loopback broker; rarely needed. |
+
+`--sync`, `--stop`, `--port`, and `--fetch-logs` are `run_board.py`'s own flags; everything else
+is forwarded on to `tcp_client_mqtt.py` unparsed, so a flag `tcp_client_mqtt.py` adds later works
+here too without an update to this table. `--ai-h5` (local Keras model testing before a bitstream
+exists, see [`Comms/README.md`](../../Comms/README.md#testing-the-model-in-the-comms-pipeline-laptop-before-bitstream))
+is Configuration A's `tcp_client.py` only and does not apply to `run_board.ps1` / `run_all.ps1`.
+
 ### 3. Connect the phones
 
 Follow the drop-in's [bring-up steps](../../Comms/phone/comms-visualiser/README.md#4-bring-up-every-launch):

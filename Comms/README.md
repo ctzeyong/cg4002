@@ -140,6 +140,20 @@ follow.
 .\scripts\run_board.ps1 --sync
 ```
 
+Or start both in one window, with a third pane that sums up both logs on one screen (each
+glove, the tunnel, the board, the last gestures per player). Its arguments go to
+`run_board.ps1`. Ctrl-C in the dashboard pane stops all three. Closing the dashboard pane
+stops only the dashboard.
+
+```powershell
+.\scripts\run_all.ps1 --sync
+```
+
+Flags typed after `run_all.ps1` go to the board pane only, same as `run_board.ps1` below. The
+full flag table (`--sync`, `--stop`, `--fetch-logs`, `--gesture-flag`, `-v`, …)
+is in
+[full-pipeline.md](../docs/integration/full-pipeline.md#all-three-panes-at-once-run_allps1).
+
 Then press Connect in the phone app. Events appear in the app's own log; that log, not the
 broker, is the proof the phone received them. `.\scripts\run_board.ps1 --stop` stops the board
 client. The other options are in the
