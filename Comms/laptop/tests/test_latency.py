@@ -1,5 +1,5 @@
 """Latency measurement, stage 1: the heartbeat offset, the trigger line, the per-event
-times on both configurations' lines, and scripts/latency_report.py's join.
+times on both configurations' lines, and scripts/tools/latency_report.py's join.
 
 notes/latency.md 3.7. The report is fed lines the real code produced wherever it can,
 so a renamed field fails here rather than as an empty report after a hardware run.
@@ -28,9 +28,9 @@ import mqtt_publisher  # noqa: E402
 import tcp_client  # noqa: E402
 import tcp_client_mqtt  # noqa: E402
 
-SCRIPTS = Path(__file__).resolve().parents[2] / "scripts"
-if str(SCRIPTS) not in sys.path:
-    sys.path.insert(0, str(SCRIPTS))
+TOOLS = Path(__file__).resolve().parents[2] / "scripts" / "tools"
+if str(TOOLS) not in sys.path:
+    sys.path.insert(0, str(TOOLS))
 
 import latency_report  # noqa: E402
 
