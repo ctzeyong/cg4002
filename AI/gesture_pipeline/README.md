@@ -45,6 +45,45 @@ python -m gesture_pipeline.exp_ablation               # old vocab: leave-one-out
 python -m gesture_pipeline.exp_eval --model results/models/new_lean_s1.h5 --resample   # eval a saved .h5
 ```
 
+### Export a dataset, then train a model
+
+Two commands, run from `AI/`. The first turns labelled recordings into a dataset folder. The
+second trains on that folder.
+
+```bash
+python -m gesture_pipeline.export_dataset --out new_gestures_all --sessions "C:/Users/USER/Desktop/cg4002/Hardware/Data Collection/sessions/ble/*.csv"
+python -m gesture_pipeline.exp_new_vocab --noise --data new_gestures_all --sessions "C:/Users/USER/Desktop/cg4002/Hardware/Data Collection/sessions/*.csv" --tag new_gestures_all
+```
+
+**1. Export** (`export_dataset`): crops every labelled gesture of every **reviewed** recording
+into its own CSV (100 Hz, int16 counts), and writes `index.csv` / `skipped.json`. `ignore` and
+`noise` intervals are not exported.
+
+| flag | meaning |
+|---|---|
+| `--out NAME` | output folder: a bare name goes under `DATA_ROOT` (`gesture_pipeline/dataset/`), or give an absolute path. Must be new or empty. |
+| `--sessions A [B ...]` | which recordings to read (default `SESSIONS_DIR`). Each entry is a folder (subfolders included), one recording, or a wildcard pattern. `".../ble/*.csv"` takes only that folder's top level, no subfolders. USB 500 Hz and BLE 100 Hz recordings can be mixed. |
+
+**2. Train** (`exp_new_vocab`): trains 3 seeds and prints the summary. It saves
+`results/models/<tag>_s1.h5` … `_s3.h5` and `results/run_<tag>.json`.
+
+| flag | meaning |
+|---|---|
+| `--data NAME` | dataset folder to train on, i.e. the `--out` from step 1 (default `new_gesture_100hz`) |
+| `--labels SPEC` | classes: `new` (chop, circle, fireball, jabs, lightning, star, tank; default), `shapes` (arc, caret, circle, infinity, star, triangle, z), or a comma list. The class index is the sorted name order, with `noise` last. |
+| `--noise` | add the 8th class `noise`, taken from the **unlabelled** time in the recordings. Needs `--filler background` (the default). |
+| `--sessions A [B ...]` | recordings the **background** is read from: the window filler, the noise class, and the `slide_bg` / false-accept tests. Same entry types as export. It can differ from the export: here `sessions/*.csv` adds the top-level noise recordings, whose gaps between labels become background. |
+| `--tag NAME` | run and model name (default: built from the flags, e.g. `new_lean_native_bg_noise`). Reusing a tag overwrites that run. |
+| `--filler {background,gesture}` | what surrounds the gesture in a training window: real background (default) or chunks of other gestures |
+| `--resample` | stretch every gesture to a fixed length (the old behaviour). Default: native length with a slide. |
+| `--feat` | 10-channel feature model instead of 6-channel raw |
+| `--smoke` | quick check: 1 seed, 3 epochs, tag gets `_smoke` |
+
+Paths with spaces need quotes. Python expands the `*` itself, so the quoted patterns also work
+in PowerShell. To evaluate the model, pass the same `--data` / `--labels` / `--sessions` to
+`exp_eval` (and `export_test_windows`). On the live `.h5` path, `keras_stream`'s `label_map`
+must match `--labels`. `NEW_LABEL_MAP` matches the default `new`.
+
 ### Gesture length: native vs resample
 
 `AugConfig.resample` (default `False`) must match how the live pipeline feeds the model:
@@ -158,7 +197,13 @@ Add `--smoke` to `exp_new_vocab` for a 1-seed, 3-epoch sanity run. Needs `tensor
 ### Datasets: regenerating from the recordings
 
 `export_dataset` rebuilds a dataset folder from the continuous recordings in `SESSIONS_DIR`
-(`Hardware/Data Collection/sessions`, subfolders included):
+(`Hardware/Data Collection/sessions`, subfolders included). Two kinds of recording mix freely; the
+rate comes from each `.meta.json` `raw_hz`:
+
+- **500 Hz USB** (Hardware's `record.py`): every 5th sample → 100 Hz (`decimate-500to100-v1`).
+- **100 Hz BLE** (`Comms/laptop/record_ble.py`, saved in `sessions/ble/`): every sample
+  (`ble-100hz-v1`), the stream live inference sees. The background loader handles both the same way.
+
 
 ```bash
 python -m gesture_pipeline.export_dataset --out new_gesture_100hz_v2
@@ -177,6 +222,20 @@ python -m gesture_pipeline.exp_new_vocab --noise --data new_gesture_100hz_v2 --t
 |---|---|---|
 | `new_gesture_100hz` | 1089 (chop 115, circle 237, fireball 115, jabs 115, lightning 115, star 277, tank 115) | p1 day1–3 (circle, star) + p2 day1 (all 7) |
 | `new_gesture_100hz_v2` | 1189 (chop **215**, others unchanged) | the above + `p2_day2_chop_air_front_cw_standing` (100 standing chops) |
+| `shapes_yuwen` | 809 (arc, caret, circle, infinity, lightning, triangle, z 100 each; star 109) | `Hardware/Data Collection/sessions/ble` (BLE, yuwen day1, seated) |
+| `shapes_combined` | 2425 (arc 322, caret 322, circle 322, infinity 305, lightning 100, star 371, triangle 362, z 321) | the BLE folder + `Model/sessions/sessions` (83 USB recordings, p1) |
+
+Exports take several folders (`--sessions A B`), and training takes the classes and the background
+folders to match: `--labels shapes` (the game's 7 shape names; `lightning` is left out unless listed,
+e.g. `--labels arc,caret,circle,infinity,lightning,star,triangle,z`) and `--sessions A B`:
+```bash
+python -m gesture_pipeline.export_dataset --out shapes_combined --sessions "../Hardware/Data Collection/sessions/ble" "C:/Users/USER/Desktop/NUS/y4s1/CG4002/Model/sessions/sessions"
+python -m gesture_pipeline.exp_new_vocab --noise --data shapes_combined --labels shapes --sessions "../Hardware/Data Collection/sessions/ble" "C:/Users/USER/Desktop/NUS/y4s1/CG4002/Model/sessions/sessions" --tag shapes_combined_noise
+```
+`exp_eval` and `export_test_windows` take the same `--labels` / `--sessions` to evaluate such a model.
+A `--sessions` entry can be a folder (with subfolders), one recording (`.csv` / `.labels.json`) or a
+wildcard pattern, e.g. `"../Hardware/Data Collection/sessions/*noise*.csv"` to add just the noise
+recordings to the background (their labelled `noise` intervals stay excluded; only the time between is used).
 
 The background (filler / noise class / slide_bg / false accept) is not part of a dataset folder: it is
 read from the same recordings by `data.load_background` and cached as `dataset/background_v2_m200.npz`.

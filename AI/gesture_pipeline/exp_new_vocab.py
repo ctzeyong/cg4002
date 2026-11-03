@@ -10,13 +10,19 @@ picks 6-ch (raw, recommended) vs 10-ch (feature model), and build_model is the a
     python -m gesture_pipeline.exp_new_vocab --resample        # resample to GEST (the original new_lean)
     python -m gesture_pipeline.exp_new_vocab --noise           # + 8th class noise (new_lean_native_bg_noise)
     python -m gesture_pipeline.exp_new_vocab --noise --data new_gesture_100hz_v2 --tag new_lean_v2_noise
+    python -m gesture_pipeline.exp_new_vocab --noise --data shapes_yuwen --labels shapes \
+        --sessions "../Hardware/Data Collection/sessions/ble" --tag shapes_yuwen_noise
+
+--labels picks the classes (a vocabulary name: new | shapes, or a comma list); --sessions the
+recordings folder(s) the background (filler, noise class, slide_bg) is read from.
 
 Tags: new_lean + _native unless --resample + _bg with background filler, so runs never overwrite
 each other (default: new_lean_native_bg; --resample --filler gesture reproduces new_lean).
 """
 import argparse
 
-from .config import RunConfig, DataConfig, AugConfig, TrainConfig, NEW_LABELS, NEW_ROLE, FILLERS
+from .config import (RunConfig, DataConfig, AugConfig, TrainConfig, NEW_ROLE, FILLERS,
+                     SESSIONS_DIR, VOCABS, parse_labels)
 from .train import train_eval
 
 
@@ -31,6 +37,10 @@ def main():
                     help="8th class 'noise' (index 7) from unlabelled background; needs --filler background")
     ap.add_argument("--data", default="new_gesture_100hz",
                     help="dataset folder under DATA_ROOT (e.g. one made by export_dataset)")
+    ap.add_argument("--labels", type=parse_labels, default=parse_labels("new"),
+                    help=f"classes: a vocabulary {list(VOCABS)} or a comma list (default: new)")
+    ap.add_argument("--sessions", nargs="+", default=[SESSIONS_DIR],
+                    help="recordings for the background: folders, single recordings or wildcard patterns (default: SESSIONS_DIR)")
     ap.add_argument("--tag", help="run/model name (default: built from the options above)")
     a = ap.parse_args()
 
@@ -38,7 +48,8 @@ def main():
     aug.resample = a.resample
     aug.filler = a.filler
     cfg = RunConfig(
-        data=DataConfig(dir=a.data, labels=NEW_LABELS, roles=NEW_ROLE, noise=a.noise),
+        data=DataConfig(dir=a.data, labels=a.labels, roles=NEW_ROLE, noise=a.noise,
+                        sessions_dir=a.sessions),
         aug=aug,
         channels=10 if a.feat else 6,
         seeds=(1, 2, 3),

@@ -2,6 +2,30 @@
 
 **Start here:** use live manual labelling below to mark each symbol while recording. Video and later annotation are optional ways to check or repair boundaries. You do not need a trained ESP detector to collect data or turn manually labelled symbols into cloud training examples.
 
+## Quick start: record a block, label afterwards
+
+Record one gesture many times with a short still pause (about 1 s) between repeats. Leave out `--live-labels`; the symbol and variant are still saved to the meta file:
+
+```bat
+cd ..\..\Comms\laptop
+python record_ble.py --node 1 --participant p2 --session day3 --symbol chop --drawing-mode air_front --direction cw --posture standing
+```
+
+Then open the recording in the block annotator. It needs `pip install pyqtgraph PyQt6`.
+
+```bat
+python annotate_blocks.py sessions/ble/p2_day3_chop_air_front_cw_standing.csv
+```
+
+The annotator proposes one interval per repeat, using the pauses in the motion-energy trace. Review the proposals:
+
+1. Check the count in the status bar against the number of repeats you did. Too many or too few? Drag the red threshold line on the energy plot, or change **Merge gaps** / **Min length**. Detection re-runs until you edit an interval by hand.
+2. Step through with **Left/Right**. **Tab** jumps to intervals outlined in red, which are much shorter or longer than the median.
+3. Fix intervals: drag an edge to move a boundary. **Del** deletes the selected interval, **M** merges it with the next one, **I** marks it ignore, and **Shift+drag** draws a missed one.
+4. **Ctrl+Shift+S** saves reviewed labels (**Ctrl+S** saves a draft). The tool writes the same `.labels.json` that `export_dataset` reads.
+
+Mouse wheel zooms the time axis and dragging pans. The strip at the bottom shows the whole recording; drag its blue box to move around. **Ctrl+Z** undoes.
+
 ## Quick start: label while recording (Windows)
 
 Complete setup in section 1, then run this in Anaconda Prompt or a Windows terminal, from this directory:

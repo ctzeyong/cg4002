@@ -7,6 +7,7 @@ topics, why B was chosen and the Configuration A alternative are in
 ## Table of contents
 
 - [Overview](#overview)
+  - [Two inference pipelines](#two-inference-pipelines)
 - [Network rule](#network-rule)
 - [One-time setup](#one-time-setup)
   - [Laptop (Windows)](#laptop-windows)
@@ -14,6 +15,8 @@ topics, why B was chosen and the Configuration A alternative are in
   - [FireBeetles](#firebeetles)
   - [Phone](#phone)
 - [Running Configuration B](#running-configuration-b)
+- [Testing the model in the comms pipeline](#testing-the-model-in-the-comms-pipeline-laptop-before-bitstream)
+- [Recording training data over BLE](#recording-training-data-over-ble)
 
 ## Overview
 
@@ -42,8 +45,29 @@ The broker listens on the board's loopback only, so it can only be reached throu
 | `phone/demo-visualiser/` | Configuration A's client (not used in B) |
 | `scripts/` | Launchers. B is `run_pipeline.ps1` + `run_board.ps1` |
 
-Comments such as `notes/latency.md 3.13` point to Comms' design notes, which are kept outside this
-repo. Ask Comms for the section.
+### Two inference pipelines
+
+The same glove → BLE → laptop → TCP front end feeds two different inference paths. They
+differ only in **where the model runs** and **what happens to the result**; nothing else in
+the pipeline changes.
+
+| | Pipeline 1 — FPGA bitstream | Pipeline 2 — live `.h5` |
+|---|---|---|
+| Inference runs on | the Ultra96 (FPGA bitstream `baseline_improved.xsa`) | the laptop (Keras, via `AI/board/keras_stream.py`) |
+| Board client | `ultra96/tcp_client_mqtt.py` on the board, `--gesture-flag` | `ultra96/tcp_client.py` on the laptop, `--ai-h5 PATH` |
+| SSH tunnel | reverse tunnel laptop → Ultra96 | none (`--no-tunnel`; the "board" is local) |
+| Result sink | Mosquitto on the board's loopback → phone over its own tunnel | printed to the client pane |
+| Broker / phone | board is the broker; phone subscribes | no broker, no phone |
+| Use it to | run the chosen deployment end to end | validate a trained model live before converting to a bitstream |
+
+Both share one classifier seam, `gesture.load_classifier(per_sample, ai_h5=...)`: it returns
+the FPGA model on the board, or the Keras `.h5` model when `--ai-h5` is set.
+
+- **Pipeline 1** is the chosen deployment (Config B). Run it with the two panes in
+  [Running Configuration B](#running-configuration-b); add `--gesture-flag` to the board
+  client so it loads the bitstream and classifies instead of emitting dummy events.
+- **Pipeline 2** is the pre-bitstream check, documented in
+  [Testing the model in the comms pipeline](#testing-the-model-in-the-comms-pipeline-laptop-before-bitstream).
 
 ## Network rule
 
@@ -198,3 +222,35 @@ no AI event: node 1's flagged gesture of 12 samples gave no result (buffer not f
 A 7-class or an 8-class `.h5` both work with `--ai-h5` (the output size is read from the model).
 
 **Never mix config-A and config-B launch scripts** (`run_pipeline_a` pairs with the config-A client; the chosen deployment is config B).
+
+## Recording training data over BLE
+
+`laptop/record_ble.py` records labelled gesture data from the **normal comms firmware**
+(`firebeetle.ino`, no reflash) over the same BLE connection code the pipeline uses, so the data
+is exactly the 100 Hz stream live inference sees. It replaces Hardware's USB `record.py` for
+classifier data; keep the USB recorder for retraining the on-glove detector (that needs 500 Hz).
+
+Run it **instead of** the pipeline (a glove takes one BLE connection at a time), in a normal
+Windows terminal (the label keys need it). From `Comms/laptop/`:
+```powershell
+..\.venv\Scripts\python record_ble.py --node 1 --participant p2 --session day3 --live-labels --symbol chop --drawing-mode air_front --direction cw --posture standing
+```
+`--node` is the glove's `PLAYER_ID`. Keys, as `record.py`: **Space** start/end an attempt, **D**
+discard, **Q** finish, then **y** to mark the recording reviewed (unreviewed ones are not exported).
+Unlabelled time is background, which trains the `noise` class.
+
+Saved under `Hardware/Data Collection/sessions/ble/`, auto-named, never overwritten (`_2`, `_3`):
+
+| file | holds |
+|---|---|
+| `<name>.csv` | `sequence, esp_time_us, ax_g..gz_dps, host_rx_unix_ns, imu_status, gesture_flag` |
+| `<name>.labels.json` | the labelled intervals, as `record.py` writes them |
+| `<name>.meta.json` | `raw_hz: 100`, `transport: ble`, node, participant, session, counts of gaps/late packets |
+
+Timing comes from the firmware: the 8-bit SENSOR `seq` is unwrapped into a running count and
+`esp_time_us = count x 10 ms`, so a lost packet or a non-OK IMU reading is a **gap** (the exporter
+never crops a gesture across one), not squeezed samples. Then, from `AI/`:
+```powershell
+python -m gesture_pipeline.export_dataset --out new_gesture_100hz_v3
+```
+picks the recordings up with the USB ones (it reads `raw_hz` from each `.meta.json`).

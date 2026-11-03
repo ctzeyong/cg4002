@@ -14,7 +14,7 @@ import argparse
 
 import numpy as np
 
-from .config import DataConfig, AugConfig, NEW_LABELS, OLD_LABELS, NOISE
+from .config import DataConfig, AugConfig, OLD_LABELS, NOISE, SESSIONS_DIR, VOCABS, parse_labels
 from . import data as D
 from . import evaluate as E
 
@@ -26,12 +26,16 @@ def main():
     ap.add_argument("--model", required=True)
     ap.add_argument("--data", default="new_gesture_100hz")
     ap.add_argument("--channels", type=int, default=6)
-    ap.add_argument("--old", action="store_true", help="old 7-class vocab (arc..z)")
+    ap.add_argument("--old", action="store_true", help="old 7-class vocab (arc..z) = --labels shapes")
+    ap.add_argument("--labels", type=parse_labels, default=parse_labels("new"),
+                    help=f"the model's classes: a vocabulary {list(VOCABS)} or a comma list (default: new)")
+    ap.add_argument("--sessions", nargs="+", default=[SESSIONS_DIR],
+                    help="recordings the model's background came from: folders, recordings or patterns (default: SESSIONS_DIR)")
     ap.add_argument("--resample", action="store_true", help="model was trained with resample=True")
     a = ap.parse_args()
     from qkeras.utils import load_qmodel
 
-    dc = DataConfig(dir=a.data, labels=(OLD_LABELS if a.old else NEW_LABELS))
+    dc = DataConfig(dir=a.data, labels=(list(OLD_LABELS) if a.old else a.labels), sessions_dir=a.sessions)
     model = load_qmodel(a.model)
     dc.noise = int(model.output_shape[-1]) == len(dc.labels) + 1
     names = dc.names()

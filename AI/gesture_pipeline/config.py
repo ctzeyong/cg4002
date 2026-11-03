@@ -50,6 +50,21 @@ OLD_LABELS = ["arc", "caret", "circle", "infinity", "star", "triangle", "z"]
 NEW_LABELS = ["chop", "circle", "fireball", "jabs", "lightning", "star", "tank"]
 NEW_ROLE = {"chop": "warrior", "jabs": "rogue", "tank": "shield", "circle": "mage",
             "star": "hero", "fireball": "fireball", "lightning": "lightning"}
+# named vocabularies for the experiments' --labels flag ("shapes" = the game's GestureSymbol names)
+VOCABS = {"new": NEW_LABELS, "shapes": OLD_LABELS, "old": OLD_LABELS}
+
+
+def parse_labels(spec):
+    """--labels value -> class list: a VOCABS name, or a comma-separated list
+    (e.g. "shapes" or "arc,caret,circle,infinity,lightning,star,triangle,z")."""
+    if spec in VOCABS:
+        return list(VOCABS[spec])
+    labels = [s.strip() for s in spec.split(",") if s.strip()]
+    if len(labels) < 2 or len(set(labels)) != len(labels):
+        raise ValueError(f"--labels {spec!r}: name a vocabulary {list(VOCABS)} or give 2+ distinct labels")
+    return labels
+
+
 # the no-gesture class (DataConfig.noise): windows of unlabelled recorded background. Always the
 # LAST class index (7 for 7 gestures), so the gesture indices 0..6 never move.
 NOISE = "noise"
@@ -126,7 +141,7 @@ class DataConfig:
     roles: dict = field(default_factory=lambda: dict(NEW_ROLE))
     split_seed: int = 42
     ratios: tuple = (0.70, 0.15, 0.15)
-    sessions_dir: str = SESSIONS_DIR                # continuous recordings, for background
+    sessions_dir: object = SESSIONS_DIR             # recordings folder(s) for background: str or list
     bg_margin_us: int = 200_000                     # background keeps this clear of any label
     bg_block: int = 600                             # background split unit, in 100 Hz steps (6 s)
     # 8th class `noise` (last index): windows of unlabelled background, drawn fresh from that

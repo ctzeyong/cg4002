@@ -23,6 +23,18 @@ COUNT_CHANNELS = ["ax_counts", "ay_counts", "az_counts", "gx_counts", "gy_counts
 SESSION_CHANNELS = ["ax_g", "ay_g", "az_g", "gx_dps", "gy_dps", "gz_dps"]   # record.py CSV
 SESSION_COUNTS = np.array([8192, 8192, 8192, 65.5, 65.5, 65.5])            # g, deg/s -> counts
 DECIMATE = 5                                                                 # 500 Hz -> 100 Hz
+TARGET_HZ = 100                                                              # the model's rate
+
+
+def session_rate(csv_path):
+    """(sample period in us, keep-every-n) of one recording, from its .meta.json raw_hz:
+    Hardware's 500 Hz USB recordings (record.py) keep every 5th sample, 100 Hz BLE recordings
+    (Comms/laptop/record_ble.py) keep every sample. No raw_hz (or no meta) means 500 Hz."""
+    meta_path = csv_path[:-len(".csv")] + ".meta.json"
+    raw_hz = json.load(open(meta_path)).get("raw_hz", 500) if os.path.exists(meta_path) else 500
+    if raw_hz % TARGET_HZ:
+        raise ValueError(f"{csv_path}: raw_hz={raw_hz} is not a multiple of {TARGET_HZ} Hz")
+    return 1_000_000 // raw_hz, raw_hz // TARGET_HZ
 
 
 def _decode(counts):
@@ -72,9 +84,11 @@ def _session_background(csv_path, intervals, margin_us):
     """One recording -> its background runs: (T,6) SI arrays at 100 Hz, clear of EVERY
     labelled interval by margin_us and split at sensor gaps. That includes `noise` intervals:
     in the noise recordings those are random gestures of the 7 classes, so they are neither
-    background nor a class. Encoded exactly as the gesture set: every 5th 500 Hz sample, rounded
-    to int16 counts, decoded with ACC/GYR_SCALE."""
+    background nor a class. Encoded exactly as the gesture set: 100 Hz (every 5th sample of a
+    500 Hz recording, every sample of a 100 Hz BLE one; session_rate), rounded to int16 counts,
+    decoded with ACC/GYR_SCALE."""
     import pandas as pd
+    period_us, every = session_rate(csv_path)
     df = pd.read_csv(csv_path, usecols=["esp_time_us", *SESSION_CHANNELS])
     t = df["esp_time_us"].to_numpy(np.int64)
     x = df[SESSION_CHANNELS].to_numpy(np.float64)
@@ -82,25 +96,51 @@ def _session_background(csv_path, intervals, margin_us):
     for iv in intervals:                                             # symbols, noise AND ignore
         keep &= ~((t >= iv["start_us"] - margin_us) & (t < iv["end_us"] + margin_us))
     # a run ends at a sensor gap or where `keep` flips
-    starts = np.flatnonzero(np.r_[True, (np.diff(t) != RAW_PERIOD_US) | (keep[1:] != keep[:-1])])
+    starts = np.flatnonzero(np.r_[True, (np.diff(t) != period_us) | (keep[1:] != keep[:-1])])
     runs = []
     for s, e in zip(starts, np.r_[starts[1:], len(t)]):
-        if keep[s] and (e - s) // DECIMATE >= WIN:
-            counts = np.clip(np.round(x[s:e:DECIMATE] * SESSION_COUNTS), -32768, 32767)
+        if keep[s] and (e - s) // every >= WIN:
+            counts = np.clip(np.round(x[s:e:every] * SESSION_COUNTS), -32768, 32767)
             runs.append(_decode(counts))
     return runs
 
 
+def session_dirs(dirs):
+    """One --sessions entry or several (str, or a list/tuple of them) -> absolute paths."""
+    return [os.path.abspath(d) for d in ([dirs] if isinstance(dirs, str) else dirs)]
+
+
+def recording_labels(dirs):
+    """Every *.labels.json the --sessions entries name, sorted, each once even when entries
+    overlap. An entry is a folder (searched with its subfolders), one recording (its .csv or
+    .labels.json), or a wildcard pattern of either (e.g. ".../sessions/*noise*.csv")."""
+    found = set()
+    for entry in session_dirs(dirs):
+        paths = glob.glob(entry, recursive=True) if any(c in entry for c in "*?[") else [entry]
+        for p in paths:
+            if os.path.isdir(p):
+                found.update(os.path.abspath(q) for q in
+                             glob.glob(os.path.join(p, "**", "*.labels.json"), recursive=True))
+            elif p.endswith(".labels.json"):
+                found.add(os.path.abspath(p))
+            elif p.endswith(".csv"):
+                found.add(os.path.abspath(p[:-len(".csv")] + ".labels.json"))
+    return sorted(f for f in found if os.path.exists(f))
+
+
 def load_background(data_cfg: DataConfig):
     """Background runs (list of (T,6) SI arrays): the unlabelled time of every reviewed
-    recording under sessions_dir (subfolders included; gesture AND noise recordings), or None if
-    there are none. Unreviewed recordings are skipped: they may hide unmarked gestures. Cached in
-    DATA_ROOT (reading the 500 Hz CSVs is slow); rebuilt when the set of recordings changes, used
-    as-is if the recordings are absent."""
+    recording under sessions_dir (one folder or a list; subfolders included; gesture AND noise
+    recordings), or None if there are none. Unreviewed recordings are skipped: they may hide
+    unmarked gestures. Cached in DATA_ROOT per set of folders (reading the 500 Hz CSVs is slow);
+    rebuilt when the set of recordings changes, used as-is if the recordings are absent."""
+    import hashlib
+    dirs = session_dirs(data_cfg.sessions_dir)
     # v2: noise-labelled intervals are excluded (v1 counted them as background)
-    cache = os.path.join(DATA_ROOT, f"background_v2_m{data_cfg.bg_margin_us // 1000}.npz")
-    labels = sorted(glob.glob(os.path.join(data_cfg.sessions_dir, "**", "*.labels.json"), recursive=True))
-    names = [os.path.relpath(p, data_cfg.sessions_dir) for p in labels]
+    key = hashlib.md5("|".join(dirs).lower().encode()).hexdigest()[:8]
+    cache = os.path.join(DATA_ROOT, f"background_v2_m{data_cfg.bg_margin_us // 1000}_{key}.npz")
+    labels = recording_labels(dirs)
+    names = [p.lower() for p in labels]
     if os.path.exists(cache):
         z = np.load(cache)
         if not labels or list(z["names"]) == names:
