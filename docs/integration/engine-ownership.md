@@ -37,7 +37,7 @@ player's position and aim.
 |---|---|---|
 | Vis | [`SW_Visualiser/engine/match.py`](../../SW_Visualiser/engine/) | The match rules: units, spells, mana, combat, towers, the gesture-to-action table |
 | Vis | [`SW_Visualiser/engine/rules.json`](../../SW_Visualiser/engine/rules.json) | Every tuning value, exported from the scene |
-| Vis | [`SW_Visualiser/script/Networking/Engine/`](../../SW_Visualiser/script/Networking/Engine/) | The phone's end of the engine (`EngineMessages`, `EngineLink`, `EngineLinkCore`). It checks every message, re-sends START, shows the link state, and drops MQTT when snapshots stop |
+| Vis | [`SW_Visualiser/script/Networking/Engine/`](../../SW_Visualiser/script/Networking/Engine/) | The phone's end of the engine (`EngineMessages`, `EngineLink`, `EngineLinkCore`). It checks every message, re-sends START, shows the link state, and drops MQTT when snapshots stop. Comms wrote `EngineLink.ReconnectMqtt`, which connects MQTT again after that drop when no tunnel is running, so tell Comms before changing it |
 | Vis | The match-flow parts of `Session` in [`Comms/ultra96/game_engine.py`](../../Comms/ultra96/game_engine.py), listed below | When a match starts, pauses, resumes, ends and rematches |
 | Comms | [`Comms/ultra96/engine_wire.py`](../../Comms/ultra96/engine_wire.py) | Read and check every incoming message, and build every outgoing one |
 | Comms | `Engine`, the MQTT tasks, `run` and `main` in `game_engine.py` | The MQTT client, reconnects, the retained `game/match` and its last will, duplicate removal, exit codes |

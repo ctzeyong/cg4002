@@ -1,4 +1,5 @@
 using System;
+using Comms.Visualiser;
 using UnityEngine;
 using BridgeRush.Match;
 using BridgeRush.Tracking;
@@ -21,6 +22,8 @@ namespace BridgeRush.Networking
         [SerializeField] private MatchSetup matchSetup;
         [SerializeField] private MatchState matchState;
         [SerializeField] private PeerReadySync peerReady;
+        // optional, found by type when left empty
+        [SerializeField] private CommsTunnelBridge bridge;
         [SerializeField] private float laneHz = 10f;
 
         readonly EngineLinkCore core = new();
@@ -144,14 +147,24 @@ namespace BridgeRush.Networking
             core.SetConnected(mqtt.IsConnected, Now);
             core.Tick(Now);
 
-            if (core.TakeReconnectRequest())
-            {
-                Debug.LogWarning($"{nameof(EngineLink)}: no snapshot from the engine, reconnecting MQTT.");
-                mqtt.Disconnect();
-            }
+            if (core.TakeReconnectRequest()) ReconnectMqtt();
 
             foreach (var request in core.TakeOutgoing()) PublishRequest(request);
             PublishLane();
+        }
+
+        // Drop MQTT and connect again. Leave the reconnect to the tunnel when it is running.
+        void ReconnectMqtt()
+        {
+            mqtt.Disconnect();
+            if (bridge == null) bridge = FindAnyObjectByType<CommsTunnelBridge>();
+            if (bridge != null && bridge.IsRunning)
+            {
+                Debug.LogWarning($"{nameof(EngineLink)}: no snapshot from the engine, the tunnel will reconnect MQTT.");
+                return;
+            }
+            Debug.LogWarning($"{nameof(EngineLink)}: no snapshot from the engine, reconnecting MQTT.");
+            mqtt.Connect();
         }
 
         void PublishRequest(EngineOutgoing r)
