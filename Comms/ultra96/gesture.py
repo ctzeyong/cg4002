@@ -245,10 +245,13 @@ class StubAI:
         pass
 
 
-def load_classifier(ai_h5=None):
+def load_classifier(ai_h5=None, vocab=None):
     """Return AI's model on the board, or a stub anywhere else.
 
     With `ai_h5`, run that Keras model on the laptop instead (AI/board/keras_stream.py).
+    `vocab` selects the FPGA model's label vocabulary, "old" (7-class) or "new" (8-class
+    + noise); None uses wk10_integration's default. The loaded bitstream must output that
+    many classes in that order. Ignored by the ai_h5 path (keras_stream reads it from the model).
     """
     if ai_h5:
         import keras_stream  # AI/board is on sys.path, added at the top
@@ -257,4 +260,5 @@ def load_classifier(ai_h5=None):
         return StubAI()
     module = importlib.import_module(AI_MODULE)  # needs numpy, so only on the board
     bitstream = pathlib.Path(module.__file__).with_name(AI_BITSTREAM)
-    return AI(module, module.GestureClassifier(bitstream=str(bitstream)))
+    config = module.vocab_config(vocab)
+    return AI(module, module.GestureClassifier(bitstream=str(bitstream), config=config))
