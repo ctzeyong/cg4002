@@ -158,7 +158,13 @@ Add `--smoke` to `exp_new_vocab` for a 1-seed, 3-epoch sanity run. Needs `tensor
 ### Datasets: regenerating from the recordings
 
 `export_dataset` rebuilds a dataset folder from the continuous recordings in `SESSIONS_DIR`
-(`Hardware/Data Collection/sessions`, subfolders included):
+(`Hardware/Data Collection/sessions`, subfolders included). Two kinds of recording mix freely; the
+rate comes from each `.meta.json` `raw_hz`:
+
+- **500 Hz USB** (Hardware's `record.py`): every 5th sample → 100 Hz (`decimate-500to100-v1`).
+- **100 Hz BLE** (`Comms/laptop/record_ble.py`, saved in `sessions/ble/`): every sample
+  (`ble-100hz-v1`), the stream live inference sees. The background loader handles both the same way.
+
 
 ```bash
 python -m gesture_pipeline.export_dataset --out new_gesture_100hz_v2

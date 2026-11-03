@@ -3,8 +3,9 @@
     python -m gesture_pipeline.export_dataset --out new_gesture_100hz_v2
 
 Every labelled symbol interval of every reviewed recording under SESSIONS_DIR (subfolders
-included) is cropped to [start_us, end_us), decimated 500 -> 100 Hz by taking every 5th sample
-(processing decimate-500to100-v1), quantized to int16 counts (accel x8192, gyro x65.5, round
+included) is cropped to [start_us, end_us), brought to 100 Hz (a 500 Hz USB recording: every 5th
+sample, processing decimate-500to100-v1; a 100 Hz BLE recording from Comms/laptop/record_ble.py:
+every sample, processing ble-100hz-v1; the rate comes from the recording's .meta.json), quantized to int16 counts (accel x8192, gyro x65.5, round
 half away from zero, clamp to int16) and written as one CSV per gesture, plus index.csv /
 index.json / skipped.json / CLOUD_README.txt. The format and encoding are identical to
 new_gesture_100hz, so data.load reads it unchanged (DataConfig(dir=<out>)).
@@ -22,12 +23,12 @@ import os
 
 import numpy as np
 
-from .config import DATA_ROOT, SESSIONS_DIR, RAW_PERIOD_US, NOISE
-from .data import SESSION_CHANNELS, SESSION_COUNTS, DECIMATE
+from .config import DATA_ROOT, SESSIONS_DIR, NOISE
+from .data import SESSION_CHANNELS, SESSION_COUNTS, session_rate
 
 COUNT_CHANNELS = ["ax_counts", "ay_counts", "az_counts", "gx_counts", "gy_counts", "gz_counts"]
 NOT_EXPORTED = ("ignore", NOISE)
-PROCESSING = "decimate-500to100-v1"
+PROCESSING = {5: "decimate-500to100-v1", 1: "ble-100hz-v1"}   # keep-every-n -> processing id
 ENCODING = "imu-counts-int16-v1"
 
 
@@ -58,6 +59,7 @@ def export(sessions_dir, out_dir):
         if not symbols:
             continue
         meta = json.load(open(cp[:-len(".csv")] + ".meta.json"))
+        period_us, every = session_rate(cp)
         df = pd.read_csv(cp, usecols=["esp_time_us", *SESSION_CHANNELS])
         t = df["esp_time_us"].to_numpy(np.int64)
         x = df[SESSION_CHANNELS].to_numpy(np.float64)
@@ -66,14 +68,14 @@ def export(sessions_dir, out_dir):
         for iv in symbols:
             m = (t >= iv["start_us"]) & (t < iv["end_us"])
             tt, raw = t[m], x[m]
-            reason = ("fewer_than_two_readings" if len(raw) < 2 * DECIMATE else
-                      "sensor_gap" if np.any(np.diff(tt) != RAW_PERIOD_US) else None)
+            reason = ("fewer_than_two_readings" if len(raw) < 2 * every else
+                      "sensor_gap" if np.any(np.diff(tt) != period_us) else None)
             if reason:
                 skipped.append(dict(source_csv=src, label=iv["label"], start_us=iv["start_us"],
                                     end_us=iv["end_us"], reason=reason))
                 continue
-            counts, clipped = quantize(raw[::DECIMATE])
-            td = tt[::DECIMATE]
+            counts, clipped = quantize(raw[::every])
+            td = tt[::every]
             name = f"s{sid:03d}_gesture{i:04d}.csv"
             with open(os.path.join(out_dir, name), "w", newline="", encoding="utf-8") as f:
                 w = csv.writer(f)
@@ -85,9 +87,10 @@ def export(sessions_dir, out_dir):
                 drawing_mode=iv.get("drawing_mode", ""), direction=iv.get("direction", ""),
                 posture=iv.get("posture", ""), source_csv=src, participant=part, session=sess,
                 group=f"{part}_{sess}", mode="variable", steps=len(counts), raw_count=len(raw),
-                start_us=int(tt[0]), end_us=int(tt[-1]) + RAW_PERIOD_US,
-                duration_us=len(raw) * RAW_PERIOD_US, raw_hz=500, decimated_hz=500 // DECIMATE,
-                processing=PROCESSING, encoding=ENCODING, dtype="int16",
+                start_us=int(tt[0]), end_us=int(tt[-1]) + period_us,
+                duration_us=len(raw) * period_us, raw_hz=1_000_000 // period_us,
+                decimated_hz=1_000_000 // period_us // every,
+                processing=PROCESSING.get(every, f"keep-every-{every}"), encoding=ENCODING, dtype="int16",
                 accel_counts_per_g=8192, gyro_counts_per_dps=65.5, clipped_values=clipped))
             i += 1
         sid += 1
@@ -97,10 +100,11 @@ def export(sessions_dir, out_dir):
     json.dump(index, open(os.path.join(out_dir, "index.json"), "w"), indent=2)
     json.dump(skipped, open(os.path.join(out_dir, "skipped.json"), "w"), indent=2)
     with open(os.path.join(out_dir, "CLOUD_README.txt"), "w", encoding="utf-8") as f:
-        f.write(f"{os.path.basename(out_dir)}: raw int16 counts decimated 500 -> 100 Hz "
-                f"(processing {PROCESSING})\n\nExported by gesture_pipeline.export_dataset from "
-                f"{sessions_dir}: every labelled\nsymbol of every reviewed recording, cropped, every "
-                "5th sample (true 100 Hz, variable length),\nquantized to int16 counts (accel x8192, "
+        f.write(f"{os.path.basename(out_dir)}: raw int16 counts at 100 Hz "
+                f"(processing per row in index.csv: {', '.join(PROCESSING.values())})\n\n"
+                f"Exported by gesture_pipeline.export_dataset from {sessions_dir}: every labelled\n"
+                "symbol of every reviewed recording, cropped, brought to 100 Hz (every 5th sample of a\n"
+                "500 Hz USB recording, every sample of a 100 Hz BLE one; variable length),\nquantized to int16 counts (accel x8192, "
                 "gyro x65.5, round half away from zero, clamp\n[-32768,32767]). One CSV per gesture; "
                 "columns: step, time_from_start_s, ax_counts..gz_counts\n(six signed int16; exclude "
                 "step & time). index.csv maps file -> label, participant, variant,\nsource. ignore and "

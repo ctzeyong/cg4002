@@ -14,6 +14,7 @@ topics, why B was chosen and the Configuration A alternative are in
   - [FireBeetles](#firebeetles)
   - [Phone](#phone)
 - [Running Configuration B](#running-configuration-b)
+- [Recording training data over BLE](#recording-training-data-over-ble)
 
 ## Overview
 
@@ -198,3 +199,35 @@ no AI event: node 1's flagged gesture of 12 samples gave no result (buffer not f
 A 7-class or an 8-class `.h5` both work with `--ai-h5` (the output size is read from the model).
 
 **Never mix config-A and config-B launch scripts** (`run_pipeline_a` pairs with the config-A client; the chosen deployment is config B).
+
+## Recording training data over BLE
+
+`laptop/record_ble.py` records labelled gesture data from the **normal comms firmware**
+(`firebeetle.ino`, no reflash) over the same BLE connection code the pipeline uses, so the data
+is exactly the 100 Hz stream live inference sees. It replaces Hardware's USB `record.py` for
+classifier data; keep the USB recorder for retraining the on-glove detector (that needs 500 Hz).
+
+Run it **instead of** the pipeline (a glove takes one BLE connection at a time), in a normal
+Windows terminal (the label keys need it). From `Comms/laptop/`:
+```powershell
+..\.venv\Scripts\python record_ble.py --node 1 --participant p2 --session day3 --live-labels --symbol chop --drawing-mode air_front --direction cw --posture standing
+```
+`--node` is the glove's `PLAYER_ID`. Keys, as `record.py`: **Space** start/end an attempt, **D**
+discard, **Q** finish, then **y** to mark the recording reviewed (unreviewed ones are not exported).
+Unlabelled time is background, which trains the `noise` class.
+
+Saved under `Hardware/Data Collection/sessions/ble/`, auto-named, never overwritten (`_2`, `_3`):
+
+| file | holds |
+|---|---|
+| `<name>.csv` | `sequence, esp_time_us, ax_g..gz_dps, host_rx_unix_ns, imu_status, gesture_flag` |
+| `<name>.labels.json` | the labelled intervals, as `record.py` writes them |
+| `<name>.meta.json` | `raw_hz: 100`, `transport: ble`, node, participant, session, counts of gaps/late packets |
+
+Timing comes from the firmware: the 8-bit SENSOR `seq` is unwrapped into a running count and
+`esp_time_us = count x 10 ms`, so a lost packet or a non-OK IMU reading is a **gap** (the exporter
+never crops a gesture across one), not squeezed samples. Then, from `AI/`:
+```powershell
+python -m gesture_pipeline.export_dataset --out new_gesture_100hz_v3
+```
+picks the recordings up with the USB ones (it reads `raw_hz` from each `.meta.json`).

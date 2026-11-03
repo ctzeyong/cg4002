@@ -23,6 +23,18 @@ COUNT_CHANNELS = ["ax_counts", "ay_counts", "az_counts", "gx_counts", "gy_counts
 SESSION_CHANNELS = ["ax_g", "ay_g", "az_g", "gx_dps", "gy_dps", "gz_dps"]   # record.py CSV
 SESSION_COUNTS = np.array([8192, 8192, 8192, 65.5, 65.5, 65.5])            # g, deg/s -> counts
 DECIMATE = 5                                                                 # 500 Hz -> 100 Hz
+TARGET_HZ = 100                                                              # the model's rate
+
+
+def session_rate(csv_path):
+    """(sample period in us, keep-every-n) of one recording, from its .meta.json raw_hz:
+    Hardware's 500 Hz USB recordings (record.py) keep every 5th sample, 100 Hz BLE recordings
+    (Comms/laptop/record_ble.py) keep every sample. No raw_hz (or no meta) means 500 Hz."""
+    meta_path = csv_path[:-len(".csv")] + ".meta.json"
+    raw_hz = json.load(open(meta_path)).get("raw_hz", 500) if os.path.exists(meta_path) else 500
+    if raw_hz % TARGET_HZ:
+        raise ValueError(f"{csv_path}: raw_hz={raw_hz} is not a multiple of {TARGET_HZ} Hz")
+    return 1_000_000 // raw_hz, raw_hz // TARGET_HZ
 
 
 def _decode(counts):
@@ -72,9 +84,11 @@ def _session_background(csv_path, intervals, margin_us):
     """One recording -> its background runs: (T,6) SI arrays at 100 Hz, clear of EVERY
     labelled interval by margin_us and split at sensor gaps. That includes `noise` intervals:
     in the noise recordings those are random gestures of the 7 classes, so they are neither
-    background nor a class. Encoded exactly as the gesture set: every 5th 500 Hz sample, rounded
-    to int16 counts, decoded with ACC/GYR_SCALE."""
+    background nor a class. Encoded exactly as the gesture set: 100 Hz (every 5th sample of a
+    500 Hz recording, every sample of a 100 Hz BLE one; session_rate), rounded to int16 counts,
+    decoded with ACC/GYR_SCALE."""
     import pandas as pd
+    period_us, every = session_rate(csv_path)
     df = pd.read_csv(csv_path, usecols=["esp_time_us", *SESSION_CHANNELS])
     t = df["esp_time_us"].to_numpy(np.int64)
     x = df[SESSION_CHANNELS].to_numpy(np.float64)
@@ -82,11 +96,11 @@ def _session_background(csv_path, intervals, margin_us):
     for iv in intervals:                                             # symbols, noise AND ignore
         keep &= ~((t >= iv["start_us"] - margin_us) & (t < iv["end_us"] + margin_us))
     # a run ends at a sensor gap or where `keep` flips
-    starts = np.flatnonzero(np.r_[True, (np.diff(t) != RAW_PERIOD_US) | (keep[1:] != keep[:-1])])
+    starts = np.flatnonzero(np.r_[True, (np.diff(t) != period_us) | (keep[1:] != keep[:-1])])
     runs = []
     for s, e in zip(starts, np.r_[starts[1:], len(t)]):
-        if keep[s] and (e - s) // DECIMATE >= WIN:
-            counts = np.clip(np.round(x[s:e:DECIMATE] * SESSION_COUNTS), -32768, 32767)
+        if keep[s] and (e - s) // every >= WIN:
+            counts = np.clip(np.round(x[s:e:every] * SESSION_COUNTS), -32768, 32767)
             runs.append(_decode(counts))
     return runs
 
