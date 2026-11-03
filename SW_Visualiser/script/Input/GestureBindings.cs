@@ -4,7 +4,7 @@ using BridgeRush.Match;
 namespace BridgeRush.Input
 {
     /// <summary>
-    /// The gestures the game knows by name. The comms hook (AiGestureHook) parses the name in the classifier's event onto
+    /// The gestures the game knows by name. GloveGestureReceiver maps the name in the classifier's event onto
     /// this enum, so a gesture the glove can send must be listed here, and one that is not listed is rejected as unknown.
     /// </summary>
     public enum GestureSymbol

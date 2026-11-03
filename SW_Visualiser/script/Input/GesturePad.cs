@@ -5,7 +5,7 @@ using BridgeRush.UI;
 
 namespace BridgeRush.Input
 {
-    // Runs gestures from the glove (AiGestureHook calls PerformGesture) and shows the result banner for every
+    // Runs gestures from the glove (GloveGestureReceiver, through GestureBindings) and shows the result banner for every
     // summon or spell attempt, whether it came from a glove gesture, a debug button or a card tap.
     public class GesturePad : MonoBehaviour
     {
