@@ -81,6 +81,7 @@ class GestureClassifier(wk.GestureClassifier):
 
     def __init__(self, h5, config=None):
         self.config = config or wk.ModelConfig(label_map=dict(NEW_LABEL_MAP))
+        # self.config = config or wk.ModelConfig(label_map={**wk.LABEL_MAP, 7: "noise"})   
         self._backend = _KerasBackend(h5, self.config)
         self.inb = self._backend.inb
         self.outb = self._backend.outb

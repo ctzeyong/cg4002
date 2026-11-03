@@ -1,9 +1,10 @@
 """Export the continuous recordings into a new training dataset folder (new_gesture_100hz format).
 
     python -m gesture_pipeline.export_dataset --out new_gesture_100hz_v2
+    python -m gesture_pipeline.export_dataset --out shapes_combined --sessions <folder> <folder> ...
 
-Every labelled symbol interval of every reviewed recording under SESSIONS_DIR (subfolders
-included) is cropped to [start_us, end_us), brought to 100 Hz (a 500 Hz USB recording: every 5th
+Every labelled symbol interval of every reviewed recording under the --sessions folder(s)
+(default SESSIONS_DIR; subfolders included; a file in two overlapping folders counts once) is cropped to [start_us, end_us), brought to 100 Hz (a 500 Hz USB recording: every 5th
 sample, processing decimate-500to100-v1; a 100 Hz BLE recording from Comms/laptop/record_ble.py:
 every sample, processing ble-100hz-v1; the rate comes from the recording's .meta.json), quantized to int16 counts (accel x8192, gyro x65.5, round
 half away from zero, clamp to int16) and written as one CSV per gesture, plus index.csv /
@@ -17,14 +18,13 @@ folder (relative to DATA_ROOT, or absolute) must be new or empty, so nothing sta
 """
 import argparse
 import csv
-import glob
 import json
 import os
 
 import numpy as np
 
 from .config import DATA_ROOT, SESSIONS_DIR, NOISE
-from .data import SESSION_CHANNELS, SESSION_COUNTS, session_rate
+from .data import SESSION_CHANNELS, SESSION_COUNTS, session_rate, recording_labels, session_dirs
 
 COUNT_CHANNELS = ["ax_counts", "ay_counts", "az_counts", "gx_counts", "gy_counts", "gz_counts"]
 NOT_EXPORTED = ("ignore", NOISE)
@@ -42,11 +42,13 @@ def quantize(g_dps):
 
 
 def export(sessions_dir, out_dir):
+    """sessions_dir: one recordings folder or a list of them."""
     import pandas as pd
     if os.path.exists(out_dir) and os.listdir(out_dir):
         raise SystemExit(f"{out_dir} is not empty; pick a new folder so no stale examples mix in")
     os.makedirs(out_dir, exist_ok=True)
-    labels = sorted(glob.glob(os.path.join(sessions_dir, "**", "*.labels.json"), recursive=True))
+    sessions_dir = session_dirs(sessions_dir)
+    labels = recording_labels(sessions_dir)
     index, skipped, sid = [], [], 0
     for lp in labels:
         doc = json.load(open(lp))
@@ -102,7 +104,7 @@ def export(sessions_dir, out_dir):
     with open(os.path.join(out_dir, "CLOUD_README.txt"), "w", encoding="utf-8") as f:
         f.write(f"{os.path.basename(out_dir)}: raw int16 counts at 100 Hz "
                 f"(processing per row in index.csv: {', '.join(PROCESSING.values())})\n\n"
-                f"Exported by gesture_pipeline.export_dataset from {sessions_dir}: every labelled\n"
+                f"Exported by gesture_pipeline.export_dataset from {', '.join(sessions_dir)}: every labelled\n"
                 "symbol of every reviewed recording, cropped, brought to 100 Hz (every 5th sample of a\n"
                 "500 Hz USB recording, every sample of a 100 Hz BLE one; variable length),\nquantized to int16 counts (accel x8192, "
                 "gyro x65.5, round half away from zero, clamp\n[-32768,32767]). One CSV per gesture; "
@@ -115,7 +117,8 @@ def export(sessions_dir, out_dir):
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--out", required=True, help="output folder, relative to DATA_ROOT or absolute")
-    ap.add_argument("--sessions", default=SESSIONS_DIR, help="recordings folder (default: SESSIONS_DIR)")
+    ap.add_argument("--sessions", nargs="+", default=[SESSIONS_DIR],
+                    help="one or more recordings folders (default: SESSIONS_DIR)")
     a = ap.parse_args()
     out = a.out if os.path.isabs(a.out) else os.path.join(DATA_ROOT, a.out)
     index, skipped = export(a.sessions, out)

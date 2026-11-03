@@ -7,6 +7,7 @@ topics, why B was chosen and the Configuration A alternative are in
 ## Table of contents
 
 - [Overview](#overview)
+  - [Two inference pipelines](#two-inference-pipelines)
 - [Network rule](#network-rule)
 - [One-time setup](#one-time-setup)
   - [Laptop (Windows)](#laptop-windows)
@@ -14,6 +15,7 @@ topics, why B was chosen and the Configuration A alternative are in
   - [FireBeetles](#firebeetles)
   - [Phone](#phone)
 - [Running Configuration B](#running-configuration-b)
+- [Testing the model in the comms pipeline](#testing-the-model-in-the-comms-pipeline-laptop-before-bitstream)
 - [Recording training data over BLE](#recording-training-data-over-ble)
 
 ## Overview
@@ -42,6 +44,30 @@ The broker listens on the board's loopback only, so it can only be reached throu
 | `phone/tunnelled-visualiser/` | Unity test client for Configuration B |
 | `phone/demo-visualiser/` | Configuration A's client (not used in B) |
 | `scripts/` | Launchers. B is `run_pipeline.ps1` + `run_board.ps1` |
+
+### Two inference pipelines
+
+The same glove → BLE → laptop → TCP front end feeds two different inference paths. They
+differ only in **where the model runs** and **what happens to the result**; nothing else in
+the pipeline changes.
+
+| | Pipeline 1 — FPGA bitstream | Pipeline 2 — live `.h5` |
+|---|---|---|
+| Inference runs on | the Ultra96 (FPGA bitstream `baseline_improved.xsa`) | the laptop (Keras, via `AI/board/keras_stream.py`) |
+| Board client | `ultra96/tcp_client_mqtt.py` on the board, `--gesture-flag` | `ultra96/tcp_client.py` on the laptop, `--ai-h5 PATH` |
+| SSH tunnel | reverse tunnel laptop → Ultra96 | none (`--no-tunnel`; the "board" is local) |
+| Result sink | Mosquitto on the board's loopback → phone over its own tunnel | printed to the client pane |
+| Broker / phone | board is the broker; phone subscribes | no broker, no phone |
+| Use it to | run the chosen deployment end to end | validate a trained model live before converting to a bitstream |
+
+Both share one classifier seam, `gesture.load_classifier(per_sample, ai_h5=...)`: it returns
+the FPGA model on the board, or the Keras `.h5` model when `--ai-h5` is set.
+
+- **Pipeline 1** is the chosen deployment (Config B). Run it with the two panes in
+  [Running Configuration B](#running-configuration-b); add `--gesture-flag` to the board
+  client so it loads the bitstream and classifies instead of emitting dummy events.
+- **Pipeline 2** is the pre-bitstream check, documented in
+  [Testing the model in the comms pipeline](#testing-the-model-in-the-comms-pipeline-laptop-before-bitstream).
 
 ## Network rule
 

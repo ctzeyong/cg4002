@@ -21,7 +21,7 @@ import os
 
 import numpy as np
 
-from .config import DataConfig, AugConfig, NEW_LABELS, NOISE
+from .config import DataConfig, AugConfig, NOISE, SESSIONS_DIR, VOCABS, parse_labels
 from . import data as D
 
 SCALE = 1 << 10   # the board's to_fixed: int16 = round(x * 1024)
@@ -39,10 +39,14 @@ def main():
     ap.add_argument("--resample", action="store_true", help="model was trained with resample=True")
     ap.add_argument("--channels", type=int, default=6)
     ap.add_argument("--model", help=".h5 to store reference outputs from and score")
+    ap.add_argument("--labels", type=parse_labels, default=parse_labels("new"),
+                    help=f"the model's classes: a vocabulary {list(VOCABS)} or a comma list (default: new)")
+    ap.add_argument("--sessions", nargs="+", default=[SESSIONS_DIR],
+                    help="recordings the model's background came from: folders, recordings or patterns (default: SESSIONS_DIR)")
     ap.add_argument("--out", required=True)
     a = ap.parse_args()
 
-    dc = DataConfig(dir=a.data, labels=NEW_LABELS, noise=a.noise)
+    dc = DataConfig(dir=a.data, labels=a.labels, noise=a.noise, sessions_dir=a.sessions)
     aug = AugConfig.lean(); aug.resample = a.resample
     sp = D.stratified_split(D.load(dc), dc)
     bg = D.split_background(D.load_background(dc), dc)
