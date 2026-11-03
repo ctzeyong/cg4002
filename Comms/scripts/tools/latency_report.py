@@ -12,8 +12,14 @@ run_board*.py's relayed copy works as the board log too, provided it covers the 
 fresh start, not a re-attach that tails only the last 200 lines). The board's own file, via
 --fetch-logs, is the canonical one. notes/latency.md 3.8.
 
---phone takes the prefix scripts/phone_clock.py wrote: <prefix>_start.json, <prefix>_end.json
+--phone takes the prefix scripts/tools/phone_clock.py wrote: <prefix>_start.json, <prefix>_end.json
 and <prefix>_logcat.txt.
+
+    python latency_report.py --config B --echo <echo_*.log> [--board <tcp_client_mqtt_*.log>]
+
+--echo times the crossing between the board and each phone, on any phone, from the board's
+capture of gestures and echoes. Adding --board also gives laptop receipt to phone.
+notes/latency.md 3.13.
 """
 
 import argparse
@@ -23,7 +29,7 @@ import json
 import math
 import re
 import sys
-import time
+from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -35,7 +41,11 @@ TRIGGER = re.compile(
     rf"trigger node=(?P<node>\d+) seq=(?P<seq>\S+) "
     rf"t_laptop_rx=(?P<t_laptop_rx>{NUM}|-) t_rx=(?P<t_rx>{NUM})"
 )
-EVENT = re.compile(rf"AI event seq=(?P<seq>\d+) player=(?P<player>\S+) .*?t_event=(?P<t_event>{NUM})")
+# only a classified event's line has t_infer_ms, a dummy's doesn't
+EVENT = re.compile(
+    rf"AI event seq=(?P<seq>\d+) player=(?P<player>\S+) .*?t_event=(?P<t_event>{NUM})"
+    rf"(?: conf=\S+ t_infer_ms=(?P<t_infer_ms>{NUM}))?"
+)
 # Both relays' publish line; t= is board wall clock under B, laptop perf_counter under A.
 PUBLISHED = re.compile(rf"published (?P<event_id>\S+) to (?P<topic>\S+) t=(?P<t>{NUM})")
 
@@ -56,6 +66,7 @@ PHONE_EVENT = re.compile(
 HOPS = [
     ("laptop_rx_to_board_rx", "1 -> 3  laptop rx -> board rx"),
     ("board_rx_to_event", "3 -> 4  board rx -> AI event"),
+    ("inference", "  in 3 -> 4: inference (t_infer_ms)"),
     ("laptop_rx_to_event", "1 -> 4  laptop rx -> AI event"),
     ("event_to_laptop_downlink", "4 -> A  AI event -> back on laptop"),
     ("event_to_publish_acked", "side   AI event -> publish acked"),
@@ -70,6 +81,7 @@ class Event:
     event_seq: int
     player: str
     t_event: float  # board wall clock
+    t_infer_ms: float = None  # the classifier's own time in ms, None for a dummy event
     offset: float = None  # board clock minus laptop perf_counter, in force at the event
     rtt: float = None
     node: int = None
@@ -169,6 +181,8 @@ def parse_board(lines, config, counts):
             }
         elif m := EVENT.search(line):
             event = Event(int(m["seq"]), m["player"], float(m["t_event"]))
+            if m["t_infer_ms"] is not None:
+                event.t_infer_ms = float(m["t_infer_ms"])
             if offset is not None:
                 event.offset, event.rtt = offset
             # receiver logs the trigger then awaits emit, so its event is the next one.
@@ -219,10 +233,10 @@ def parse_laptop_a(lines, events, counts):
             try:
                 msg = ast.literal_eval(m["msg"])
                 key = (str(msg["player"]), msg["seq"], _time_key(msg["timestamp"]))
+                event = by_key.get(key)  # inside the try, since a list in the key fails here
             except (ValueError, SyntaxError, KeyError, TypeError):
                 counts.downlinks_unmatched += 1
                 continue
-            event = by_key.get(key)
             if event is None:
                 counts.downlinks_unmatched += 1
                 continue
@@ -271,6 +285,8 @@ def compute_hops(events, config, counts, phone=False):
         to_laptop = (lambda t: t - e.offset) if e.offset is not None else None
         if e.t_board_rx is not None:
             e.hops["board_rx_to_event"] = (e.t_event - e.t_board_rx) * 1000
+        if e.t_infer_ms is not None:
+            e.hops["inference"] = e.t_infer_ms  # already in ms
         if to_laptop and e.t_laptop_rx is not None and e.t_board_rx is not None:
             e.hops["laptop_rx_to_board_rx"] = (to_laptop(e.t_board_rx) - e.t_laptop_rx) * 1000
             e.hops["laptop_rx_to_event"] = (to_laptop(e.t_event) - e.t_laptop_rx) * 1000
@@ -386,14 +402,9 @@ def print_summary(run, config, out=sys.stdout):
             f"spread over the run {drift_ms:.3f} ms",
             file=out,
         )
-        # The real check: a wrong offset pushes the two directions apart, so one goes
-        # negative. notes/latency.md 3.3.
+        # a wrong offset pushes the two directions apart, so one of them goes negative
         _causality(events, "laptop_rx_to_board_rx", bound, out)
         _causality(events, "event_to_laptop_downlink", bound, out)
-        # Informational only: the offset does not depend on the wall clocks agreeing.
-        # Meaningful only on the relay laptop, same boot (perf_counter is time since boot).
-        wall_skew_ms = (offsets[-1] - (time.time() - time.perf_counter())) * 1000
-        print(f"info: board wall - laptop wall = {wall_skew_ms:+.1f} ms", file=out)
     else:
         print("board offset: none found; cross-clock hops cannot be computed", file=out)
 
@@ -430,14 +441,274 @@ def print_summary(run, config, out=sys.stdout):
         print(f"  {name}: {value}", file=out)
 
 
+# --- the crossing between the board and a phone, from an echo capture (notes/latency.md 3.13) ---
+# each capture line is mosquitto_sub's '%U %t %p', which is board time, topic and envelope
+
+ECHO_WINDOW_S = 30.0  # a phone's clock offset is assumed constant within a window
+T_EVENT_MATCH_S = 0.001  # an echoed t_event matches the board's to well within this
+
+# (key, label), durations in ms
+ECHO_LEGS = [
+    ("phone_to_board", "phone -> board"),
+    ("event_to_phone", "4 -> phone  AI event -> phone"),
+    ("laptop_rx_to_phone", "1 -> phone  laptop rx -> phone"),
+    ("round_trip", "round trip from the capture, no offset"),
+]
+
+
+@dataclass
+class Gesture:
+    event_id: str
+    seq: int
+    t_event: float  # board clock, from the payload
+    t_capture: float  # board clock
+
+
+@dataclass
+class Echo:
+    phone: str  # the envelope's source, new each time the app starts
+    player: str  # from the topic
+    seq: int
+    t_event: float  # copied from the gesture
+    t_phone: float  # phone clock, the envelope's ts
+    t_echo: float  # board clock
+
+
+@dataclass
+class EchoPair:
+    echo: Echo
+    gesture: Gesture
+    window_status: str = None  # "tested", "untested" (one pair) or "rejected"
+    offset: float = None  # phone clock minus board clock
+    bound: float = None  # offset error, if the offset held still
+    legs: dict = field(default_factory=dict)
+
+
+@dataclass
+class EchoRun:
+    pairs: list
+    phones: dict  # a Counter per phone
+    gestures: int
+    echoes: int
+    unreadable: int
+    unjoined: int = None  # pairs not in the board log, None without --board
+
+
+def _number(value):
+    """Return a JSON number as a float, or raise ValueError if it isn't a finite one."""
+    # float() alone takes NaN, inf, True and numbers written as strings
+    if type(value) not in (int, float) or not math.isfinite(value):
+        raise ValueError(value)
+    return float(value)
+
+
+def parse_capture(lines):
+    """Split capture lines into gestures, echoes and a count of unreadable lines."""
+    gestures, echoes, unreadable = [], [], 0
+    for line in lines:
+        if not line.strip():
+            continue
+        try:
+            t, topic, raw = line.split(" ", 2)
+            env = json.loads(raw)
+            payload = env["payload"]
+            seq = payload["seq"]
+            if type(seq) is not int:  # a list can't key the pairing, and True would equal 1
+                raise TypeError(seq)
+            if topic.startswith("game/gesture/"):
+                if type(env["event_id"]) is not str:  # it keys the pairing, so a list would crash
+                    raise TypeError(env["event_id"])
+                gestures.append(
+                    Gesture(env["event_id"], seq, _number(payload["timestamp"]), _number(float(t)))
+                )
+            elif topic.startswith("viz/echo/"):
+                if type(env["source"]) is not str:  # it keys the phones, so a list would crash
+                    raise TypeError(env["source"])
+                player = topic.rsplit("/", 1)[1]
+                echoes.append(
+                    Echo(env["source"], player, seq, _number(payload["t_event"]),
+                         _number(env["ts"]), _number(float(t)))
+                )
+            else:
+                unreadable += 1
+        # an int too big for a float overflows, and very deep JSON recurses too far
+        except (ValueError, KeyError, TypeError, OverflowError, RecursionError):
+            unreadable += 1
+    return gestures, echoes, unreadable
+
+
+def pair_echoes(gestures, echoes, phones):
+    """Pair each echo with its gesture on seq and t_event, and count any that don't pair one to one.
+
+    seq alone restarts with the board, so an old echo could pair with a newer gesture. A gesture
+    captured twice (a resend) is ambiguous, since we can't tell which copy the phone answered.
+    """
+    by_seq = defaultdict(list)
+    for g in gestures:
+        by_seq[g.seq].append(g)
+
+    answered = defaultdict(set)  # the event_ids each phone echoed
+    hits = defaultdict(list)  # the (echo, gesture) matches for each phone and event_id
+    for e in echoes:
+        found = [g for g in by_seq[e.seq] if abs(g.t_event - e.t_event) <= T_EVENT_MATCH_S]
+        answered[e.phone].update(g.event_id for g in found)
+        if not found:
+            phones[e.phone]["echoes with no gesture"] += 1
+        elif len(found) > 1:
+            phones[e.phone]["ambiguous"] += 1
+        else:
+            hits[(e.phone, found[0].event_id)].append((e, found[0]))
+
+    pairs = []
+    for (phone, _), matches in hits.items():
+        if len(matches) > 1:
+            phones[phone]["ambiguous"] += len(matches)
+        else:
+            pairs.append(EchoPair(*matches[0]))
+
+    # count misses only while the phone was answering, since before that it couldn't echo
+    unique = {g.event_id: g for g in gestures}.values()
+    for phone, ids in answered.items():
+        times = [g.t_capture for g in unique if g.event_id in ids]
+        if times:
+            first, last = min(times), max(times)
+            phones[phone]["gestures with no echo"] = sum(
+                1 for g in unique if first <= g.t_capture <= last and g.event_id not in ids
+            )
+    return pairs
+
+
+def fit_offsets(pairs, phones):
+    """Estimate each phone's clock offset per window, then each pair's legs in ms.
+
+    Each pair puts the offset between t_phone - t_echo and t_phone - t_event. The estimate is the
+    middle of where a window's pairs overlap, and a window with no overlap is rejected.
+    """
+    start = min((p.gesture.t_event for p in pairs), default=0.0)
+    windows = defaultdict(list)
+    for p in pairs:
+        windows[(p.echo.phone, (p.gesture.t_event - start) // ECHO_WINDOW_S)].append(p)
+
+    for (phone, _), members in windows.items():
+        low = max(p.echo.t_phone - p.echo.t_echo for p in members)
+        high = min(p.echo.t_phone - p.gesture.t_event for p in members)
+        if low > high:
+            status = "rejected"
+        else:
+            status = "tested" if len(members) > 1 else "untested"
+        phones[phone][f"windows {status}"] += 1
+
+        for p in members:
+            p.window_status = status
+            p.legs["round_trip"] = (p.echo.t_echo - p.gesture.t_capture) * 1000
+            if status == "rejected":
+                continue
+            p.offset, p.bound = (low + high) / 2, (high - low) / 2
+            if status == "untested":
+                # one echo alone just assumes both directions took equally long
+                continue
+            on_board = p.echo.t_phone - p.offset  # on the board's clock
+            p.legs["phone_to_board"] = (p.echo.t_echo - on_board) * 1000
+            p.legs["event_to_phone"] = (on_board - p.gesture.t_event) * 1000
+
+
+def echo_report(capture_lines, events=None):
+    """Parse and pair one capture, and with the board log's events add laptop receipt to phone."""
+    gestures, echoes, unreadable = parse_capture(capture_lines)
+    phones = defaultdict(Counter)
+    pairs = pair_echoes(gestures, echoes, phones)
+    fit_offsets(pairs, phones)
+    run = EchoRun(pairs, phones, len(gestures), len(echoes), unreadable)
+
+    if events is not None:
+        by_id = {e.event_id: e for e in events if e.event_id}
+        run.unjoined = 0
+        for p in pairs:
+            event = by_id.get(p.gesture.event_id)
+            if event is None:
+                run.unjoined += 1
+            elif "laptop_rx_to_event" in event.hops and "event_to_phone" in p.legs:
+                p.legs["laptop_rx_to_phone"] = event.hops["laptop_rx_to_event"] + p.legs["event_to_phone"]
+    return run
+
+
+def print_echo_summary(run, out=sys.stdout):
+    joined = "" if run.unjoined is None else f", {run.unjoined} pairs not in the board log"
+    print(
+        f"echo capture: {run.gestures} gestures, {run.echoes} echoes, "
+        f"{run.unreadable} unreadable lines{joined}",
+        file=out,
+    )
+    for phone, counts in sorted(run.phones.items()):
+        pairs = [p for p in run.pairs if p.echo.phone == phone]
+        players = ", ".join(sorted({p.echo.player for p in pairs})) or "-"
+        print(f"\nphone {phone} (player {players}): {len(pairs)} pairs", file=out)
+        for name in ("gestures with no echo", "echoes with no gesture", "ambiguous"):
+            print(f"  {name}: {counts[name]}", file=out)
+        # tested windows only, since no other window gives a one-way leg
+        bounds = [p.bound * 1000 for p in pairs if p.window_status == "tested"]
+        worst = f"; worst bound {max(bounds):.3f} ms" if bounds else ""
+        print(
+            f"  windows: {counts['windows tested']} tested, {counts['windows untested']} untested "
+            f"(one pair, round trip only), {counts['windows rejected']} rejected (offset moved)"
+            f"{worst}",
+            file=out,
+        )
+        print(f"  {'leg':40} {'n':>5} {'median':>9} {'p95':>9} {'max':>9}  (ms)", file=out)
+        for name, label in ECHO_LEGS:
+            stats = summarise([p.legs[name] for p in pairs if name in p.legs])
+            if stats is not None:
+                n, median, p95, worst_ms = stats
+                print(f"  {label:40} {n:5d} {median:9.3f} {p95:9.3f} {worst_ms:9.3f}", file=out)
+    print(
+        "\nOne-way legs come only from tested windows, each within its window's bound if the "
+        "offset held still. Laptop rx -> phone also carries the board offset's bound.",
+        file=out,
+    )
+
+
+def write_echo_csv(run, path):
+    columns = [
+        "phone", "player", "event_id", "seq", "t_event", "t_capture", "t_phone", "t_echo",
+        "window_status", "offset", "bound_ms",
+    ] + [name for name, _ in ECHO_LEGS]
+    with open(path, "w", newline="", encoding="utf-8") as out:
+        writer = csv.writer(out)
+        writer.writerow(columns)
+        for p in run.pairs:
+            e, g = p.echo, p.gesture
+            bound = p.bound * 1000 if p.bound is not None else None
+            row = [
+                e.phone, e.player, g.event_id, g.seq, g.t_event, g.t_capture, e.t_phone, e.t_echo,
+                p.window_status, p.offset, bound,
+            ] + [p.legs.get(name) for name, _ in ECHO_LEGS]
+            writer.writerow(["" if v is None else v for v in row])
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--config", choices=("A", "B"), required=True)
-    parser.add_argument("--board", type=Path, required=True, help="the board's log file")
+    parser.add_argument("--board", type=Path, help="the board's log file (required unless --echo)")
     parser.add_argument("--laptop", type=Path, help="pipeline_*.log (A: needed for the return hop)")
     parser.add_argument("--phone", help="prefix written by phone_clock.py, e.g. logs/phone/A1")
-    parser.add_argument("--csv", type=Path, help="write one row per event here")
+    parser.add_argument("--echo", type=Path, help="configuration B only, the board's capture of gestures and echoes")
+    parser.add_argument("--csv", type=Path, help="write one row per event here, or per pair with --echo")
     args = parser.parse_args(argv)
+
+    if args.echo:
+        if args.config != "B":
+            parser.error("--echo needs --config B: the capture is taken on the board's broker")
+        events = None
+        if args.board:
+            events = report(args.board.read_text(encoding="utf-8").splitlines(), "B").events
+        run = echo_report(args.echo.read_text(encoding="utf-8").splitlines(), events)
+        print_echo_summary(run, sys.stdout)
+        if args.csv:
+            write_echo_csv(run, args.csv)
+            print(f"\nwrote {args.csv}")
+        return
+    if args.board is None:
+        parser.error("--board is required unless --echo")
 
     board_lines = args.board.read_text(encoding="utf-8").splitlines()
     laptop_lines = args.laptop.read_text(encoding="utf-8").splitlines() if args.laptop else None

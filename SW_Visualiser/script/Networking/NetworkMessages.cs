@@ -14,6 +14,29 @@ namespace BridgeRush.Networking
         public float hp;
         public float maxHp;
         public string state;
+        // Id of the unit being attacked (-1 for the tower or nothing) and the unit's attack range (0 = melee), so the
+        // client can draw ranged bolts without running combat.
+        public int target = -1;
+        public float range;
+        // Which way the unit faces, as a direction along and across the lane (like along and lat), so the client turns
+        // units exactly as the host does, including toward a target while attacking.
+        public float faceAlong;
+        public float faceLat;
+    }
+
+    [Serializable]
+    public class StrikeSnapshot
+    {
+        public int id;
+        public string owner;
+        public float along;
+        public float lat;
+        public float delay;
+        // "lightning" (or empty) or "fireball". A fireball also carries where it starts and the burn time left on the floor.
+        public string kind;
+        public float fromAlong;
+        public float fromLat;
+        public float burn;
     }
 
     [Serializable]
@@ -27,6 +50,7 @@ namespace BridgeRush.Networking
         public float player2Mana;
         public float matchTimeRemaining;
         public List<UnitSnapshot> units = new();
+        public List<StrikeSnapshot> strikes = new();
     }
 
     [Serializable]

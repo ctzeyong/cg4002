@@ -180,10 +180,10 @@ under live streaming / offset conditions (not just the offline test set) before 
 | file | change |
 |---|---|
 | `AI/board/keras_stream.py` | **new.** `GestureClassifier` subclassing `wk10_integration`'s, with the pynq/FPGA backend swapped for a local Keras `.h5` (`_KerasBackend`). Reuses the ring buffer, decode, end-of-gesture, softmax and `CONF_THRESHOLD`; maps class ids → game roles; feeds a 6-ch model directly, computes the 4 feature channels for a 10-ch model. No pynq import. |
-| `Comms/ultra96/gesture.py` | `load_classifier(per_sample, ai_h5=None)` — one added branch: if `ai_h5` is set, return the Keras classifier instead of the FPGA/stub path. |
-| `Comms/ultra96/tcp_client.py` | `run()` / `main()` gain a `--ai-h5 PATH` flag (implies the per-sample gesture path). |
+| `Comms/ultra96/gesture.py` | `load_classifier(ai_h5=None)` — one added branch: if `ai_h5` is set, return the Keras classifier instead of the FPGA/stub path. |
+| `Comms/ultra96/tcp_client.py` | `run()` / `main()` gain a `--ai-h5 PATH` flag (implies `--gesture-flag`). |
 
-Without `--ai-h5` nothing changes — `wk10_integration.py`, `ai_api.py`, the stubs and the FPGA path are untouched.
+Without `--ai-h5` nothing changes — `wk10_integration.py`, the stub and the FPGA path are untouched.
 
 ### One-time: ML deps in the comms venv
 
@@ -210,9 +210,11 @@ output to read. The glove buzzes (VIBRATE) on each recognized gesture, and Termi
 won't drive a visualiser — for the model check you read the client pane.)
 
 **When there is no event.** A flagged motion gives no AI event (no TCP event, no MQTT, no VIBRATE) when
-the model's top class is its no-gesture class `noise` (8-class models), or the top probability is below
-`CONF_THRESHOLD` in `AI/board/wk10_integration.py`. The client pane says which:
+the glove's detector rejected it (the glove buzzes twice), the model's top class is its no-gesture class
+`noise` (8-class models), or the top probability is below `CONF_THRESHOLD` in
+`AI/board/wk10_integration.py`. The client pane says which:
 ```text
+no AI event: node 1's glove rejected its flagged gesture of 570 samples
 no AI event: node 1's flagged gesture of 84 samples gave no result (noise p=0.94)
 no AI event: node 1's flagged gesture of 61 samples gave no result (low confidence fireball p=0.55 < 0.70)
 no AI event: node 1's flagged gesture of 12 samples gave no result (buffer not full: 12/150 samples)

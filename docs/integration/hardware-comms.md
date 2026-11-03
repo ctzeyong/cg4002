@@ -82,7 +82,7 @@ are prototypes and are not runtime dependencies.
 | `imuBegin(uint8_t player)` | Start and check the sensor once during firmware setup |
 | `imuService()` | Read the sensor and run Hardware's gesture detector, on every pass of `loop()` |
 | `imuRead(int16_t out[6])` | Give the newest ordered sample and its status, once per packet |
-| `gestureFlag(sample, status)` | 1 while Hardware's detector says the hand may be making a gesture, sent in `reserved[1]` |
+| `gestureFlag(sample, status)` | 1 while Hardware's detector says the hand may be making a gesture, 2 once on the packet after a gesture it threw away, else 0. Sent in `reserved[1]` |
 | `imuPrintStats()` | Print the detector's counts to serial, every 5 s |
 
 The call used by Comms is:
@@ -96,7 +96,7 @@ imuService();                      // first thing in every loop() pass
 
 int16_t values[6];
 ImuStatus status = imuRead(values);  // once per 10 ms packet
-int16_t flag = gestureFlag(values, status);
+GestureFlag flag = gestureFlag(values, status);
 ```
 
 The player ID is already passed to `imuBegin()` so per-player calibration can be added inside the
@@ -126,9 +126,10 @@ does not scale, reorder, or convert them to physical units.
 
 **The gesture detector** is Hardware's `gesture_core.h`, `segments.h` and `model_data.h`, copied
 unchanged from `Hardware/Data Collection/esp32_continuous_pipeline_test/` into
-`Comms/firebeetle/`. `gestureFlag()` returns its segmenter's "in a gesture" state. If the files are
-updated in Hardware's folder, copy them across again: `laptop/tests/test_firmware_detector.py`
-fails until the two match, and the sketch refuses to compile with the untrained placeholder model.
+`Comms/firebeetle/`. `gestureFlag()` returns its segmenter's "in a gesture" state, and a 2 after a
+gesture the segmenter rejected. If the files are updated in Hardware's folder, copy them across
+again: `laptop/tests/test_firmware_detector.py` fails until the two match, and the sketch refuses
+to compile with the untrained placeholder model.
 
 ### Output, timing, and failure contract
 
@@ -195,7 +196,7 @@ public ranges, sample meaning, status behaviour, and timing remain equivalent.
 | `1` | `seq` | 8-bit sensor sequence, wrapping `255 -> 0` |
 | `2–13` | Six `int16` fields | `ax, ay, az, gx, gy, gz`, little-endian |
 | `14–15` | `reserved[0]` | `ImuStatus`, little-endian signed `int16` |
-| `16–17` | `reserved[1]` | Gesture flag: `1` while Hardware's detector says the hand may be making a gesture, else `0` |
+| `16–17` | `reserved[1]` | Gesture flag: `1` while Hardware's detector says the hand may be making a gesture, `2` once on the packet after a gesture it threw away, else `0` |
 | `18–23` | `reserved[2..4]` | Zero; reserved for later use |
 | `24–25` | CRC | CRC-16/CCITT-FALSE over bytes `0–23`, little-endian |
 

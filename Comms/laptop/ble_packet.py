@@ -17,13 +17,11 @@ from dataclasses import dataclass
 
 
 TYPE_SENSOR = 0x01  # uplink, free-running stream
-TYPE_EVENT = 0x02  # uplink, hall-effect open/closed; payload not fixed yet
 TYPE_CMD = 0x03  # downlink, laptop -> board
 TYPE_ECHO = 0x04  # uplink, the board's reply to a CMD
 
 TYPE_NAMES = {
     TYPE_SENSOR: "sensor",
-    TYPE_EVENT: "event",
     TYPE_CMD: "cmd",
     TYPE_ECHO: "echo",
 }
@@ -41,7 +39,6 @@ PACKET_LEN = CRC_OFFSET + CRC_LEN
 
 CRC_INIT = 0xFFFF
 
-# EVENT is left out: the firmware does not send it yet and its size is not decided.
 FIXED_LEN_TYPES = (TYPE_SENSOR, TYPE_ECHO, TYPE_CMD)
 
 # IMU status values, the same as ImuStatus in firebeetle/imu.h

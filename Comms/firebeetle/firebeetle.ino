@@ -15,7 +15,8 @@
 // Windows settles at 60 ms, which is ~17 connection events/s shared between both boards.
 //
 // A CMD whose first reserved field is CMD_VIBRATE pulses the vibration motor. It is still
-// echoed like any other CMD, and the laptop drops that echo.
+// echoed like any other CMD, and the laptop drops that echo. The motor also buzzes once when
+// the gesture detector starts a gesture and twice when it throws one away.
 
 #include <Arduino.h>
 #include <NimBLEDevice.h>
@@ -44,7 +45,6 @@ static_assert(IMU_ACCEL_RANGE_G == 4 && IMU_GYRO_RANGE_DPS == 500,
 #endif
 
 static constexpr uint8_t TYPE_SENSOR = 0x01;  // uplink, free-running stream
-// 0x02 is reserved for EVENT (hall-effect open/closed)
 static constexpr uint8_t TYPE_CMD  = 0x03;  // downlink, laptop -> board
 static constexpr uint8_t TYPE_ECHO = 0x04;  // uplink, this board's reply to a CMD
 static constexpr uint8_t TYPE_FILE_START = 0x10;
@@ -55,7 +55,6 @@ static constexpr size_t HEADER_LEN = 2;
 static constexpr size_t IMU_FIELD_COUNT = 6;
 static constexpr size_t RESERVED_FIELD_COUNT = 5;
 static constexpr size_t IMU_STATUS_FIELD = IMU_FIELD_COUNT;  // reserved[0] of a SENSOR packet
-// reserved[1], ASSUMED until hardware confirms it (gesture detection G0)
 static constexpr size_t GESTURE_FLAG_FIELD = IMU_STATUS_FIELD + 1;
 static constexpr size_t DATA_FIELD_COUNT = IMU_FIELD_COUNT + RESERVED_FIELD_COUNT;
 static constexpr size_t FIELD_LEN = 2;
@@ -81,8 +80,17 @@ static constexpr uint8_t MOTOR_PIN = 2;
 static constexpr uint8_t MOTOR_PWM_CHANNEL = 0;  // ESP32 core 2.x only
 static constexpr uint32_t MOTOR_PWM_FREQUENCY_HZ = 20000;
 static constexpr uint8_t MOTOR_PWM_RESOLUTION_BITS = 8;
-static constexpr uint8_t MOTOR_DUTY = 128;  // 50 % of 0-255
-static constexpr uint32_t MOTOR_PULSE_MS = 200;
+static constexpr uint32_t MOTOR_GAP_MS = 500;  // between the pulses of a pattern
+
+// pulses at one duty (0-255), with hardware's start and reject patterns
+struct MotorPattern {
+    uint8_t pulses;
+    uint8_t duty;
+    uint32_t onMs;
+};
+static constexpr MotorPattern BUZZ_RECOGNISED = {1, 128, 200};
+static constexpr MotorPattern BUZZ_GESTURE_START = {1, 180, 150};
+static constexpr MotorPattern BUZZ_GESTURE_REJECTED = {2, 180, 150};
 
 // Requested BLE connection parameters.
 // Intervals use 1.25 ms units: 12 × 1.25 ms = 15 ms.
@@ -110,8 +118,10 @@ static uint32_t g_slowestImuReadUs = 0;
 static uint32_t g_slowestGestureFlagUs = 0;
 static uint32_t g_imuTimingReportedAt = 0;
 
+static MotorPattern g_motorPattern = {};  // its pulses count down as they play
 static bool g_motorOn = false;
-static uint32_t g_motorOffAt = 0;
+static uint32_t g_motorNextAt = 0;  // when the motor next turns on or off
+static int16_t g_lastGestureFlag = GESTURE_NONE;  // in the last packet with a reading
 
 // Downlink hand-off. onWrite runs on the NimBLE host task; loop() drains it. Going
 // through a buffer rather than notifying straight from onWrite keeps every notify()
@@ -198,20 +208,30 @@ static void configureMotor() {
     writeMotorDuty(0);
 }
 
-/** Starts one MOTOR_PULSE_MS pulse, or restarts it if one is running. */
-static void startMotorPulse() {
-    writeMotorDuty(MOTOR_DUTY);
-    g_motorOn = true;
-    g_motorOffAt = millis() + MOTOR_PULSE_MS;
-}
-
-/** Ends the pulse once it is due. Called every pass of loop(), so nothing blocks. */
+/** Turns the motor on or off once it is due. Called every pass of loop(), so nothing blocks. */
 static void updateMotor() {
-    if (!g_motorOn || static_cast<int32_t>(millis() - g_motorOffAt) < 0) {
+    const uint32_t now = millis();
+    if (static_cast<int32_t>(now - g_motorNextAt) < 0) {
         return;
     }
-    writeMotorDuty(0);
+    if (g_motorOn) {
+        writeMotorDuty(0);
+        g_motorOn = false;
+        g_motorNextAt = now + MOTOR_GAP_MS;
+    } else if (g_motorPattern.pulses > 0) {
+        writeMotorDuty(g_motorPattern.duty);
+        g_motorOn = true;
+        g_motorPattern.pulses--;
+        g_motorNextAt = now + g_motorPattern.onMs;
+    }
+}
+
+/** Starts a pattern straight away, cutting off any pattern still playing. */
+static void playMotorPattern(const MotorPattern &pattern) {
+    g_motorPattern = pattern;
     g_motorOn = false;
+    g_motorNextAt = millis();
+    updateMotor();
 }
 
 class ServerCallbacks : public NimBLEServerCallbacks {
@@ -320,7 +340,7 @@ static void timedImuService() {
  * Calls imuRead() then gestureFlag(), and prints the slowest of each, and of imuService(), to
  * serial every IMU_TIMING_REPORT_MS, so the time they take out of loop() can be checked.
  */
-static ImuStatus timedImuRead(int16_t *imu, int16_t *flag) {
+static ImuStatus timedImuRead(int16_t *imu, GestureFlag *flag) {
     uint32_t started = micros();
     const ImuStatus status = imuRead(imu);
     const uint32_t readUs = micros() - started;
@@ -358,7 +378,7 @@ static void buildPacket(uint8_t *buf) {
     buf[1] = g_seq;
 
     int16_t imu[IMU_FIELD_COUNT];
-    int16_t flag = 0;
+    GestureFlag flag = GESTURE_NONE;
     const ImuStatus status = timedImuRead(imu, &flag);
 
     for (size_t i = 0; i < IMU_FIELD_COUNT; i++) {
@@ -370,6 +390,20 @@ static void buildPacket(uint8_t *buf) {
         writeField(buf, i, 0);  // reserved for later sensor expansion
     }
     writePacketCrc(buf);
+}
+
+/** Buzzes when a SENSOR packet's flag shows the detector starting a gesture or throwing one away. */
+static void buzzOnGestureFlag(const uint8_t *buf) {
+    if (readField(buf, IMU_STATUS_FIELD) != IMU_OK) {
+        return;  // no reading, so its flag says nothing about the gesture
+    }
+    const int16_t flag = readField(buf, GESTURE_FLAG_FIELD);
+    if (flag == GESTURE_ACTIVE && g_lastGestureFlag != GESTURE_ACTIVE) {
+        playMotorPattern(BUZZ_GESTURE_START);
+    } else if (flag == GESTURE_REJECTED) {
+        playMotorPattern(BUZZ_GESTURE_REJECTED);
+    }
+    g_lastGestureFlag = flag;
 }
 
 /**
@@ -492,10 +526,10 @@ void loop() {
         if (buf[0] == TYPE_CMD && readField(buf, CMD_KIND_FIELD) == CMD_VIBRATE) {
             const int16_t pattern = readField(buf, 0);
             if (pattern == VIBRATE_RECOGNISED) {
-                startMotorPulse();
+                playMotorPattern(BUZZ_RECOGNISED);
                 Serial.printf("[MOTOR] VIBRATE seq=%u: %u ms pulse\n",
                               static_cast<unsigned>(buf[1]),
-                              static_cast<unsigned>(MOTOR_PULSE_MS));
+                              static_cast<unsigned>(BUZZ_RECOGNISED.onMs));
             } else {
                 Serial.printf("[MOTOR] VIBRATE seq=%u: unknown pattern %d, not pulsed\n",
                               static_cast<unsigned>(buf[1]), pattern);
@@ -535,6 +569,7 @@ void loop() {
         g_lastTx = (now - g_lastTx >= 2 * PACKET_PERIOD_MS) ? now : g_lastTx + PACKET_PERIOD_MS;
         uint8_t buf[PACKET_LEN];
         buildPacket(buf);
+        buzzOnGestureFlag(buf);
         // setValue so a GATT read of the characteristic returns the latest sample;
         // pass same buffer to notify() so packet sent is exactly the one just built
         g_sensorChar->setValue(buf, PACKET_LEN);

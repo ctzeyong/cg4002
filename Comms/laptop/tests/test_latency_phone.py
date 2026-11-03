@@ -12,9 +12,9 @@ from pathlib import Path
 import pytest
 
 COMMS = Path(__file__).resolve().parents[2]
-SCRIPTS = COMMS / "scripts"
-if str(SCRIPTS) not in sys.path:
-    sys.path.insert(0, str(SCRIPTS))
+TOOLS = COMMS / "scripts" / "tools"
+if str(TOOLS) not in sys.path:
+    sys.path.insert(0, str(TOOLS))
 
 import latency_report  # noqa: E402
 import phone_clock  # noqa: E402

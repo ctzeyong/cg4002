@@ -3,6 +3,11 @@
 This document explains how the AI gesture classifier is connected to the Comms pipeline, the
 Python API shared by both teams, and what must change when either side changes its code.
 
+> **Retired (28 Oct 2026):** on `full-pipeline`, `--sensor-trigger`, the fixed window and the
+> `ai_api.py` path described below are removed. The board classifies with `--gesture-flag` and
+> AI's `wk10_integration.py` instead: see [Full pipeline](full-pipeline.md). This page stays as
+> the record of the 15 Oct integration.
+>
 > **Current status (15 Oct 2026):** FPGA classification has been exercised in the live
 > Configuration B pipeline on branch `ai-comms`. The FireBeetle firmware still sends dummy IMU
 > values, and `--sensor-trigger` is only a test trigger. The run validates integration and timing,
@@ -42,11 +47,11 @@ calls it inside the Ultra96 process. BLE, TCP, MQTT, and phone delivery remain C
 
 ## Responsibilities and shared API
 
-[`AI/board/ai_api.py`](../../AI/board/ai_api.py) is the boundary between the two subsystems.
+`AI/board/ai_api.py` was the boundary between the two subsystems.
 
 | Owner | Files | Purpose |
 |---|---|---|
-| AI | [`AI/board/ai_api.py`](../../AI/board/ai_api.py), `gesture_min_q.xsa` | Define the model input requirements; convert and classify a window; own FPGA/DMA/model details, labels, and confidence |
+| AI | `AI/board/ai_api.py`, `gesture_min_q.xsa` | Define the model input requirements; convert and classify a window; own FPGA/DMA/model details, labels, and confidence |
 | Comms | [`Comms/ultra96/gesture.py`](../../Comms/ultra96/gesture.py) | Validate SENSOR messages, track sequence gaps, and keep separate rolling sample history for each player |
 | Comms | [`Comms/ultra96/tcp_client.py`](../../Comms/ultra96/tcp_client.py) | Receive samples, invoke the shared API, and provide Configuration A's TCP event sink |
 | Comms | [`Comms/ultra96/tcp_client_mqtt.py`](../../Comms/ultra96/tcp_client_mqtt.py) | Reuse the same receiver/API path and provide Configuration B's MQTT event sink |
@@ -251,7 +256,7 @@ The code-level contract is covered by:
 - [`test_gesture.py`](../../Comms/laptop/tests/test_gesture.py): history order, sequence handling,
   raw-count conversion, time-major DMA layout, Q6.10 conversion, return value, errors, warm-up,
   and real/stub classifier selection.
-- [`test_sensor_trigger.py`](../../Comms/laptop/tests/test_sensor_trigger.py): trigger selection,
+- `test_sensor_trigger.py` (now `test_gesture_flag.py`): trigger selection,
   full-window requirement, failure isolation, and equal classifier output in Configurations A/B.
 - [`test_run_board.py`](../../Comms/laptop/tests/test_run_board.py): deployment of `ai_api.py` and
   the XSA, including the bitstream filename agreement.

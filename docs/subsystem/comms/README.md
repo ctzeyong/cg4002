@@ -6,8 +6,8 @@ publishes them to a Mosquitto broker running locally on the Ultra96.
 
 This document follows the Comms-individual implementation under `team/Comms`. It does not
 describe the later AI-Comms integration or depend on files under `team/AI`.
-On branch `ai-comms` and after it merges, `--sensor-trigger` runs the FPGA classifier instead:
-see [AI–Comms integration](../../integration/ai-comms.md).
+With the integration, `--gesture-flag` passes every SENSOR sample to the FPGA classifier:
+see [Full pipeline](../../integration/full-pipeline.md).
 
 ## Table of contents
 
@@ -56,14 +56,11 @@ The laptop-to-Ultra96 TCP connection carries both directions. Sensor packets tra
 board, while heartbeats and acknowledgements maintain liveness. The board publishes a dummy
 event directly to its local broker instead of sending the event back to the laptop.
 
-There are currently three ways to create a dummy gesture event:
+There are currently two ways to create a dummy gesture event:
 
 - A laptop keypress sends a CMD to a FireBeetle. Its ECHO proves the complete communications
   path and creates a dummy event. Keys `c`, `t`, `s`, `z`, `a`, and `l` select a named gesture;
   any other key selects one randomly.
-- `--sensor-trigger N` creates a random event after approximately `N` SENSOR packets per player.
-  This is a latency-test stand-in for the final packet of a gesture window; it does not buffer a
-  window or run classification. With the AI integration it does both: see [AI–Comms integration](../../integration/ai-comms.md).
 - `--event-every N` creates a dummy event every `N` seconds without requiring BLE traffic. This
   is useful for testing only the event-to-MQTT part of the path.
 
@@ -114,7 +111,6 @@ every 10 ms, giving a target rate of 100 Hz per FireBeetle.
 | Type | Hex | Direction | Current behaviour |
 |---|---:|---|---|
 | `SENSOR` | `0x01` | FireBeetle → laptop | Free-running 100 Hz stream from one MPU6050 per player. It carries raw ±4 g / ±500 °/s counts, or zeros with an explicit missing/recovering status. |
-| `EVENT` | `0x02` | Reserved uplink | Reserved for a hall-sensor event. Its payload and length are not defined and current firmware does not emit it. |
 | `CMD` | `0x03` | Laptop → FireBeetle | A keypress creates 11 fields. Field 0 contains the masked key code; the remaining IMU fields are random test data and the reserved fields are zero. |
 | `ECHO` | `0x04` | FireBeetle → laptop | Reply to one CMD. It keeps the CMD sequence, changes the type, negates the first six fields, leaves the five reserved fields unchanged, and recomputes the CRC. |
 
@@ -142,7 +138,6 @@ longer be trusted.
 | Message | Direction in B | Required fields and meaning |
 |---|---|---|
 | `SENSOR` / `ECHO` | Laptop → Ultra96 | `type`, `node`, `seq`, `timestamp`, `fields`; fixed packets also include `imu` (`ax`…`gz`), `reserved`, and validated integer `crc`. `node` comes from the BLE connection and `timestamp` is the laptop receive time. |
-| `EVENT` | Laptop → Ultra96 if ever received | Same decoded shape, but its payload is not yet defined and current firmware never sends it. |
 | `HEARTBEAT` | Ultra96 → laptop every 1 s | `type`, `seq`, `ts`. Keeps the full-duplex session alive. |
 | `HEARTBEAT_ACK` | Laptop → Ultra96 | `type`, `seq`, `t1`, `t2`; `t1` echoes the heartbeat timestamp and `t2` is the laptop reply timestamp. |
 | `AI_EVENT` | Not sent over TCP in B | Configuration A only: dummy AI-shaped event with `type`, `player`, `seq`, `gesture`, and `timestamp`. In B the same event becomes the MQTT envelope payload directly on the Ultra96. |
@@ -167,6 +162,7 @@ Example decoded SENSOR message:
 | Topic | Producer → consumer | QoS | Retained | Current use in Configuration B |
 |---|---|---:|---|---|
 | `game/gesture/{player}` | Ultra96 → phones | 1 | No | Live gesture event. Phones subscribe to `game/gesture/+`; player attribution comes from the final topic segment. |
+| `status/gloves` | Ultra96 → phones | 1 | Yes, with a last will | Whether each glove is streaming: `{"player1": "ready", "player2": "down"}` inside the envelope. `ready` is at least 50 packets with an IMU reading in the last second; `down` is fewer than 25 (in between, a glove keeps its last state, so one near 50 Hz doesn't flip); `offline` means the board's client stopped or died (published on a clean stop, and by the broker as the client's will). Published on each change and again after every reconnect. The phone hook shows each change. |
 | `viz/ready/{player}` | Phone → broker | 1 | No | Phone publishes an envelope whose inner payload is `{"status":"ready","player":N}` after subscribing. Diagnostic only in B: the current Ultra96 code is publish-only, so nothing consumes it. |
 | `comms/ping` | Diagnostic client → same diagnostic client | Configurable, default 1 | No | Used only by `mqtt_ping.py` for broker round-trip measurements; not part of the game pipeline. |
 
@@ -201,16 +197,16 @@ Gesture message example:
     "type": "AI_EVENT",
     "player": 1,
     "seq": 17,
-    "gesture": "circle",
+    "gesture": "warrior",
     "timestamp": 1792000000.0
   }
 }
 ```
 
 This standalone Comms implementation does not run the FPGA classifier. All `AI_EVENT` messages
-are transport stand-ins: `gesture` is one of the Vis game's seven gestures, its `GestureSymbol`
-enum lowercased (`circle`, `caret`, `arc`, `z`, `infinity`, `triangle`, `star`), picked by the
-pressed key or at random. The game engine prices every action itself, so the event carries no
+are transport stand-ins: `gesture` is one of the classifier's seven role names (`warrior`,
+`mage`, `fireball`, `rogue`, `lightning`, `hero`, `shield`), each a member of the Vis game's
+`GestureSymbol` enum, picked by the pressed key or at random. The game engine prices every action itself, so the event carries no
 game-state value.
 
 ### Current scope
@@ -275,14 +271,13 @@ Useful variants:
 | Command | Use |
 |---|---|
 | `.\scripts\run_board.ps1` | Normal communications/ECHO path. |
-| `.\scripts\run_board.ps1 --sensor-trigger 100` | Latency test that creates a dummy random event after roughly 100 SENSOR packets per player. |
 | `.\scripts\run_board.ps1 --event-every 2` | Publish a dummy event every two seconds for an MQTT-only diagnostic. |
 | `.\scripts\run_board.ps1 --fetch-logs` | Copy today's UTC board logs into `Comms/logs/board/`. |
 | `.\scripts\run_board.ps1 --stop` | Stop the Configuration B client on the Ultra96. |
 
 Do not use `--event-every` as evidence that BLE or the phone display works. It only tests event
-creation and the later MQTT path. Neither it nor `--sensor-trigger` proves FPGA inference because
-this standalone implementation does not run the classifier ([AI–Comms integration](../../integration/ai-comms.md) adds it). Broker acceptance is also not proof
+creation and the later MQTT path. Nor does it prove FPGA inference, because this standalone
+implementation does not run the classifier ([Full pipeline](../../integration/full-pipeline.md) adds it). Broker acceptance is also not proof
 of phone receipt; confirm the event in the phone's own `received` display/log.
 
 ## 3. Relevant Configuration B files
@@ -375,9 +370,7 @@ cd <path-to-team>\Comms
 .\scripts\run_board_a_hotspot.ps1 --sync
 ```
 
-After the first synchronized run, omit `--sync`. For latency testing only, add
-`--sensor-trigger 100`; it creates dummy events after roughly 100 SENSOR packets and does not run
-classification. With the AI integration it classifies on the FPGA: see [AI–Comms integration](../../integration/ai-comms.md).
+After the first synchronized run, omit `--sync`.
 
 Never mix the pairs:
 

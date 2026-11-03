@@ -10,7 +10,7 @@ namespace BridgeRush.Gameplay
         [SerializeField] private string attackStateName = "07-SRB_BOT_BONE_001_SRB_ATTACK_001";
         [SerializeField] private string dieStateName = "12-SRB_BOT_BONE_001_SRB_DIE";
         [SerializeField] private float dieAnimationSeconds = 1f;
-        [SerializeField] private Color overchargeTintColor = Color.yellow;
+        [SerializeField] private float spawnInSeconds = 0.4f;
 
         private Animator animator;
         private UnitCombatState? currentCombatState;
@@ -40,6 +40,26 @@ namespace BridgeRush.Gameplay
                 animator.Update(0f);
             }
         }
+        // Grows the unit from nothing to its current scale with a small overshoot, so it appears out of the dust.
+        public void PlaySpawnIn()
+        {
+            StartCoroutine(SpawnInCoroutine());
+        }
+
+        private IEnumerator SpawnInCoroutine()
+        {
+            var target = transform.localScale;
+            transform.localScale = Vector3.zero;
+            for (float t = 0f; t < spawnInSeconds; t += Time.deltaTime)
+            {
+                float u = t / spawnInSeconds - 1f;
+                float eased = 1f + 2.70158f * u * u * u + 1.70158f * u * u;
+                transform.localScale = target * eased;
+                yield return null;
+            }
+            transform.localScale = target;
+        }
+
         // ensure that it plays the die animation and then destroys the unit after the die animation duration.
         public void PlayDieAndDestroy()
         {
@@ -56,28 +76,6 @@ namespace BridgeRush.Gameplay
             foreach (var renderer in GetComponentsInChildren<Renderer>())
             {
                 renderer.material.color = tint;
-            }
-        }
-        // plays an overcharge aura effect on the unit for a specified duration, changing its color to indicate the effect.
-        public void PlayOverchargeAura(float durationSeconds)
-        {
-            StartCoroutine(OverchargeCoroutine(durationSeconds));
-        }
-        // Coroutine that handles the overcharge effect, changing the unit's color and reverting it back after the duration.
-        private IEnumerator OverchargeCoroutine(float durationSeconds)
-        {
-            var renderers = GetComponentsInChildren<Renderer>();
-            var originalColors = new Color[renderers.Length];
-            for (int i = 0; i < renderers.Length; i++)
-            {
-                originalColors[i] = renderers[i].material.color;
-                renderers[i].material.color = Color.Lerp(originalColors[i], overchargeTintColor, 0.6f);
-            }
-            yield return new WaitForSeconds(durationSeconds);
-
-            for (int i = 0; i < renderers.Length; i++)
-            {
-                if (renderers[i] != null) renderers[i].material.color = originalColors[i];
             }
         }
     }

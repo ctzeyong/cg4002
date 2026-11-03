@@ -41,6 +41,10 @@ namespace BridgeRush.Match
         public int? AttackTargetUnitId;
 
         public bool PastBridge;
+        public int BridgeIndex = -1;
+        public int? ChaseTargetUnitId;
+        public float AttackRangeMeters;
+        public bool IsRanged => AttackRangeMeters > 0f;
 
         public UnitState(int id, UnitType type, UnitSide side, float maxHP, float attackDps, Vector3 spawnWorldPosition)
         {

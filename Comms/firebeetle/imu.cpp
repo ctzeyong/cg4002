@@ -93,6 +93,8 @@ static bool g_lastPacketOk = false;
 
 static gesture::Detector g_detector;
 static gesture::Segmenter g_segmenter;
+static bool g_rejected = false;         // the detector threw a gesture away since the last packet
+static GestureFlag g_lastFlag = GESTURE_NONE;  // in the last packet
 static uint32_t g_readingSeq = 0;
 static int64_t g_readingUs = 0;         // each reading is 2 ms after the one before
 static int64_t g_restartUs = 0;         // so a gesture is never backdated to before a restart
@@ -211,6 +213,7 @@ static void detect(const int16_t counts[6]) {
         } else if (e.kind == gesture::SEG_COMPLETE) {
             g_stats.completed++;
         } else if (e.kind == gesture::SEG_REJECT) {
+            g_rejected = true;
             g_stats.rejected++;
         }
     }
@@ -351,9 +354,19 @@ ImuStatus imuRead(int16_t out[6]) {
     return status;
 }
 
-int16_t gestureFlag(const int16_t sample[6], ImuStatus status) {
+GestureFlag gestureFlag(const int16_t sample[6], ImuStatus status) {
     (void)sample;  // the detector already had this reading, and every one before it
-    return (status == IMU_OK && g_segmenter.active) ? 1 : 0;
+    const bool rejected = g_rejected;
+    g_rejected = false;
+    GestureFlag flag = GESTURE_NONE;
+    if (status == IMU_OK && g_segmenter.active) {
+        flag = GESTURE_ACTIVE;
+    } else if (status == IMU_OK && rejected && g_lastFlag == GESTURE_ACTIVE) {
+        // only straight after packets that flagged the gesture, never for one no packet showed
+        flag = GESTURE_REJECTED;
+    }
+    g_lastFlag = flag;
+    return flag;
 }
 
 void imuPrintStats() {

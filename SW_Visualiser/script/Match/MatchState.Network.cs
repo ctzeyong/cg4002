@@ -8,29 +8,6 @@ namespace BridgeRush.Match
 {
     public partial class MatchState
     {
-        private const float RemoteLightningManaCost = 4f;
-        private const float RemoteLightningDamage = 180f;
-        private const float RemoteOverchargeManaCost = 5f;
-
-        public void RequestRemoteSpell(string spell) => networkSync?.PublishGestureRequest("spell", null, spell);
-
-        public bool CastRemoteEnemySpell(string spell)
-        {
-            if (Role != NetworkRole.Host) return false;
-
-            float cost = spell switch
-            {
-                "lightning" => RemoteLightningManaCost,
-                "overcharge" => RemoteOverchargeManaCost,
-                _ => -1f
-            };
-            if (cost < 0f || enemyManaCurrent < cost) return false;
-
-            enemyManaCurrent -= cost;
-            if (spell == "lightning") DamageOwnTower(RemoteLightningDamage);
-            return true;
-        }
-
         // This method is called on the host when a remote gesture request is received from the client. 
         // It checks if the request is valid and applies the requested action (spawn or spell) if possible. 
         // Returns true if the request was successfully applied, false otherwise.
@@ -46,7 +23,9 @@ namespace BridgeRush.Match
             }
             if (request.action == "spell")
             {
-                return CastRemoteEnemySpell(request.spell);
+                if (request.spell == "lightning") return CastRemoteLightning(request);
+                if (request.spell == "fireball") return CastRemoteFireball(request);
+                return false;
             }
             return false;
         }
@@ -64,12 +43,14 @@ namespace BridgeRush.Match
                 hostMana = ManaCurrent,
                 player2Mana = enemyManaCurrent,
                 matchTimeRemaining = matchTimeRemaining,
-                units = new List<UnitSnapshot>(units.Count)
+                units = new List<UnitSnapshot>(units.Count),
+                strikes = new List<StrikeSnapshot>()
             };
 
             foreach (var unit in units)
             {
                 var (along, lat) = ToCanonical(unit.WorldPosition);
+                var (faceAlong, faceLat) = ToCanonicalDirection(unit.FacingDirection);
                 snapshot.units.Add(new UnitSnapshot
                 {
                     id = unit.Id,
@@ -79,9 +60,14 @@ namespace BridgeRush.Match
                     lat = lat,
                     hp = unit.CurrentHP,
                     maxHp = unit.MaxHP,
-                    state = unit.CombatState.ToString()
+                    state = unit.CombatState.ToString(),
+                    target = unit.AttackTargetUnitId ?? -1,
+                    range = unit.AttackRangeMeters,
+                    faceAlong = faceAlong,
+                    faceLat = faceLat
                 });
             }
+            AppendStrikeSnapshots(snapshot);
             return snapshot;
         }
 
@@ -112,7 +98,14 @@ namespace BridgeRush.Match
                     {
                         if (!Enum.TryParse(u.type, out UnitType type)) continue;
                         var side = u.owner == "player2" ? UnitSide.Own : UnitSide.Enemy;
-                        var unit = new UnitState(u.id, type, side, u.maxHp, 0f, worldPos) { CurrentHP = u.hp, CombatState = combatState };
+                        var unit = new UnitState(u.id, type, side, u.maxHp, 0f, worldPos)
+                        {
+                            CurrentHP = u.hp,
+                            CombatState = combatState,
+                            AttackRangeMeters = u.range,
+                            AttackTargetUnitId = u.target >= 0 ? u.target : (int?)null
+                        };
+                        if (HasFacing(u)) unit.FacingDirection = FromCanonicalDirection(u.faceAlong, u.faceLat);
                         units.Add(unit);
                         if (u.id >= nextUnitId) nextUnitId = u.id + 1;
                         UnitSpawned?.Invoke(unit);
@@ -121,11 +114,25 @@ namespace BridgeRush.Match
                     {
                         existing.PreviousWorldPosition = existing.WorldPosition;
                         existing.WorldPosition = worldPos;
+                        if (HasFacing(u))
+                        {
+                            existing.FacingDirection = FromCanonicalDirection(u.faceAlong, u.faceLat);
+                        }
+                        else
+                        {
+                            // A host that does not send facing: turn the unit the way it moved.
+                            Vector3 travelled = FlattenY(worldPos) - FlattenY(existing.PreviousWorldPosition);
+                            if (travelled.sqrMagnitude > 0.000001f) existing.FacingDirection = travelled.normalized;
+                        }
+                        existing.AttackRangeMeters = u.range;
+                        existing.AttackTargetUnitId = u.target >= 0 ? u.target : (int?)null;
                         existing.CurrentHP = u.hp;
                         existing.CombatState = combatState;
                     }
                 }
             }
+
+            ApplyStrikeSnapshots(snapshot);
 
             for (int i = units.Count - 1; i >= 0; i--)
             {
@@ -134,6 +141,26 @@ namespace BridgeRush.Match
                 units.RemoveAt(i);
                 UnitDespawned?.Invoke(deadId);
             }
+        }
+
+        private static bool HasFacing(UnitSnapshot u) => u.faceAlong * u.faceAlong + u.faceLat * u.faceLat > 0.0001f;
+
+        // A direction on the floor as (along the lane, across the lane), in the same canonical frame as ToCanonical.
+        private (float along, float lat) ToCanonicalDirection(Vector3 direction)
+        {
+            Vector3 canonicalDirection = LocalIsPlayer1 ? fixedLaneDirection : -fixedLaneDirection;
+            Vector3 lateralAxis = Vector3.Cross(Vector3.up, canonicalDirection).normalized;
+            Vector3 flat = new Vector3(direction.x, 0f, direction.z);
+            return (Vector3.Dot(flat, canonicalDirection), Vector3.Dot(flat, lateralAxis));
+        }
+
+        private Vector3 FromCanonicalDirection(float along, float lat)
+        {
+            Vector3 canonicalDirection = LocalIsPlayer1 ? fixedLaneDirection : -fixedLaneDirection;
+            Vector3 lateralAxis = Vector3.Cross(Vector3.up, canonicalDirection).normalized;
+            Vector3 direction = canonicalDirection * along + lateralAxis * lat;
+            direction.y = 0f;
+            return direction.sqrMagnitude > 0.000001f ? direction.normalized : Vector3.forward;
         }
 
         // Determines if the local player is considered Player 1 based on the match setup and selected player.

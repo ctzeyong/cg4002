@@ -68,9 +68,9 @@ async def test_one_direct_hop_with_no_password(recorded):
 @pytest.mark.asyncio
 async def test_sync_then_as_own_board_command(recorded):
     """The command is run_board_a's, so it still stops B's client before starting A's."""
-    await hotspot.run(CONFIG, args_for(["--sync", "--sensor-trigger", "100"]))
+    await hotspot.run(CONFIG, args_for(["--sync", "--gesture-flag"]))
 
-    expected = run_board_a.remote_command(8888, ["--sensor-trigger", "100"], restart=True)
+    expected = run_board_a.remote_command(8888, ["--gesture-flag"], restart=True)
     assert [e[0] for e in recorded] == ["connect", "sync", "attach"]
     assert recorded[-1] == ("attach", expected)
 

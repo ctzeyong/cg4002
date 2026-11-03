@@ -4,7 +4,7 @@
 # A wrapper, so both panes start the same way. The work is in run_board_a_hotspot.py,
 # which reaches the board over Tailscale with the laptop's key: no VPN, no password.
 #
-#   .\run_board_a_hotspot.ps1 --sync --sensor-trigger 100   # copy, (re)start, show its log
+#   .\run_board_a_hotspot.ps1 --sync --gesture-flag   # copy, (re)start, show its log
 #   .\run_board_a_hotspot.ps1                  # start it, or re-attach if already running
 #   .\run_board_a_hotspot.ps1 --stop           # kill it and exit
 #   .\run_board_a_hotspot.ps1 --fetch-logs     # copy today's (UTC) board logs to logs\board\

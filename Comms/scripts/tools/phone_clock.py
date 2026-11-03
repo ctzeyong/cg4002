@@ -21,7 +21,7 @@ import sys
 import time
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parent.parent
+REPO = Path(__file__).resolve().parent.parent.parent
 OUT_DIR = REPO / "logs" / "phone"
 
 # Unity's bundled adb, never the Android SDK's: two adb servers fight over port 5037

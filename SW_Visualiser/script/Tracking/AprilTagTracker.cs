@@ -16,14 +16,39 @@ namespace BridgeRush.Tracking
         [Tooltip("Flip if a tracked tag's position reads mirrored.")]
         [SerializeField] private bool mirrorY = true;
 
-        [Tooltip("Physical size of the printed tagStandard41h12 tag's black square, in meters.")]
-        [SerializeField] private float tagSizeMeters = 0.185f;
+        [Tooltip("Size the detector needs for correct distances. Calibrated on a device: a printed tag measuring 0.185 m reads true distances at 0.119.")]
+        [SerializeField] private float tagSizeMeters = 0.119f;
 
         [Tooltip("Detection downsampling factor - higher is faster but loses range/accuracy.")]
-        [SerializeField] private int decimation = 4;
+        [SerializeField] private int decimation = 2;
 
         [Tooltip("tagStandard41h12 tag IDs to track, indexed by marker ID.")]
         [SerializeField] private int[] tagIdToMarkerId = { 0, 1 };
+
+        private const string TagSizePref = "apriltag_size_meters";
+
+        // Tuned live from the debug menu; the last value used is remembered on the phone and overrides the Inspector value.
+        public float TagSizeMeters
+        {
+            get => tagSizeMeters;
+            set
+            {
+                tagSizeMeters = Mathf.Clamp(value, 0.02f, 0.5f);
+                PlayerPrefs.SetFloat(TagSizePref, tagSizeMeters);
+            }
+        }
+
+        public bool RotateClockwise { get => rotateClockwise; set => rotateClockwise = value; }
+        public bool MirrorY { get => mirrorY; set => mirrorY = value; }
+
+        // What the detector is fed, for checking the camera intrinsics against the CPU image.
+        public string DebugInfo => $"img {lastImageWidth}x{lastImageHeight}  intr {lastIntrinsicsWidth}x{lastIntrinsicsHeight}  f(scaled) {lastFocalX:0}";
+
+        private int lastImageWidth;
+        private int lastImageHeight;
+        private int lastIntrinsicsWidth;
+        private int lastIntrinsicsHeight;
+        private float lastFocalX;
 
         private ARCameraManager cameraManager;
         private AprilTag.TagDetector detector;
@@ -40,6 +65,7 @@ namespace BridgeRush.Tracking
         private void Awake()
         {
             cameraManager = GetComponent<ARCameraManager>();
+            if (PlayerPrefs.HasKey(TagSizePref)) tagSizeMeters = PlayerPrefs.GetFloat(TagSizePref);
 
             tagIdToMarkerIdLookup.Clear();
             for (int i = 0; i < tagIdToMarkerId.Length; i++)
@@ -71,6 +97,10 @@ namespace BridgeRush.Tracking
             using (image)
             {
                 if (!cameraManager.TryGetIntrinsics(out intrinsics)) return;
+                lastImageWidth = image.width;
+                lastImageHeight = image.height;
+                lastIntrinsicsWidth = intrinsics.resolution.x;
+                lastIntrinsicsHeight = intrinsics.resolution.y;
 
                 int rotatedWidth = image.height;
                 int rotatedHeight = image.width;
@@ -101,7 +131,11 @@ namespace BridgeRush.Tracking
                 using var rotatedBuffer = new NativeArray<Color32>(rotatedWidth * rotatedHeight, Allocator.Temp);
                 RotateBuffer90(rawBuffer.Reinterpret<Color32>(1), image.width, image.height, rotatedBuffer, rotateClockwise);
 
-                float verticalFovRadians = 2f * Mathf.Atan2(detectorHeight * 0.5f, intrinsics.focalLength.x);
+                // The intrinsics can be for a different image size than the CPU image; scale the focal length to match it.
+                float intrinsicsScale = intrinsics.resolution.x > 0 ? (float)image.width / intrinsics.resolution.x : 1f;
+                float focalX = intrinsics.focalLength.x * intrinsicsScale;
+                lastFocalX = focalX;
+                float verticalFovRadians = 2f * Mathf.Atan2(detectorHeight * 0.5f, focalX);
 
                 detector.ProcessImage(rotatedBuffer.AsReadOnlySpan(), verticalFovRadians, tagSizeMeters);
             }

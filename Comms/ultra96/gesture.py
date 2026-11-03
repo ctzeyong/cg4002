@@ -1,10 +1,9 @@
 """The transport rules for the SENSOR stream on the Ultra96, in front of AI's API.
 
 Repeats, late packets and samples with no IMU reading never reach AI, and AI is told when
-a node's stream broke. With --gesture-flag every other sample goes to AI's
-wk10_integration.py, which buffers and classifies, so a new model changes nothing here.
---sensor-trigger keeps each node's last samples in a window for ai_api.py instead, until
-the flag path replaces it.
+a node's stream broke. A gesture the glove rejected is never ended, so AI never classifies it.
+Every sample that passes goes to AI's wk10_integration.py, which buffers and classifies, so a
+new model changes nothing here.
 """
 
 import collections
@@ -15,24 +14,28 @@ import pathlib
 import sys
 import time
 
-try:
-    import ai_api  # on the board, ai_api.py sits next to this file
-except ImportError:  # in the repo, it is in the AI folder instead
-    sys.path.append(str(pathlib.Path(__file__).resolve().parents[2] / "AI" / "board"))
-    import ai_api
+import ai_events
 
-WINDOW = ai_api.WINDOW
-CHANNELS = ai_api.CHANNELS
-LABELS = ai_api.LABELS
-ClassifierError = ai_api.ClassifyError
+# AI's files sit next to this one on the board, but in the AI folder in the repo
+AI_BOARD = pathlib.Path(__file__).resolve().parents[2] / "AI" / "board"
+if AI_BOARD.is_dir() and str(AI_BOARD) not in sys.path:
+    sys.path.append(str(AI_BOARD))
+
+# the IMU fields of a SENSOR message, in the order AI's IMUSample takes them
+CHANNELS = ("ax", "ay", "az", "gx", "gy", "gz")
+
+
+class ClassifierError(RuntimeError):
+    """Raised when AI fails on one gesture, so the session can carry on."""
+
 
 # same rule as the laptop's ble_client, a jump of 128 or more means the seq went backwards
 SEQ_BACKWARD_THRESHOLD = 128
 
 # A gap this long between a node's packets, in the laptop's receive time, means its stream
 # stopped: a BLE reconnect or a reboot. seq can't show either, since it carries on after a
-# reconnect and restarts at 0 after a reboot, so the node's window starts again. At 100 Hz it
-# is 50 missing samples, so the old window was no use anyway.
+# reconnect and restarts at 0 after a reboot, so AI starts the node's gesture again. At 100 Hz
+# it is 50 missing samples, so the gesture in progress was no use anyway.
 RESET_GAP_S = 0.5
 
 # The IMU status in a SENSOR message's reserved[0], as in firebeetle/imu.h. Only IMU_OK
@@ -40,17 +43,19 @@ RESET_GAP_S = 0.5
 # while the IMU is missing or recovering
 IMU_OK = 1
 
-# reserved[1] carries the glove's gesture flag, 1 for every sample of a possible gesture.
+# reserved[1] carries the glove's gesture flag, as in firebeetle/imu.h. It is 1 for every sample
+# of a possible gesture, and 2 on the sample after a gesture the glove's detector threw away
 FLAG_FIELD = 1
+IN_GESTURE = 1
+REJECTED = 2
 
-# AI's per-sample model for --gesture-flag and the bitstream it loads
+# AI's model and the bitstream it loads
 AI_MODULE = "wk10_integration"
 AI_BITSTREAM = "baseline_improved.xsa"
 
-# result of classifying one window or gesture, missing is the number of packets lost inside it
+# result of classifying one gesture, missing is the number of packets lost inside it
 Result = collections.namedtuple("Result", "label confidence t_infer_ms missing")
 
-TIMEOUT_S = 0.05  # most a classification may block the event loop; it normally takes ~1 ms
 FPGA_MANAGER = pathlib.Path("/sys/class/fpga_manager/fpga0")  # only exists on the board
 
 log = logging.getLogger("gesture")
@@ -100,34 +105,19 @@ def log_fields(result):
 
 
 class Windows:
-    """Apply the transport rules per node, then window or pass on its samples.
+    """Apply the transport rules per node, then pass its samples on to AI.
 
-    A new one is made every TCP session. `classifier` classifies a window for --sensor-trigger,
-    or with per_sample=True it is AI's model that takes every sample, for --gesture-flag.
+    A new one is made every TCP session.
     """
 
-    def __init__(self, classifier, per_sample=False, resample=False):
-        self.classifier = classifier
-        self.ai = classifier if per_sample else None
-        if self.ai is not None:
-            # AI's buffers live as long as the model, so a reconnect empties them here
-            self.ai.reset()
-        # --resample: comms owns the buffer, resamples each gesture to the training
-        # window and classifies it whole, instead of feeding raw samples one at a
-        # time. Only meaningful with the per-sample AI, off by default so the
-        # per-sample path below is untouched. preprocess (numpy) is imported only
-        # when it is on, so the default pipeline never loads it through here.
-        self.resample = bool(resample) and self.ai is not None
-        self._pp = None
-        if self.resample:
-            import preprocess  # lazy: ultra96/ is on sys.path (flat imports)
-            self._pp = preprocess
-        self._samples = {}  # node -> deque of (sample, packets missing just before it)
+    def __init__(self, ai):
+        self.ai = ai
+        # AI's buffers live as long as the model, so a reconnect empties them here
+        self.ai.reset()
         self._last_seq = {}
         self._without_imu = {}  # node -> packets in a row that carried no IMU reading
         self._last_time = {}  # node -> laptop receive time of its latest packet
         self._flagged = {}  # node -> (samples, packets lost) of its flagged gesture so far
-        self._spans = {}  # node -> {"samples": [...counts...], "missing": int} for --resample
 
     def _accept(self, msg):
         """Apply the transport rules to one SENSOR message.
@@ -157,8 +147,8 @@ class Windows:
         if t is not None:
             self._last_time[node] = t if last_t is None else max(last_t, t)
         if imu_status(msg) != IMU_OK:
-            # restart once per outage so neither the window nor AI joins readings from
-            # both sides of it or classifies the old ones again
+            # restart once per outage so AI never joins readings from both sides of it
+            # or classifies the old ones again
             if not self._without_imu.get(node):
                 self._restart(node)
             self._without_imu[node] = self._without_imu.get(node, 0) + 1
@@ -166,20 +156,8 @@ class Windows:
         self._without_imu[node] = 0
         return node, sample, delta - 1
 
-    def add(self, msg):
-        """Add one SENSOR message to its node's window, for --sensor-trigger.
-
-        Returns False if it was malformed, a repeat or late, or carried no IMU reading.
-        """
-        accepted = self._accept(msg)
-        if accepted is None:
-            return False
-        node, sample, gap = accepted
-        self._samples.setdefault(node, collections.deque(maxlen=WINDOW)).append((sample, gap))
-        return True
-
     def feed(self, msg):
-        """Pass one SENSOR message to AI, for --gesture-flag.
+        """Pass one SENSOR message to AI.
 
         Returns a Result when AI classifies a gesture, otherwise None. Raises ClassifierError
         if AI fails.
@@ -188,15 +166,18 @@ class Windows:
         if accepted is None:
             return None
         node, sample, gap = accepted
-        if self.resample:
-            return self._feed_resampled(node, sample, msg, gap)
-        in_gesture = gesture_flag(msg)
+        flag = gesture_flag(msg)
         flagged = self._flagged.pop(node, None)
-        if in_gesture:
+        if flag == IN_GESTURE:
             # don't count the first flagged sample's gap since it happened before the gesture
             self._flagged[node] = (1, 0) if flagged is None else (flagged[0] + 1, flagged[1] + gap)
+        elif flag == REJECTED and flagged is not None:
+            # AI isn't reset, so its buffer is still full if the player draws again straight away
+            log.info("no AI event: node %d's glove rejected its flagged gesture of %d samples",
+                     node, flagged[0])
+            flagged = None
         # AI classifies on end_of_gesture, so it goes on the first sample after the flag drops
-        ended = flagged is not None and not in_gesture
+        ended = flagged is not None and flag != IN_GESTURE
         started = time.perf_counter()
         answer = self.ai.on_sample(node, to_record(sample, msg, ended))
         if answer is None:
@@ -209,56 +190,15 @@ class Windows:
         label, confidence = answer
         return Result(label, confidence, t_infer_ms, 0 if flagged is None else flagged[1] + gap)
 
-    def _feed_resampled(self, node, sample, msg, gap):
-        """--resample variant of feed(): buffer the flagged span, then at the end of
-        the gesture resample it to the training window and classify that whole window
-        in one shot. The per-sample path in feed() is left untouched; this runs only
-        when the Windows was built with resample=True.
-        """
-        in_gesture = gesture_flag(msg)
-        span = self._spans.get(node)
-        if in_gesture:
-            if span is None:
-                # first flagged sample: its preceding gap belongs to before the gesture
-                span = self._spans[node] = {"samples": [], "missing": 0}
-            else:
-                span["missing"] += gap
-            span["samples"].append([sample[name] for name in CHANNELS])
-            return None
-        if span is None:
-            return None  # not in a gesture, and not the first sample after one ended
-        del self._spans[node]
-        n = len(span["samples"])
-        if n < 2:  # resample_steps needs at least two samples
-            log.info("no AI event: node %d's flagged gesture of %d samples too short to resample",
-                     node, n)
-            return None
-        window, clipped = self._pp.gesture_window(span["samples"])
-        if clipped:
-            log.debug("node %d: %d resampled counts saturated int16", node, clipped)
-        started = time.perf_counter()
-        answer = self.ai.infer_window(node, window)
-        t_infer_ms = (time.perf_counter() - started) * 1000
-        if answer is None:
-            log.info("no AI event: node %d's resampled gesture of %d samples gave no result%s",
-                     node, n, self._why())
-            return None
-        label, confidence = answer
-        return Result(label, confidence, t_infer_ms, span["missing"])
-
     def _why(self):
-        """' (reason)' for a no-result log line when AI's model says why it gave none
-        (its no-gesture class, e.g. 'noise p=0.94', or low confidence), else ''."""
+        """Return why AI gave no result, e.g. ' (noise p=0.94)', or '' if it didn't say."""
         reason = getattr(self.ai, "reject_reason", lambda: None)()
         return f" ({reason})" if reason else ""
 
     def _restart(self, node):
-        """Empty a node's window and tell AI to forget its gesture in progress."""
-        self._samples.pop(node, None)
+        """Tell AI to forget a node's gesture in progress."""
         self._flagged.pop(node, None)
-        self._spans.pop(node, None)  # drop any --resample span in progress
-        if self.ai is not None:
-            self.ai.reset(node)
+        self.ai.reset(node)
 
     def _forget(self, node):
         """Drop everything about a node, so its next packet starts again."""
@@ -266,37 +206,9 @@ class Windows:
         for state in (self._last_seq, self._without_imu, self._last_time):
             state.pop(node, None)
 
-    def size(self, node):
-        return len(self._samples.get(node, ()))
-
-    def without_imu(self, node):
-        """How many packets in a row from `node` have carried no IMU reading."""
-        return self._without_imu.get(node, 0)
-
-    def classify(self, node):
-        """Classify a node's window. Returns None until the window is full."""
-        window = self._samples.get(node)
-        if window is None or len(window) < WINDOW:
-            return None
-        started = time.perf_counter()
-        label, confidence = self.classifier.classify([s for s, _ in window], timeout=TIMEOUT_S)
-        t_infer_ms = (time.perf_counter() - started) * 1000
-        # don't count the first sample's gap since it happened before the window started
-        missing = sum(gap for _, gap in window) - window[0][1]
-        return Result(label, confidence, t_infer_ms, missing)
-
-
-class StubClassifier:
-    """Used instead of AI's classifier where there is no FPGA (the laptop and tests)."""
-
-    def classify(self, samples, timeout=None):
-        """Pick a class from the counts, so the same window always gives the same class."""
-        total = sum(sum(sample.values()) for sample in samples)
-        return LABELS[total % len(LABELS)], 1.0
-
 
 class AI:
-    """AI's per-sample model in wk10_integration.py."""
+    """AI's model in wk10_integration.py."""
 
     def __init__(self, module, model):
         self.module = module  # for its IMUSample
@@ -310,18 +222,8 @@ class AI:
             raise ClassifierError(str(exc)) from exc
         return None if result is None else (result.gesture, result.confidence)
 
-    def infer_window(self, player, window):
-        """Classify one prepared (WIN, CHANNELS) window of decoded physical units,
-        for --resample. player is unused: the window is already a complete gesture."""
-        try:
-            result = self.model.infer_window(window)
-        except RuntimeError as exc:  # DMA stall, handled the same as on_sample
-            raise ClassifierError(str(exc)) from exc
-        return None if result is None else (result.gesture, result.confidence)
-
     def reject_reason(self):
-        """Why the model's latest inference gave no result (its no-gesture class or low
-        confidence), or None; set by wk10_integration / keras_stream."""
+        """Return why the model's latest inference gave no result, or None."""
         return getattr(self.model, "last_reject", None)
 
     def reset(self, player=None):
@@ -330,36 +232,29 @@ class AI:
 
 
 class StubAI:
-    """Used instead of AI's per-sample model where there is no FPGA (the laptop and tests)."""
+    """Used instead of AI's model where there is no FPGA (the laptop and tests)."""
 
     def on_sample(self, player, record):
-        """Answer at the end of every gesture, with a class picked from the last sample's counts."""
+        """Answer at the end of every gesture, with a gesture picked from the last sample's counts."""
         if not record["end_of_gesture"]:
             return None
-        return LABELS[sum(record[name] for name in CHANNELS) % len(LABELS)], 1.0
-
-    def infer_window(self, player, window):
-        """Answer from the window's sum, for --resample without an FPGA."""
-        total = sum(float(sum(row)) for row in window)
-        return LABELS[int(abs(total)) % len(LABELS)], 1.0
+        total = sum(record[name] for name in CHANNELS)
+        return ai_events.GESTURES[total % len(ai_events.GESTURES)], 1.0
 
     def reset(self, player=None):
         pass
 
 
-def load_classifier(per_sample=False, ai_h5=None):
-    """AI's model on the board, a stub anywhere else. per_sample picks the --gesture-flag one.
+def load_classifier(ai_h5=None):
+    """Return AI's model on the board, or a stub anywhere else.
 
-    ai_h5: path to a local Keras .h5 model to run instead of the FPGA bitstream (per-sample
-    path), for end-to-end testing off the board. See AI/board/keras_stream.py.
+    With `ai_h5`, run that Keras model on the laptop instead (AI/board/keras_stream.py).
     """
     if ai_h5:
-        import keras_stream  # AI/board is on sys.path via the ai_api import at the top
+        import keras_stream  # AI/board is on sys.path, added at the top
         return AI(keras_stream, keras_stream.GestureClassifier(ai_h5))
     if not FPGA_MANAGER.exists():
-        return StubAI() if per_sample else StubClassifier()
-    if not per_sample:
-        return ai_api.GestureClassifier()
+        return StubAI()
     module = importlib.import_module(AI_MODULE)  # needs numpy, so only on the board
     bitstream = pathlib.Path(module.__file__).with_name(AI_BITSTREAM)
     return AI(module, module.GestureClassifier(bitstream=str(bitstream)))

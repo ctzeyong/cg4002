@@ -6,20 +6,21 @@ Events come from the classifier, or are dummies for ECHO and --event-every.
 import random
 import time
 
-# The Vis game's seven gestures: its GestureSymbol enum, lowercased, in order. The enum
-# is the only list; test_vis_vocabulary.py fails if this one drifts from it.
-GESTURES = ("circle", "caret", "arc", "z", "infinity", "triangle", "star")
+# The names AI's classifier gives (keras_stream.NEW_LABEL_MAP without noise), in class
+# order. Each must be a member of the Vis game's GestureSymbol enum, which takes shield as
+# its Tank. test_vis_vocabulary.py fails if this drifts from either.
+GESTURES = ("warrior", "mage", "fireball", "rogue", "lightning", "hero", "shield")
 
 # Pressed key -> gesture. The only copy of this table; see notes/tcp_leg.md.
 # Any other key (including 1 and 2) gets a random gesture.
 KEY_GESTURES = {
-    "c": "circle",
-    "k": "caret",
-    "a": "arc",
-    "z": "z",
-    "i": "infinity",
-    "t": "triangle",
-    "s": "star",
+    "w": "warrior",
+    "m": "mage",
+    "f": "fireball",
+    "r": "rogue",
+    "l": "lightning",
+    "h": "hero",
+    "s": "shield",
 }
 
 

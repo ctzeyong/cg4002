@@ -98,17 +98,24 @@ def test_board_broker_port_matches_the_contract():
 
 
 class FakeClient:
-    """Records publishes; optionally fails a given number of them."""
+    """Records publishes, retained ones (the gloves' status) kept apart. Can fail the first few."""
 
     def __init__(self, fail_times=0):
         self.published = []
+        self.retained = []
         self.fail_times = fail_times
 
-    async def publish(self, topic, payload, qos):
+    async def publish(self, topic, payload, qos, retain=False, timeout=None):
         if self.fail_times > 0:
             self.fail_times -= 1
             raise aiomqtt.MqttError("link down")
-        self.published.append((topic, payload, qos))
+        (self.retained if retain else self.published).append((topic, payload, qos))
+
+    @property
+    async def messages(self):
+        """Never yield and never end, like a live link with nothing subscribed."""
+        await asyncio.Event().wait()
+        yield
 
 
 def test_enqueue_drops_the_oldest_when_full():
@@ -304,9 +311,10 @@ async def test_one_quick_reconnect_publishes_before_the_event_expires(monkeypatc
     margin_s = 0.75  # time the retry must leave, for connecting on a slow board
 
     class TimedClient(FakeClient):
-        async def publish(self, topic, payload, qos):
-            await super().publish(topic, payload, qos)
-            self.published_at = time.monotonic()
+        async def publish(self, topic, payload, qos, retain=False, timeout=None):
+            await super().publish(topic, payload, qos, retain, timeout)
+            if not retain:
+                self.published_at = time.monotonic()
 
     client = TimedClient(fail_times=1)
 
@@ -334,7 +342,9 @@ async def test_one_quick_reconnect_publishes_before_the_event_expires(monkeypatc
             await asyncio.sleep(0.01)
 
     publisher = asyncio.create_task(
-        mqtt_publisher.run_publisher("127.0.0.1", 1883, outbound, stop, stats)
+        mqtt_publisher.run_publisher(
+            "127.0.0.1", 1883, outbound, stop, stats, mqtt_publisher.GloveSlot()
+        )
     )
     try:
         # Not DEADLINE_S: the real 1 s backoff alone takes half of that.
@@ -367,12 +377,12 @@ async def test_event_source_publishes_instead_of_writing():
     source = tcp_client_mqtt.MqttEventSource(outbound, stats)
 
     sentinel = object()  # a writer that would explode if touched
-    event = await asyncio.wait_for(source.emit(sentinel, 2, "c"), timeout=DEADLINE_S)
+    event = await asyncio.wait_for(source.emit(sentinel, 2, "w"), timeout=DEADLINE_S)
 
     topic, env, _ = outbound.get_nowait()
     assert topic == "game/gesture/2", "attribution rides in the topic"
     assert env["payload"] == event
-    assert event["gesture"] == "circle", "the pressed key still picks the gesture"
+    assert event["gesture"] == "warrior", "the pressed key still picks the gesture"
     assert source.seq == 1 and source.sent == 1
 
 

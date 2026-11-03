@@ -17,7 +17,6 @@ from ble_packet import (
     RESERVED_FIELD_COUNT,
     TYPE_CMD,
     TYPE_ECHO,
-    TYPE_EVENT,
     TYPE_SENSOR,
     VIBRATE_RECOGNISED,
     BlePacket,
@@ -90,11 +89,11 @@ def test_decode_rejects_corruption_in_header_data_or_crc(corrupt_index):
         decode(packet)
 
 
-def test_decode_accepts_event_at_any_length_without_crc():
-    """EVENT's payload is not pinned down yet, so CRC and length stay unchecked."""
-    packet_type, seq, payload = decode(bytes((TYPE_EVENT, 3, 0xAB)))
+def test_decode_passes_an_unknown_type_on_at_any_length():
+    """The client counts it as unknown, so decode doesn't reject it on length."""
+    packet_type, seq, payload = decode(bytes((0x09, 3, 0xAB)))
 
-    assert (packet_type, seq, payload) == (TYPE_EVENT, 3, b"\xab")
+    assert (packet_type, seq, payload) == (0x09, 3, b"\xab")
 
 
 def test_decode_copies_payload_off_the_bleak_buffer():
@@ -212,11 +211,11 @@ def test_format_packet_is_readable_and_shows_named_fields_and_crc():
     assert "\\x" not in line
 
 
-def test_format_packet_falls_back_for_event_without_fixed_shape():
-    """EVENT has no pinned layout, so there are no named fields or CRC to show."""
-    line = format_packet(BlePacket(1, TYPE_EVENT, 3, b"\x01\x00\x02\x00", 0.0))
+def test_format_packet_falls_back_for_an_unknown_type():
+    """An unknown type has no fixed layout, so there are no named fields or CRC to show."""
+    line = format_packet(BlePacket(1, 0x09, 3, b"\x01\x00\x02\x00", 0.0))
 
-    assert line == "node=1 EVENT seq=3 fields=[1, 2]"
+    assert line == "node=1 0X09 seq=3 fields=[1, 2]"
 
 
 def test_packet_to_message_names_imu_reserved_fields_and_crc():
