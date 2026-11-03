@@ -146,8 +146,8 @@ async def _publish_loop(client, outbound, pending, stats, stop):
 
         try:
             await client.publish(topic, payload=payload, qos=QOS_GAME_GESTURE)
-        except aiomqtt.MqttError:
-            # Keep it in `pending`; it is retried after the reconnect if still fresh.
+        except (aiomqtt.MqttError, asyncio.CancelledError):
+            # failed or cancelled, it stays in `pending` and is retried if the publisher reconnects
             raise
 
         stats.published += 1
@@ -232,7 +232,7 @@ async def one_session(host, port, outbound, pending, stats, stop, slot):
         stats.sessions += 1
         log.info("connected to mqtt://%s:%d as %s", host, port, CLIENT_ID)
 
-        ended = asyncio.Event()  # ends both loops, so neither is cancelled mid-publish
+        ended = asyncio.Event()  # set before the cancel, so a task that swallows it still stops
         loops = [
             asyncio.create_task(_publish_loop(client, outbound, pending, stats, ended)),
             asyncio.create_task(_publish_gloves(client, slot, ended)),
@@ -246,7 +246,8 @@ async def one_session(host, port, outbound, pending, stats, stop, slot):
         finally:
             ended.set()  # before cancelling, as everywhere
             slot.changed.set()  # wake the gloves loop now, or its 1 s wait delays the reconnect
-            for task in watchers:
+            # cancel the loops too, since a dropped link leaves a publish waiting 10 s for its ack
+            for task in [*loops, *watchers]:
                 task.cancel()
             await asyncio.gather(*loops, *watchers, return_exceptions=True)
         for task in [*loops, *watchers]:
