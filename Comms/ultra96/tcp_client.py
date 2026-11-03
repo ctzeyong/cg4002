@@ -396,12 +396,16 @@ async def run(
     gesture_flag: bool = False,
     ai_h5=None,
     vocab=None,
+    bitstream=None,
 ) -> None:
     """Maintain the Ultra96 TCP connection, reconnecting automatically after failures,
     waiting RECONNECT_BACKOFF_S between attempts.
     """
     use_flag = gesture_flag or bool(ai_h5)  # a Keras model always runs on the flag path
-    classifier = gesture.load_classifier(ai_h5=ai_h5, vocab=vocab) if use_flag else None
+    classifier = (
+        gesture.load_classifier(ai_h5=ai_h5, vocab=vocab, bitstream=bitstream)
+        if use_flag else None
+    )
     if classifier is not None:
         log.info("classifier: %s", type(classifier).__name__)
     while True:
@@ -416,7 +420,7 @@ async def run(
 
 
 def add_gesture_flag(parser):
-    """Add the model args A and B share: --gesture-flag and --vocab."""
+    """Add the model args A and B share: --gesture-flag, --vocab and --bitstream."""
     parser.add_argument(
         "--gesture-flag",
         action="store_true",
@@ -430,6 +434,13 @@ def add_gesture_flag(parser):
         help="label vocabulary for the FPGA model: old (7-class shapes) or new (8-class "
         "+ noise). Default uses wk10_integration's DEFAULT_VOCAB; the loaded bitstream must "
         "output that many classes.",
+    )
+    parser.add_argument(
+        "--bitstream",
+        default=None,
+        metavar="NAME",
+        help="FPGA overlay filename to load on the board (resolved next to the model); "
+        "required for --gesture-flag, and must output --vocab's class count.",
     )
 
 
@@ -470,6 +481,7 @@ def main() -> None:
                 gesture_flag=args.gesture_flag,
                 ai_h5=args.ai_h5,
                 vocab=args.vocab,
+                bitstream=args.bitstream,
             )
         )
     except KeyboardInterrupt:

@@ -36,10 +36,10 @@ LOG_FILE = REPO / "logs" / "run_board.log"
 # Where --fetch-logs puts the board's own log files, one folder per UTC day.
 FETCHED_LOGS = REPO / "logs" / "board"
 BOARD_SOURCES = REPO / "ultra96"
-# AI's model and its bitstream, copied next to gesture.py on the board
-# must match gesture.AI_MODULE and gesture.AI_BITSTREAM
-AI_MODULE = REPO.parent / "AI" / "board" / "wk10_integration.py"
-AI_BITSTREAM = REPO.parent / "AI" / "board" / "baseline_improved.xsa"
+# AI's model and overlays live here. The model is always synced; the overlay named by
+# --bitstream is synced beside it (must match gesture.AI_MODULE).
+AI_BOARD_DIR = REPO.parent / "AI" / "board"
+AI_MODULE = AI_BOARD_DIR / "wk10_integration.py"
 
 # Call the venv's python directly rather than relying on an activated venv.
 VENV_PYTHON = "~/comms-venv/bin/python"
@@ -137,18 +137,22 @@ def relog(line):
     target.info("%s", message)
 
 
-async def sync_sources(conn):
-    """Copy every ultra96/*.py, plus AI's model and its bitstream, to ~/comms/ on the board.
+async def sync_sources(conn, bitstream=None):
+    """Copy every ultra96/*.py and AI's model to ~/comms/ on the board, plus the overlay
+    named by --bitstream when one was given.
 
     The whole folder, not a list of names, so a new file is never left behind.
     """
     files = sorted(BOARD_SOURCES.glob("*.py"))
     if not files:
         raise SystemExit(f"no sources found in {BOARD_SOURCES}")
-    for needed in (AI_MODULE, AI_BITSTREAM):
-        if not needed.exists():
-            raise SystemExit(f"missing {needed}, which gesture.py needs on the board")
-        files.append(needed)
+    needed = [AI_MODULE]
+    if bitstream:
+        needed.append(AI_BOARD_DIR / bitstream)
+    for path in needed:
+        if not path.exists():
+            raise SystemExit(f"missing {path}, which gesture.py needs on the board")
+        files.append(path)
     async with conn.start_sftp_client() as sftp:
         await sftp.makedirs("comms", exist_ok=True)
         await sftp.put([str(path) for path in files], "comms/")
@@ -252,12 +256,25 @@ async def run(config, password, args):
                 await fetch_logs(board, args.fetch_logs)
                 return
             if args.sync:
-                await sync_sources(board)
+                await sync_sources(board, args.bitstream)
             await attach(board, remote_command(args.port, args.client_args, restart=args.sync))
 
 
+def bitstream_from_args(client_args):
+    """The --bitstream NAME value among the args forwarded to the client, or None.
+
+    Read here only to sync that overlay; it stays in client_args so the client gets it too.
+    """
+    for i, arg in enumerate(client_args):
+        if arg == "--bitstream" and i + 1 < len(client_args):
+            return client_args[i + 1]
+        if arg.startswith("--bitstream="):
+            return arg.split("=", 1)[1]
+    return None
+
+
 def parse_args(argv=None):
-    """Our three flags; every other argument (e.g. -v) is passed on to the board client."""
+    """Our flags; every other argument (e.g. -v, --bitstream) is passed on to the board client."""
     parser = argparse.ArgumentParser(
         description=__doc__.splitlines()[0],
         epilog="Any other argument is passed to tcp_client_mqtt.py, e.g. -v --event-every 2",
@@ -274,6 +291,8 @@ def parse_args(argv=None):
     )
     args, client_args = parser.parse_known_args(argv)
     args.client_args = client_args
+    # --bitstream is forwarded to the client; read (not consumed) here to sync that overlay too
+    args.bitstream = bitstream_from_args(client_args)
     return args
 
 

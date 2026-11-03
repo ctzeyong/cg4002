@@ -76,13 +76,13 @@ DEFAULT_VOCAB  = "old"
 N_CLASSES      = len(VOCABS[DEFAULT_VOCAB])
 SCALE          = 1 << 10      # to_fixed multiplier (1024)
 OUT_FRAC       = 10           # ap_fixed<16,6> -> 10 frac bits (logits = outb / 1024)
-CONF_THRESHOLD = 0.0          # reject top class below this as rest/blank; 0.0 = never reject
+CONF_THRESHOLD = 0.7          # reject top class below this as rest/blank; 0.0 = never reject
 REJECT_LABELS  = ("noise",)   # a model's no-gesture class: top class here -> no result (8-class models)
 
 CROP           = 40           # test only: max |offset| steps the EOG may miss the gesture by
 NOISE_FRAC     = 0.05         # test only: filler noise std as a fraction of per-channel gesture std
 
-BITSTREAM = "xsa/baseline_improved.xsa"   # default overlay (constructor arg)
+BITSTREAM = "xsa/new_gestures_all.xsa"   # default overlay (constructor arg)
 CSV       = "gestures_real_train.csv"      # default decoded dataset for test mode
 KEEP      = [str(i) for i in range(N_CLASSES)]   # test-mode CSV labels; follows the default vocab
 

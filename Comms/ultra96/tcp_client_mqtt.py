@@ -224,13 +224,13 @@ async def one_session(
 
 
 async def run_tcp(host, port, outbound, stats, event_every=0.0, gesture_flag=False, gloves=None,
-                  vocab=None):
+                  vocab=None, bitstream=None):
     """Keep the TCP connection up, reconnecting forever. Same as `tcp_client.run`."""
     # One source for the whole run: a new one would restart seq at 0, and the phone
     # would drop the repeated event_ids as duplicates.
     events = MqttEventSource(outbound, stats)
 
-    classifier = gesture.load_classifier(vocab=vocab) if gesture_flag else None
+    classifier = gesture.load_classifier(vocab=vocab, bitstream=bitstream) if gesture_flag else None
     if classifier is not None:
         log.info("classifier: %s", type(classifier).__name__)
     while True:
@@ -256,7 +256,7 @@ async def run_tcp(host, port, outbound, stats, event_every=0.0, gesture_flag=Fal
 
 
 async def run(host, port, broker_host, broker_port, event_every=0.0, gesture_flag=False,
-              vocab=None):
+              vocab=None, bitstream=None):
     """Run TCP, the MQTT publisher and the gloves' watcher.
 
     All three run continuously. Ctrl-C stops the publisher, and the relay stops once the
@@ -279,6 +279,7 @@ async def run(host, port, broker_host, broker_port, event_every=0.0, gesture_fla
                 gesture_flag=gesture_flag,
                 gloves=gloves,
                 vocab=vocab,
+                bitstream=bitstream,
             )
         ),
         asyncio.create_task(
@@ -332,6 +333,7 @@ def main():
                 args.event_every,
                 gesture_flag=args.gesture_flag,
                 vocab=args.vocab,
+                bitstream=args.bitstream,
             )
         )
     except KeyboardInterrupt:
