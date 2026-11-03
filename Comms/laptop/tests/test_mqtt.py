@@ -338,13 +338,17 @@ async def test_unserialisable_envelope_does_not_stall_across_reconnects():
     outbound = asyncio.Queue(maxsize=8)
     stats = MqttStats()
     pending = []
-    stop = asyncio.Event()
     enqueue_event(outbound, mqtt_config.gesture_topic(1), build_envelope({"bad": {1, 2}}, seq=1), stats)
 
     for _ in range(3):  # three "sessions", as the supervisor would run them
         client = FakeClient()
+        stop = asyncio.Event()
         task = asyncio.create_task(_publish_loop(client, outbound, pending, stats, stop))
         await asyncio.sleep(0.02)
+        # stop before cancel, as every teardown here does: a cancel landing just as
+        # wait_for takes the envelope is swallowed, and without stop the loop then
+        # polls the empty queue forever (CLAUDE.md, the wait_for trap).
+        stop.set()
         task.cancel()
         await asyncio.gather(task, return_exceptions=True)
 

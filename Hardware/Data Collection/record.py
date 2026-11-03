@@ -52,10 +52,32 @@ def check_progress(previous, row, line, sensor_gap=False):
     return sensor_gap or ds!=1 or dt!=RAW_PERIOD_US
 
 
+def default_name(args):
+    """Build sessions/<fields>.csv from the recording arguments."""
+    parts = [args.participant, args.session]
+    if args.symbol:
+        parts += [args.symbol, args.drawing_mode, args.direction, args.posture]
+    return Path('sessions') / ('_'.join(parts) + '.csv')
+
+
+def unique_output(path):
+    """Return path, or path with a _2/_3/... suffix, whose CSV, meta and
+    labels files are all free so no existing recording is overwritten."""
+    def taken(p):
+        return (p.exists() or p.with_suffix('.meta.json').exists()
+                or p.with_suffix('.labels.json').exists())
+    if not taken(path):
+        return path
+    n = 2
+    while taken(path.with_name(f'{path.stem}_{n}{path.suffix}')):
+        n += 1
+    return path.with_name(f'{path.stem}_{n}{path.suffix}')
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--port', required=True)
-    p.add_argument('--out', type=Path, required=True)
+    p.add_argument('--out', type=Path, help='Output CSV path; if omitted, auto-named from the arguments under sessions/')
     p.add_argument('--participant', required=True)
     p.add_argument('--session', required=True)
     p.add_argument('--notes', default='')
@@ -75,10 +97,12 @@ def main():
             p.error('Live keys require a Windows terminal (for example Anaconda Prompt)')
         keys = ConsoleKeys()
     import serial
+    if args.out is None:
+        args.out = default_name(args)
+    args.out = unique_output(args.out)
+    print(f'Recording to {args.out}')
     meta_path = args.out.with_suffix('.meta.json')
     labels_path = args.out.with_suffix('.labels.json')
-    if args.out.exists() or meta_path.exists() or labels_path.exists():
-        p.error('Choose a new recording filename; no recordings are overwritten')
     args.out.parent.mkdir(parents=True, exist_ok=True)
     meta = dict(schema=SCHEMA, raw_hz=RAW_HZ, default_output_steps=100, dlpf=3,
                 accel_range_g=4, gyro_range_dps=500,

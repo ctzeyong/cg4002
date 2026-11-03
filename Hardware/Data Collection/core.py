@@ -9,7 +9,7 @@ import json
 import numpy as np
 
 SCHEMA = 'gesture-packet-v4'
-GESTURES = ('circle', 'arc', 'infinity', 'caret', 'z', 'triangle', 'star')
+GESTURES = ('circle', 'arc', 'infinity', 'caret', 'z', 'triangle', 'star', 'lightning', 'fireball', 'tank', 'chop', 'jabs', 'noise')
 CHANNELS = ('ax_g', 'ay_g', 'az_g', 'gx_dps', 'gy_dps', 'gz_dps')
 RAW_HZ = 500
 RAW_PERIOD_US, FEATURE_PERIOD_US = 2000, 10000

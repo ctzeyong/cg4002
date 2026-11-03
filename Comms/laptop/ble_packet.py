@@ -5,6 +5,10 @@
     bytes 2-23  11 x int16 little-endian: ax ay az gx gy gz, then 5 reserved
     bytes 24-25 CRC-16/CCITT-FALSE of bytes 0-23, little-endian
 
+In a SENSOR packet the first reserved field is the IMU status (firebeetle/imu.h),
+which ImuCheck turns into warnings. In a CMD it says what kind of command it is, and a
+VIBRATE puts its pattern in field 0.
+
 No bleak or asyncio here, so the format can be tested without Bluetooth.
 """
 
@@ -13,13 +17,11 @@ from dataclasses import dataclass
 
 
 TYPE_SENSOR = 0x01  # uplink, free-running stream
-TYPE_EVENT = 0x02  # uplink, hall-effect open/closed; payload not fixed yet
 TYPE_CMD = 0x03  # downlink, laptop -> board
 TYPE_ECHO = 0x04  # uplink, the board's reply to a CMD
 
 TYPE_NAMES = {
     TYPE_SENSOR: "sensor",
-    TYPE_EVENT: "event",
     TYPE_CMD: "cmd",
     TYPE_ECHO: "echo",
 }
@@ -37,8 +39,25 @@ PACKET_LEN = CRC_OFFSET + CRC_LEN
 
 CRC_INIT = 0xFFFF
 
-# EVENT is left out: the firmware does not send it yet and its size is not decided.
 FIXED_LEN_TYPES = (TYPE_SENSOR, TYPE_ECHO, TYPE_CMD)
+
+# IMU status values, the same as ImuStatus in firebeetle/imu.h
+IMU_UNREPORTED = 0  # firmware from before the IMU
+IMU_OK = 1
+IMU_MISSING = 2
+IMU_RECOVERING = 3
+IMU_STATUS_OFFSET = IMU_FIELD_COUNT * FIELD_LEN  # reserved[0], counted from the payload start
+
+IMU_PROBLEMS = {
+    IMU_MISSING: "IMU missing, sending zeros",
+    IMU_RECOVERING: "IMU readings restarting after a reset or a gap",
+}
+
+# reserved[0] of a CMD says what kind it is, 0 for keystrokes
+# the board only negates the IMU fields, so its ECHO brings the kind back unchanged
+CMD_KIND_FIELD = IMU_FIELD_COUNT
+CMD_VIBRATE = 1
+VIBRATE_RECOGNISED = 1  # field 0 of a VIBRATE, meaning the board classified a gesture
 
 
 class PacketLengthError(ValueError):
@@ -119,6 +138,38 @@ def unpack_crc(payload):
     return int.from_bytes(payload[DATA_LEN:], "little")
 
 
+def imu_status(payload):
+    """Return the IMU status a SENSOR payload carries in reserved[0]."""
+    status = payload[IMU_STATUS_OFFSET : IMU_STATUS_OFFSET + FIELD_LEN]
+    return int.from_bytes(status, "little", signed=True)
+
+
+class ImuCheck:
+    """Warn once when a node's IMU stops giving real readings, and log when it is back.
+
+    Make one per connection. Status 0 means old firmware with nothing to report, so it
+    never warns.
+    """
+
+    def __init__(self, node_id, log):
+        self.node_id = node_id
+        self.log = log
+        self.problem_since = None  # when the current problem started, None while healthy
+
+    def update(self, status, now):
+        """Take the status of one SENSOR packet received at `now`, in seconds."""
+        healthy = status in (IMU_UNREPORTED, IMU_OK)
+        if not healthy and self.problem_since is None:
+            self.problem_since = now
+            problem = IMU_PROBLEMS.get(status, f"unknown IMU status {status}")
+            self.log.warning("node %d: %s", self.node_id, problem)
+        elif healthy and self.problem_since is not None:
+            self.log.info(
+                "node %d: IMU OK again after %.1fs", self.node_id, now - self.problem_since
+            )
+            self.problem_since = None
+
+
 def build_fixed_packet(packet_type, seq, fields):
     """Serialise a fixed SENSOR, CMD or ECHO packet and append its CRC.
 
@@ -146,6 +197,23 @@ def build_cmd_packet(seq, fields):
         OverflowError: a field outside the signed 16-bit range.
     """
     return build_fixed_packet(TYPE_CMD, seq, fields)
+
+
+def build_vibrate_packet(seq, pattern):
+    """Build a VIBRATE, which is a CMD with `pattern` in field 0.
+
+    Raises:
+        OverflowError: `pattern` does not fit in an int16.
+    """
+    fields = [0] * DATA_FIELD_COUNT
+    fields[0] = pattern
+    fields[CMD_KIND_FIELD] = CMD_VIBRATE
+    return build_cmd_packet(seq, fields)
+
+
+def is_vibrate_echo(payload):
+    """Return True if this ECHO is the board's reply to a VIBRATE."""
+    return unpack_fields(payload)[CMD_KIND_FIELD] == CMD_VIBRATE
 
 
 def format_packet(packet):

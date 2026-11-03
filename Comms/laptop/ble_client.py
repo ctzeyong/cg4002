@@ -27,14 +27,16 @@ from ble_packet import (
     IMU_FIELD_COUNT,
     RESERVED_FIELD_COUNT,
     TYPE_ECHO,
-    TYPE_EVENT,
     TYPE_SENSOR,
     BlePacket,
+    ImuCheck,
     PacketCrcError,
     PacketLengthError,
     build_cmd_packet,
     decode,
     format_packet,
+    imu_status,
+    is_vibrate_echo,
     unpack_fields,
 )
 from logging_setup import PROGRESS, setup_logging
@@ -53,7 +55,7 @@ P2_SENSOR_CHAR_UUID = "b1160002-0000-4000-8000-000000000002"
 P2_CMD_CHAR_UUID    = "b1160003-0000-4000-8000-000000000002"
 
 # Types this client accepts from the SENSOR notification characteristic.
-UPLINK_TYPES = (TYPE_SENSOR, TYPE_EVENT, TYPE_ECHO)
+UPLINK_TYPES = (TYPE_SENSOR, TYPE_ECHO)
 
 # seq is 8 bits and wraps 255 -> 0. A jump of 128 or more "forwards" is read as the
 # packet going backwards (a repeat or a late packet), not as 128+ lost packets.
@@ -232,10 +234,12 @@ def seq_anomaly_suffix(stats, now):
 def make_notify_handler(node, queue, stats):
     """Build the function bleak calls for every notification from `node`.
 
-    It checks the packet (length, CRC, type), tracks the sequence number, and puts
-    good packets on the shared queue. Bad packets are counted and dropped.
+    It checks the packet (length, CRC, type), tracks the sequence number, watches the
+    IMU status, and puts good packets on the shared queue. Bad packets are counted and
+    dropped.
     """
     nlog = node_log(node)
+    imu_check = ImuCheck(node.node_id, nlog)  # one per connection, so a reconnect starts fresh
 
     def on_notify(_char, data):
         try:
@@ -269,15 +273,24 @@ def make_notify_handler(node, queue, stats):
             stats.received += 1
             forward = True
 
+            # only SENSOR, because an ECHO's reserved fields are copied from its CMD
+            if packet_type == TYPE_SENSOR:
+                imu_check.update(imu_status(payload), now)
+
             if packet_type == TYPE_ECHO:
                 # An ECHO reuses its CMD's seq, not the sensor stream's, so skip the gap check.
                 stats.echoed += 1
-                nlog.info(
-                    "node %d: ECHO seq=%d fields[:3]=%s",
-                    node.node_id,
-                    seq,
-                    unpack_fields(payload)[:3],
-                )
+                if is_vibrate_echo(payload):
+                    # not forwarded, so the board can't mistake it for a keypress
+                    forward = False
+                    nlog.info("node %d: VIBRATE seq=%d echoed, not forwarded", node.node_id, seq)
+                else:
+                    nlog.info(
+                        "node %d: ECHO seq=%d fields[:3]=%s",
+                        node.node_id,
+                        seq,
+                        unpack_fields(payload)[:3],
+                    )
             elif stats.last_seq is None:
                 stats.last_seq = seq
             else:

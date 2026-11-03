@@ -15,6 +15,12 @@ Cross-subsystem contracts, full-system setup, and integration runbooks belong in
 [`integration/`](integration/). This keeps shared interfaces separate from implementation
 details owned by one subsystem.
 
+| Integration | Documentation |
+|---|---|
+| Full pipeline | [Merged Hardware -> Comms -> AI -> Visualiser flow and Configuration B runbook](integration/full-pipeline.md) |
+| Hardware ↔ Comms | [Single-MPU6050 interface, ownership, and change contract](integration/hardware-comms.md) |
+| AI ↔ Comms | [FPGA classifier in the board client](integration/ai-comms.md) |
+
 When adding documentation:
 
 - place subsystem-specific material under `subsystem/<name>/`;

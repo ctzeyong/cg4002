@@ -28,11 +28,12 @@ Server-mode contract (networking is comms' job, NOT ours):
     # per received JSON packet (comms owns the socket):
     res = clf.feed(IMUSample(ax=msg["ax"], ay=msg["ay"], az=msg["az"],
                              gx=msg["gx"], gy=msg["gy"], gz=msg["gz"],
-                             end_of_gesture=msg["eog"]))
+                             end_of_gesture=msg["eog"]), player=player)
     if res is not None:
         await send_message(writer, ai_event_from_result(res, player, seq))
 
-The ring buffer rolls continuously -- no reset between gestures.
+Each player has their own ring buffer, which rolls continuously -- no reset
+between gestures.
 
 Importing this module has NO side effects (no training, no socket, no inference).
 
@@ -63,7 +64,8 @@ CHANNELS       = 6
 N_CLASSES      = 7
 SCALE          = 1 << 10      # to_fixed multiplier (1024)
 OUT_FRAC       = 10           # ap_fixed<16,6> -> 10 frac bits (logits = outb / 1024)
-CONF_THRESHOLD = 0.0          # reject top class below this as rest/blank; 0.0 = never reject
+CONF_THRESHOLD = 0.7          # reject top class below this as rest/blank; 0.0 = never reject
+REJECT_LABELS  = ("noise",)   # a model's no-gesture class: top class here -> no result (8-class models)
 
 CROP           = 40           # test only: max |offset| steps the EOG may miss the gesture by
 NOISE_FRAC     = 0.05         # test only: filler noise std as a fraction of per-channel gesture std
@@ -121,6 +123,8 @@ class ModelConfig:
     label_map: dict = field(default_factory=lambda: dict(LABEL_MAP))
     accel_to_m_s2: float = ACCEL_TO_M_S2
     gyro_to_rad_s: float = GYRO_TO_RAD_S
+    # classes that mean "no gesture": a top class in here gives no result, like low confidence
+    reject_labels: tuple = REJECT_LABELS
 
 
 # ---------------------------------------------------------------------------
@@ -174,13 +178,14 @@ class _MockBackend:
 
 
 # ---------------------------------------------------------------------------
-# GestureClassifier -- the exposed API (one instance = one player)
+# GestureClassifier -- the exposed API (one instance, one ring buffer per player)
 # ---------------------------------------------------------------------------
 class GestureClassifier:
     """Load bitstream, decode, infer, postprocess. No networking, no accuracy.
 
-    Comms calls `feed(sample)` once per received packet; everything else is
-    internal or for the test harness."""
+    Comms calls `feed(sample, player)` once per received packet; everything else
+    is internal or for the test harness. The accelerator is shared, but each
+    player has their own ring buffer."""
 
     def __init__(self, bitstream: str = BITSTREAM, config: ModelConfig = ModelConfig(),
                  mock: bool = False):
@@ -188,30 +193,35 @@ class GestureClassifier:
         self._backend = (_MockBackend if mock else _BoardBackend)(bitstream, config)
         self.inb = self._backend.inb     # DMA input buffer (win*channels int16)
         self.outb = self._backend.outb   # DMA output buffer (n_classes int16)
-        self.buf = collections.deque(maxlen=config.win)   # rolling ring buffer
+        self.bufs = {}                   # player -> rolling ring buffer
         self.last_result: GestureResult | None = None
+        self.last_reject: str | None = None   # why the latest inference gave no result
         self._assert_parity(bitstream)   # best-effort label_map.json guard (no-op off-board)
 
     # ---- public API -------------------------------------------------------
-    def feed(self, sample: IMUSample) -> GestureResult | None:
-        """The single method comms calls per packet. Decode + append to the ring
-        buffer; if sample.end_of_gesture, run infer() and return its result (with
-        the packet timestamp attached), else return None. Never resets the buffer."""
-        self.buf.append(self._decode([sample.ax, sample.ay, sample.az,
-                                      sample.gx, sample.gy, sample.gz]))
+    def feed(self, sample: IMUSample, player=None) -> GestureResult | None:
+        """The single method comms calls per packet. Decode + append to the
+        player's ring buffer; if sample.end_of_gesture, run infer() and return its
+        result (with the packet timestamp attached), else return None. Never
+        resets the buffer."""
+        self._buf(player).append(self._decode([sample.ax, sample.ay, sample.az,
+                                               sample.gx, sample.gy, sample.gz]))
         if not sample.end_of_gesture:
             return None
-        res = self.infer()
+        res = self.infer(player)
         if res is not None:
             res.timestamp = sample.timestamp   # res is self.last_result (same object)
         return res
 
-    def infer(self) -> GestureResult | None:
-        """Infer on the last `win` samples of the ring buffer. None if the buffer
-        is not full or the top class is below conf_threshold."""
-        if len(self.buf) < self.config.win:
+    def infer(self, player=None) -> GestureResult | None:
+        """Infer on the last `win` samples of the player's ring buffer. None if the
+        buffer is not full, the top class is a reject label (noise), or it is below
+        conf_threshold; last_reject then says which."""
+        buf = self._buf(player)
+        if len(buf) < self.config.win:
+            self.last_reject = f"buffer not full: {len(buf)}/{self.config.win} samples"
             return None
-        return self._run_window(np.stack(self.buf, axis=0))
+        return self._run_window(np.stack(buf, axis=0))
 
     def infer_window(self, samples) -> GestureResult | None:
         """Comms-owns-the-buffer variant: infer on a caller-supplied (win, channels)
@@ -220,15 +230,25 @@ class GestureClassifier:
                                                                self.config.channels)
         return self._run_window(window)
 
-    def push_decoded(self, vec6) -> None:
+    def push_decoded(self, vec6, player=None) -> None:
         """Inject one already-decoded step (6 physical-unit channels), bypassing
         decode. Used by the test harness to feed decoded CSV values."""
-        self.buf.append(np.asarray(vec6, dtype=np.float32).reshape(self.config.channels))
+        self._buf(player).append(np.asarray(vec6, dtype=np.float32).reshape(self.config.channels))
 
-    def reset(self) -> None:
-        self.buf.clear()
+    def reset(self, player=None) -> None:
+        """Clear one player's ring buffer, or every player's when player is None."""
+        if player is None:
+            self.bufs.clear()
+        else:
+            self.bufs.pop(player, None)
 
     # ---- internal stages --------------------------------------------------
+    def _buf(self, player):
+        """The player's ring buffer, made empty on their first sample."""
+        if player not in self.bufs:
+            self.bufs[player] = collections.deque(maxlen=self.config.win)
+        return self.bufs[player]
+
     def _decode(self, counts):
         """Raw int16 counts -> physical units. The ONLY preprocessing (no norm).
         accel ch 0-2 -> m/s^2, gyro ch 3-5 -> rad/s. Returns float32."""
@@ -250,11 +270,18 @@ class GestureClassifier:
         z = np.asarray(raw).astype(np.float64) / (1 << self.config.out_frac)   # fixed -> float logits
         p = np.exp(z - z.max()); p /= p.sum()                                   # softmax (float)
         pred = int(p.argmax()); conf = float(p[pred])
-        if conf < self.config.conf_threshold:
+        gesture = self.config.label_map.get(pred, str(pred))
+        if gesture in self.config.reject_labels:                                # no-gesture class
+            self.last_reject = f"{gesture} p={conf:.2f}"
+        elif conf < self.config.conf_threshold:                                 # not sure enough
+            self.last_reject = (f"low confidence {gesture} p={conf:.2f}"
+                                f" < {self.config.conf_threshold:.2f}")
+        else:
+            self.last_reject = None
+        if self.last_reject is not None:
             self.last_result = None
             return None
-        res = GestureResult(class_id=pred,
-                            gesture=self.config.label_map.get(pred, str(pred)),
+        res = GestureResult(class_id=pred, gesture=gesture,
                             confidence=conf, logits=z.tolist(), timestamp=None)
         self.last_result = res
         return res

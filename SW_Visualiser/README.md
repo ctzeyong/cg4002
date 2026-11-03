@@ -5,10 +5,12 @@ The software visualiser for BridgeRush: a Unity AR app that renders the match on
 This folder holds the scripts I wrote for it (`script/`). Art packs, Unity `Library/` output and builds are not included.
 
 - **AR arena tracking**: detect the opponent's AprilTag with `jp.keijiro.apriltag`, smooth the pose, hold it when the marker is briefly lost, and build a lane axis between the two devices. Towers, bridge and water are placed along that axis, with the floor height taken from AR plane detection.
-- **Gesture input**: a stroke recogniser that classifies hand-drawn symbols (Circle, Caret, Arc, Z, Infinity, Triangle, Star) from touch points, plus a summon cursor to choose where a unit spawns.
+- **Gesture input**: the real input is the glove/arm, classified on the Ultra96 and delivered over MQTT (`AiGestureHook` or `GloveGestureReceiver`), through one table, `GestureBindings`. The on-screen drawing pad was removed on 2026-10-21; a banner shows what each gesture did and why it failed. A summon cursor chooses where a unit spawns.
 - **Match logic**: a mana economy, unit spawning, lane movement, melee combat, tower damage and counter-damage, out-of-bounds damage, an optional enemy bot, and a 180 s match timer. Unit stats and prefabs are data-driven through ScriptableObjects.
-- **Networking**: MQTT connection and sync so both phones agree on ready state, tower lock, countdown, gestures and game state.
+- **Networking**: an MQTT connection that follows the comms team's contract (MQTTnet, five-field envelope, de-duplication on `event_id`, automatic reconnect), and sync so both phones agree on ready state, tower lock, countdown and game state.
 - **Rendering and visuals**: unit and tower views, bridge, water and tower pedestal visuals, and a renderer that draws the match state in AR.
+- **Scale**: sized for a 2 m lane. The opponent tower matches your own tower's size, hanging below the worn tag by a tag-to-ground offset; units are 0.15 m; a spawn is valid anywhere inside your own territory.
+- **Bubble capture**: capture bubbles sit on the opponent's tower. Holding the crosshair on one fills it; a full bubble reports `bubble_captured` to the Ultra96, which awards the mana. The defender's phone shows a warning while they are being locked. See `integration_update.md`.
 - **UI**: match HUD, unit card hand, setup screen, and a debug menu and tracking overlay for testing without a second player.
 
 ## How a match works
@@ -16,7 +18,7 @@ This folder holds the scripts I wrote for it (`script/`). Art packs, Unity `Libr
 1. **Setup**: each phone connects to the MQTT broker, scans the floor, and marks itself ready.
 2. **Tracking**: the phone detects the opponent's AprilTag and builds the lane between the two devices.
 3. **Countdown**: once both players are ready, a synced countdown starts the match.
-4. **Play**: mana regenerates over time. The player draws a symbol, picks a spot with the summon cursor, and the matching unit spawns and walks the lane. Units fight on contact and towers hit back.
+4. **Play**: mana regenerates over time. The player makes a gesture with the glove (or draws one on screen when testing), aims with the summon cursor, and the matching unit spawns and walks the lane. Units fight on contact and towers hit back.
 5. **End**: the match runs on a timer (180 s by default) and tower HP decides the result.
 
 ## Script layout
@@ -24,34 +26,52 @@ This folder holds the scripts I wrote for it (`script/`). Art packs, Unity `Libr
 | Folder | What it does |
 | --- | --- |
 | `script/Tracking/` | `AprilTagTracker` detects markers. `ArenaFrame` turns the device pose and opponent marker into a lane axis and world positions. `FloorHeightProvider`, `MatchSetup` and `TrackingDebugOverlay` support placement and debugging. |
-| `script/Input/` | `GesturePad` collects strokes. `GestureRecognizer` classifies them. `SummonCursor` picks the spawn point. |
-| `script/Match/` | `MatchState` is the core game logic, split into `.Economy` (mana), `.Combat`, `.Geometry` (lane, bridge, bounds) and `.Network`. `UnitState`, `UnitStatsTable` and `UnitPrefabCatalog` define the units (Warrior, Rogue, Mage, Tank, Hero). |
-| `script/Networking/` | `MqttConnection` owns the broker connection. `MatchNetworkSync`, `PeerReadySync`, `TowerLockSync` and `MatchCountdown` keep both phones in step. `NetworkMessages` holds the payload types. |
-| `script/Gameplay/` | `GameStateRenderer`, `UnitView`, `TowerController` and `SpellCaster`, plus `Environment/` for the bridge, water and tower pedestal visuals. |
-| `script/UI/` | `MatchHudUI`, `CardHandUI`, `SetupScreen`, `DebugMenu` and shared UI helpers. |
+| `script/Input/` | `GestureBindings` maps a gesture to a game action. `GesturePad` runs glove gestures (called by `AiGestureHook`) and shows the result and the reason it failed; the on-screen drawing pad and shape recogniser were removed on 2026-10-21. `SummonCursor` picks the spawn point. |
+| `script/Match/` | `MatchState` is the core game logic, split into `.Economy` (mana), `.Combat`, `.Geometry` (lane, two bridges, bounds), `.Spells` (lightning strikes and the shared spell numbers) and `.Network`. `UnitState`, `UnitStatsTable` and `UnitPrefabCatalog` define the units (Warrior, Rogue, Mage, Tank, Hero). |
+| `script/Networking/` | `MqttConnection` owns the broker connection and the envelope. `Glove/GloveGestureReceiver` turns glove events into actions. `Sync/` (`MatchNetworkSync`, `PeerReadySync`, `TowerLockSync`, `MatchCountdown`) keeps both phones in step. `Sync/BubbleSync` reports captures and streams lock progress. `NetworkMessages` holds the payload types. `Comms/` holds the comms team's `Envelope`, `SeenEvents` and `MqttConfig`, copied unchanged. `Comms/CommsVisualiser/` is the comms team's SSH-tunnel transport and AI gesture hook, copied unchanged from branch `vis-comms`. |
+| `script/Gameplay/` | `GameStateRenderer`, `UnitView`, `SpawnEffect` (summon dust, smoke and sparks), `TowerController` and `SpellCaster`, plus `Environment/` for the bridge, water and tower pedestal visuals, and `Bubbles/` (`BubbleCaptureManager`, `CaptureBubble`, `BubbleReward`) for the capture mechanic. |
+| `plugins/iOS/` | `BridgeRushHaptics.mm`, the native iOS code for damage vibration. It is not part of `script/`: copy it to `My project/Assets/Plugins/iOS/` (already done) and set it to iOS only in the Inspector. Needs a full iOS rebuild. |
+| `script/UI/` | `MatchHudUI`, `CardHandUI`, `SetupScreen`, `BubbleWarningUI`, `DebugMenu` and shared UI helpers. |
 
-## MQTT topics
+## Integration with the comms pipeline
 
-| Topic | Purpose |
-| --- | --- |
-| `bridgerush/ready/player1`, `bridgerush/ready/player2` | Player ready state |
-| `bridgerush/lock/player1`, `bridgerush/lock/player2` | Tower position lock |
-| `bridgerush/match/countdown` | Synced match start |
-| `bridgerush/game/gesture` | Gestures sent from the phone |
-| `bridgerush/game/state` | Game state snapshots |
+The glove gesture reaches the phone as the comms team's AI event on `game/gesture/{player}`. Each phone subscribes to its own player's topic and plays the gesture through the same path as the touch pad, so on the Player 2 phone the existing request-to-host route still carries the aim.
 
-The broker host and port are set on the `MqttConnection` component (default `127.0.0.1:1883`) or from the in-app debug menu.
+| Topic | Direction | Used for |
+| --- | --- | --- |
+| `game/gesture/{player}` | pipeline to phone | Glove gesture. `payload.gesture` is one of circle, triangle, square, zigzag, arc, line. |
+| `viz/ready/{player}` | phone to pipeline | Sent when the arena frame is locked. Payload: `status`, `player`, `lane_length_m`. Not retained yet. |
+| `game/state` | host phone to client phone | Game snapshot every tick, QoS 0. The snapshot layout is this project's own; it now also carries a `strikes` list (lightning telegraphs and fireball flights, with `kind`, `fromAlong`, `fromLat`, `burn`) so both phones draw the strike, and each unit carries `target` and `range` so the client can draw ranged bolts. |
+| `bridgerush/game/request` | client phone to host phone | Spawn or spell request. A lightning or fireball request carries the aim as `hasAim`, `along`, `lat`. Not in the comms contract. |
+| `viz/bubble_captured/{player}` | phone to pipeline | Bubble captured. Payload: `event`, `player`, `bubble_id`. Proposed topic, the Ultra96 awards the reward. |
+| `bridgerush/bubble/playerN` | phone to phone | Lock progress stream: `targeted`, `progress`. Drives the defender's warning. Stub. |
+| `bridgerush/ready/playerN`, `bridgerush/lock/playerN`, `bridgerush/match/countdown` | phone to phone | Lock-in, tower lock and countdown. Not in the comms contract. |
+
+Every message on every topic is wrapped in the five-field envelope (`event_id`, `source`, `seq`, `ts`, `payload`), and incoming messages are checked by type and de-duplicated on `event_id`.
+
+The broker address is set on the `MqttConnection` component (keep it `127.0.0.1` when using the Comms tunnel). The debug menu no longer has a broker field: its Comms category connects through `CommsTunnelBridge`.
+
+### Still open
+
+- **Bubble capture on the comms side.** `viz/bubble_captured/{player}` is a proposed topic; the Ultra96 must validate it, award the mana and feed it back. See the TODO in `BubbleSync.cs` and `integration_update.md`.
+- **Who runs the game logic.** Here the Player 1 phone is the host. The comms notes assume the engine is on the laptop or the Ultra96 and phones only render. If that is decided, `MatchState` moves and `game/state` becomes the engine's output.
+- **Glove bindings.** The glove sends the name of the unit or spell it recognised, and `GestureBindings` accepts exactly these (not case sensitive): warrior, rogue, mage, tank (or shield), hero, lightning, fireball. Anything else is rejected as unknown. The classifier on the board must emit these names; until it does, its old classes (arc, caret, circle, infinity, star, triangle, z) are rejected.
+- **Phone-to-phone topics** above should be added to the comms topic contract, or moved onto contracted ones.
+- **`viz/ready` lifecycle** (retained, last will, match id) is not implemented.
+- **mTLS** is not implemented; it is only needed if the broker runs on the laptop.
 
 ## Requirements
 
-- Unity `6000.5.9f1`
-- Packages: AR Foundation 6.5.0, ARCore / ARKit XR plugins 6.5.0, XR Interaction Toolkit 3.5.1, Universal RP 17.0.3, Input System 1.19.0, and `jp.keijiro.apriltag` (from GitHub).
-- [M2Mqtt](https://github.com/eclipse/paho.mqtt.m2mqtt) in `Assets/Plugins/M2Mqtt` (not included here).
+- Unity `6000.5.9f1` (the comms visualiser uses `6000.6.0f1`).
+- Packages: AR Foundation 6.5.0, ARCore / ARKit XR plugins 6.5.0, XR Interaction Toolkit 3.5.1, Universal RP 17.0.3, Input System 1.19.0, `com.unity.nuget.newtonsoft-json` 3.2.2, and `jp.keijiro.apriltag` (from GitHub).
+- `MQTTnet.dll` (4.3.7, netstandard2.1) in `Assets/Plugins/MQTTnet`, and `Assets/link.xml` preserving MQTTnet and Newtonsoft. Both are in the comms repo at `comms/phone/demo-visualiser/Assets`.
+- Player Settings: Internet Access set to Require (`ForceInternetPermission: 1`), or MQTTnet's raw sockets are blocked on Android.
 - An MQTT broker on the same network as both phones.
 
 ## Running it
 
 1. Open a Unity project with the packages above and copy `script/` into its `Assets` folder.
-2. Add M2Mqtt under `Assets/Plugins`.
+2. Add MQTTnet, `link.xml` and the Internet setting as described above.
 3. Assign the scene references (ArenaFrame, MatchState, MqttConnection and so on) in the inspector. Tuning values such as mana, tower HP and lane size are serialized fields on `MatchState`.
 4. Build to an iOS or Android device. Both players need a printed AprilTag on their side of the table.
+5. To test without the glove, publish an event with `mqtt_client.py --publish-every` from the comms repo.

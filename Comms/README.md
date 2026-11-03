@@ -42,6 +42,9 @@ The broker listens on the board's loopback only, so it can only be reached throu
 | `phone/demo-visualiser/` | Configuration A's client (not used in B) |
 | `scripts/` | Launchers. B is `run_pipeline.ps1` + `run_board.ps1` |
 
+Comments such as `notes/latency.md 3.13` point to Comms' design notes, which are kept outside this
+repo. Ask Comms for the section.
+
 ## Network rule
 
 The laptop and every phone each log in to stujump (the SoC student jump host) themselves.
@@ -142,5 +145,56 @@ broker, is the proof the phone received them. `.\scripts\run_board.ps1 --stop` s
 client. The other options are in the
 [docs](../docs/subsystem/comms/README.md#2-run-configuration-b).
 
-**Never mix A's and B's scripts.** A mixed pair can run with every process looking healthy
-while the phone receives nothing.
+## Testing the model in the comms pipeline (laptop, before bitstream)
+
+Run a trained `.h5` through the **real comms pipeline on the laptop** — glove → BLE → laptop → TCP →
+classifier → event — with the model doing inference **locally instead of on the FPGA**. This validates it
+under live streaming / offset conditions (not just the offline test set) before converting to a bitstream.
+
+### What changed in the comms code
+
+| file | change |
+|---|---|
+| `AI/board/keras_stream.py` | **new.** `GestureClassifier` subclassing `wk10_integration`'s, with the pynq/FPGA backend swapped for a local Keras `.h5` (`_KerasBackend`). Reuses the ring buffer, decode, end-of-gesture, softmax and `CONF_THRESHOLD`; maps class ids → game roles; feeds a 6-ch model directly, computes the 4 feature channels for a 10-ch model. No pynq import. |
+| `Comms/ultra96/gesture.py` | `load_classifier(ai_h5=None)` — one added branch: if `ai_h5` is set, return the Keras classifier instead of the FPGA/stub path. |
+| `Comms/ultra96/tcp_client.py` | `run()` / `main()` gain a `--ai-h5 PATH` flag (implies `--gesture-flag`). |
+
+Without `--ai-h5` nothing changes — `wk10_integration.py`, the stub and the FPGA path are untouched.
+
+### One-time: ML deps in the comms venv
+
+`tcp_client.py --ai-h5` needs TensorFlow + qkeras. From `Comms/`:
+```powershell
+.\.venv\Scripts\pip install tensorflow tf-keras qkeras
+```
+(`keras_stream` sets `TF_USE_LEGACY_KERAS=1` for qkeras automatically.)
+
+### Quick check — classify in the pipeline, no broker needed
+
+Fastest way to confirm the model works live. Two Windows Terminal panes:
+```powershell
+# Terminal 1 (Comms/): laptop relay, no SSH tunnel (the "board" is local), one glove
+.\scripts\run_pipeline.ps1 --no-tunnel --nodes 1
+```
+```powershell
+# Terminal 2 (Comms/ultra96/): local board client, Keras model in place of the FPGA
+python tcp_client.py --host 127.0.0.1 --port 8888 --ai-h5 "C:\Users\USER\Desktop\NUS\y4s1\CG4002\Model\baseline\ablation\models\new_lean_s1.h5"
+```
+Draw a gesture. The **client pane (Terminal 2) logs each classified gesture + confidence** — that's the
+output to read. The glove buzzes (VIBRATE) on each recognized gesture, and Terminal 1 shows the sensor
+`rate ~100 Hz` and the VIBRATE CMD. (Terminal 1 is the config-B laptop, which has no MQTT role, so it
+won't drive a visualiser — for the model check you read the client pane.)
+
+**When there is no event.** A flagged motion gives no AI event (no TCP event, no MQTT, no VIBRATE) when
+the glove's detector rejected it (the glove buzzes twice), the model's top class is its no-gesture class
+`noise` (8-class models), or the top probability is below `CONF_THRESHOLD` in
+`AI/board/wk10_integration.py`. The client pane says which:
+```text
+no AI event: node 1's glove rejected its flagged gesture of 570 samples
+no AI event: node 1's flagged gesture of 84 samples gave no result (noise p=0.94)
+no AI event: node 1's flagged gesture of 61 samples gave no result (low confidence fireball p=0.55 < 0.70)
+no AI event: node 1's flagged gesture of 12 samples gave no result (buffer not full: 12/150 samples)
+```
+A 7-class or an 8-class `.h5` both work with `--ai-h5` (the output size is read from the model).
+
+**Never mix config-A and config-B launch scripts** (`run_pipeline_a` pairs with the config-A client; the chosen deployment is config B).

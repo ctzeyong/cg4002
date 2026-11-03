@@ -97,12 +97,18 @@ async def test_receiver_excludes_heartbeat_acks_from_the_reported_rate(monkeypat
     process. With the bug it reported a steady ~1 msg/s of pure self-traffic.
     """
     monkeypatch.setattr(tcp_client, "PROGRESS_INTERVAL_S", 0.01)
+    done = asyncio.Event()
 
     async def sends_only_acks(reader, writer):
-        for seq in range(3):
+        # Until the test has its reports, not a fixed three: on Windows
+        # time.monotonic() ticks every 15.6 ms and asyncio fires a timer up to one
+        # tick early, so a 20 ms sleep can return in under a millisecond. Two acks
+        # then share a tick, the receiver sees elapsed=0 and skips that report.
+        seq = 0
+        while not done.is_set():
             await send_message(writer, {"type": "HEARTBEAT_ACK", "seq": seq})
-            await asyncio.sleep(0.02)  # > PROGRESS_INTERVAL_S, so each one reports
-        await asyncio.sleep(DEADLINE_S)  # hold the connection open
+            seq += 1
+            await asyncio.sleep(0.02)
 
     async with serving(sends_only_acks) as port:
         async with connected(port) as (reader, writer):
@@ -111,18 +117,17 @@ async def test_receiver_excludes_heartbeat_acks_from_the_reported_rate(monkeypat
             task = asyncio.create_task(tcp_client.receiver(reader, writer, stop, events))
             try:
                 with caplog.at_level("INFO", logger="tcp_client"):
-                    # 2, not 3: the first ack arrives before the interval has
-                    # elapsed, so it updates the counter without reporting.
                     await wait_until(lambda: caplog.text.count("uplink rx:") >= 2)
             finally:
+                done.set()
                 stop.set()
                 task.cancel()
                 with contextlib.suppress(asyncio.CancelledError):
                     await task
 
     reports = [r for r in caplog.messages if "uplink rx:" in r]
-    # Acks only, so the count must never leave zero. With the bug these read
-    # total=1, total=2, total=3.
+    # Acks only, so the count must never leave zero. With the bug every report
+    # reads total>=1, since the ack that triggers a report is counted first.
     assert reports
     assert all("total=0" in r for r in reports), reports
 
@@ -353,9 +358,9 @@ def test_parse_echo_accepts_a_well_formed_echo_with_no_readable_key(code):
 
 
 def test_a_mapped_key_always_picks_its_gesture():
-    """Repeated: the fallback is random, so one pass agrees by luck 1 time in 6."""
+    """Repeated: the fallback is random, so one pass agrees by luck 1 time in 7."""
     for _ in range(20):
-        assert ai_events.random_event(1, 0, "z")["gesture"] == "zigzag"
+        assert ai_events.random_event(1, 0, "l")["gesture"] == "lightning"
 
 
 def test_an_unmapped_key_falls_back_to_a_random_gesture():
@@ -368,11 +373,11 @@ def test_an_unmapped_key_falls_back_to_a_random_gesture():
 
 @pytest.mark.asyncio
 async def test_an_echo_produces_the_gesture_matching_the_key_pressed():
-    """Press `c`, see `circle`: the whole Ultra96 half, negation to wire."""
+    """Press `w`, see `warrior`: the whole Ultra96 half, negation to wire."""
     received = asyncio.Queue()
 
     async def echoes_then_listens(reader, writer):
-        await send_message(writer, echo_message("c"))
+        await send_message(writer, echo_message("w"))
         await received.put(await recv_message(reader))
         await asyncio.sleep(DEADLINE_S)  # hold the connection open
 
@@ -391,7 +396,7 @@ async def test_an_echo_produces_the_gesture_matching_the_key_pressed():
                     await task
 
     assert event["type"] == "AI_EVENT"
-    assert event["gesture"] == "circle"
+    assert event["gesture"] == "warrior"
 
 
 @pytest.mark.asyncio
@@ -460,7 +465,7 @@ async def test_a_malformed_echo_is_dropped_and_logged_not_answered(caplog):
 
     async def echoes_then_listens(reader, writer):
         await send_message(writer, bad)
-        await send_message(writer, echo_message("z", node=2, seq=5))
+        await send_message(writer, echo_message("l", node=2, seq=5))
         while True:
             event = await recv_message(reader)
             await received.put(event)
@@ -488,7 +493,7 @@ async def test_a_malformed_echo_is_dropped_and_logged_not_answered(caplog):
                         await task
 
     assert [(e["player"], e["seq"]) for e in events] == [(2, 0)], events
-    assert events[0]["gesture"] == "zigzag"
+    assert events[0]["gesture"] == "lightning"
     dropped = [r.getMessage() for r in caplog.records if "malformed ECHO" in r.getMessage()]
     assert len(dropped) == 1 and "seq=4" in dropped[0], dropped
 
@@ -576,7 +581,7 @@ async def test_session_ends_when_the_receiver_dies_without_setting_stop(monkeypa
     never got its chance to reconnect. The deadline below is the whole test.
     """
 
-    async def exploding_receiver(reader, writer, stop, events, sensor_trigger=None):
+    async def exploding_receiver(reader, writer, stop, events, windows=None):
         raise RuntimeError("receiver blew up")
 
     monkeypatch.setattr(tcp_client, "receiver", exploding_receiver)
@@ -699,7 +704,9 @@ async def test_run_retries_after_a_refused_connection(monkeypatch):
     monkeypatch.setattr(tcp_client, "RECONNECT_BACKOFF_S", 0.01)
     attempts = []
 
-    async def failing_session(host, port, event_every=0.0, sensor_every=0):
+    async def failing_session(
+        host, port, event_every=0.0, classifier=None, gesture_flag=False
+    ):
         attempts.append((host, port))
         raise OSError("connection refused")
 
@@ -721,7 +728,9 @@ async def test_run_survives_an_unexpected_error(monkeypatch):
     monkeypatch.setattr(tcp_client, "RECONNECT_BACKOFF_S", 0.01)
     attempts = []
 
-    async def exploding_session(host, port, event_every=0.0, sensor_every=0):
+    async def exploding_session(
+        host, port, event_every=0.0, classifier=None, gesture_flag=False
+    ):
         attempts.append((host, port))
         raise RuntimeError("something nobody predicted")
 

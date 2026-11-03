@@ -5,19 +5,30 @@
 //
 // Every packet starts with type and sequence. SENSOR, CMD and ECHO packets then carry 11
 // int16 fields (six IMU readings, five reserved) and a CRC, 26 bytes in all; file packets
-// carry a uint64 size/offset followed by raw bytes, and no CRC.
+// carry a uint64 size/offset followed by raw bytes, and no CRC. In a SENSOR packet the
+// first reserved field carries the IMU status and the second the gesture flag (imu.h).
 //
 // Nothing is transmitted until the link is both MTU-capable and encrypted. Both gates
 // are polled at the top of loop().
 //
 // Once the link is encrypted the board requests a 15 ms connection interval. Left alone
 // Windows settles at 60 ms, which is ~17 connection events/s shared between both boards.
+//
+// A CMD whose first reserved field is CMD_VIBRATE pulses the vibration motor. It is still
+// echoed like any other CMD, and the laptop drops that echo. The motor also buzzes once when
+// the gesture detector starts a gesture and twice when it throws one away.
 
 #include <Arduino.h>
 #include <NimBLEDevice.h>
 #include <string.h>
 
-#define PLAYER_ID 2 // change accordingly
+#include "imu.h"
+
+// the laptop and the AI model read the six values at these ranges
+static_assert(IMU_ACCEL_RANGE_G == 4 && IMU_GYRO_RANGE_DPS == 500,
+              "IMU range changed in imu.h: this is a data contract change, agree it with Comms and AI first");
+
+#define PLAYER_ID 1 // change accordingly
 
 #if PLAYER_ID == 1
 #define SERVICE_UUID     "b1160001-0000-4000-8000-000000000001"
@@ -34,7 +45,6 @@
 #endif
 
 static constexpr uint8_t TYPE_SENSOR = 0x01;  // uplink, free-running stream
-// 0x02 is reserved for EVENT (hall-effect open/closed)
 static constexpr uint8_t TYPE_CMD  = 0x03;  // downlink, laptop -> board
 static constexpr uint8_t TYPE_ECHO = 0x04;  // uplink, this board's reply to a CMD
 static constexpr uint8_t TYPE_FILE_START = 0x10;
@@ -44,6 +54,8 @@ static constexpr uint8_t TYPE_FILE_END   = 0x12;
 static constexpr size_t HEADER_LEN = 2;
 static constexpr size_t IMU_FIELD_COUNT = 6;
 static constexpr size_t RESERVED_FIELD_COUNT = 5;
+static constexpr size_t IMU_STATUS_FIELD = IMU_FIELD_COUNT;  // reserved[0] of a SENSOR packet
+static constexpr size_t GESTURE_FLAG_FIELD = IMU_STATUS_FIELD + 1;
 static constexpr size_t DATA_FIELD_COUNT = IMU_FIELD_COUNT + RESERVED_FIELD_COUNT;
 static constexpr size_t FIELD_LEN = 2;
 static constexpr size_t CRC_LEN = 2;
@@ -54,6 +66,31 @@ static constexpr uint16_t PREFERRED_MTU = 128;
 static constexpr size_t FILE_HEADER_LEN = 10;  // type + seq + uint64 size/offset
 static constexpr size_t FILE_MAX_PACKET_LEN = PREFERRED_MTU - 3;
 static constexpr uint32_t PACKET_PERIOD_MS = 10;  // 10 = 100 Hz, the validated two-node rate; 6 = ~167 Hz, two-board maximum
+static constexpr uint32_t IMU_TIMING_REPORT_MS = 5000;
+
+// reserved[0] of a CMD is its kind, and field 0 a VIBRATE's pattern (ble_packet.py)
+static constexpr size_t CMD_KIND_FIELD = IMU_FIELD_COUNT;
+static constexpr int16_t CMD_VIBRATE = 1;
+static constexpr int16_t VIBRATE_RECOGNISED = 1;  // the board classified a gesture
+
+// Vibration motor, from hardware's bluetooth_mpu_motor_test.ino: GPIO 2 drives a transistor,
+// never the motor directly. GPIO 2 is a strapping pin, so the driver must not pull it high
+// at reset.
+static constexpr uint8_t MOTOR_PIN = 2;
+static constexpr uint8_t MOTOR_PWM_CHANNEL = 0;  // ESP32 core 2.x only
+static constexpr uint32_t MOTOR_PWM_FREQUENCY_HZ = 20000;
+static constexpr uint8_t MOTOR_PWM_RESOLUTION_BITS = 8;
+static constexpr uint32_t MOTOR_GAP_MS = 500;  // between the pulses of a pattern
+
+// pulses at one duty (0-255), with hardware's start and reject patterns
+struct MotorPattern {
+    uint8_t pulses;
+    uint8_t duty;
+    uint32_t onMs;
+};
+static constexpr MotorPattern BUZZ_RECOGNISED = {1, 128, 200};
+static constexpr MotorPattern BUZZ_GESTURE_START = {1, 180, 150};
+static constexpr MotorPattern BUZZ_GESTURE_REJECTED = {2, 180, 150};
 
 // Requested BLE connection parameters.
 // Intervals use 1.25 ms units: 12 × 1.25 ms = 15 ms.
@@ -76,11 +113,21 @@ static uint32_t g_encryptedAt = 0;
 static uint8_t g_seq = 0;
 static uint32_t g_lastTx = 0;
 
+static uint32_t g_slowestImuServiceUs = 0;  // since the last timing report
+static uint32_t g_slowestImuReadUs = 0;
+static uint32_t g_slowestGestureFlagUs = 0;
+static uint32_t g_imuTimingReportedAt = 0;
+
+static MotorPattern g_motorPattern = {};  // its pulses count down as they play
+static bool g_motorOn = false;
+static uint32_t g_motorNextAt = 0;  // when the motor next turns on or off
+static int16_t g_lastGestureFlag = GESTURE_NONE;  // in the last packet with a reading
+
 // Downlink hand-off. onWrite runs on the NimBLE host task; loop() drains it. Going
 // through a buffer rather than notifying straight from onWrite keeps every notify()
 // call on the one task, so sensor, command and file notifications stay serialised.
-// One slot is enough: CMD is keystroke-paced and file transfer is stop-and-wait, so
-// the laptop does not write the next packet until this one has been returned.
+// One slot is enough: CMD is keystroke- or gesture-paced and file transfer is stop-and-wait,
+// so the laptop does not write the next packet until this one has been returned.
 static volatile bool g_downlinkPending = false;
 static size_t g_downlinkLen = 0;
 static uint8_t g_downlinkBuf[FILE_MAX_PACKET_LEN];
@@ -137,6 +184,54 @@ static bool hasValidPacketCrc(const uint8_t *buf) {
     const uint16_t received = static_cast<uint16_t>(buf[CRC_OFFSET]) |
                               (static_cast<uint16_t>(buf[CRC_OFFSET + 1]) << 8);
     return received == calculateCrc(buf, CRC_OFFSET);
+}
+
+/** Sets the motor's PWM duty: 0 is off. */
+static void writeMotorDuty(uint8_t duty) {
+#if defined(ESP_ARDUINO_VERSION_MAJOR) && ESP_ARDUINO_VERSION_MAJOR >= 3
+    ledcWrite(MOTOR_PIN, duty);
+#else
+    ledcWrite(MOTOR_PWM_CHANNEL, duty);
+#endif
+}
+
+/** Attaches the motor pin to PWM and turns the motor off. */
+static void configureMotor() {
+#if defined(ESP_ARDUINO_VERSION_MAJOR) && ESP_ARDUINO_VERSION_MAJOR >= 3
+    if (!ledcAttach(MOTOR_PIN, MOTOR_PWM_FREQUENCY_HZ, MOTOR_PWM_RESOLUTION_BITS)) {
+        Serial.println("[MOTOR] PWM attach failed");
+    }
+#else
+    ledcSetup(MOTOR_PWM_CHANNEL, MOTOR_PWM_FREQUENCY_HZ, MOTOR_PWM_RESOLUTION_BITS);
+    ledcAttachPin(MOTOR_PIN, MOTOR_PWM_CHANNEL);
+#endif
+    writeMotorDuty(0);
+}
+
+/** Turns the motor on or off once it is due. Called every pass of loop(), so nothing blocks. */
+static void updateMotor() {
+    const uint32_t now = millis();
+    if (static_cast<int32_t>(now - g_motorNextAt) < 0) {
+        return;
+    }
+    if (g_motorOn) {
+        writeMotorDuty(0);
+        g_motorOn = false;
+        g_motorNextAt = now + MOTOR_GAP_MS;
+    } else if (g_motorPattern.pulses > 0) {
+        writeMotorDuty(g_motorPattern.duty);
+        g_motorOn = true;
+        g_motorPattern.pulses--;
+        g_motorNextAt = now + g_motorPattern.onMs;
+    }
+}
+
+/** Starts a pattern straight away, cutting off any pattern still playing. */
+static void playMotorPattern(const MotorPattern &pattern) {
+    g_motorPattern = pattern;
+    g_motorOn = false;
+    g_motorNextAt = millis();
+    updateMotor();
 }
 
 class ServerCallbacks : public NimBLEServerCallbacks {
@@ -231,23 +326,84 @@ class DownlinkCallbacks : public NimBLECharacteristicCallbacks {
     }
 };
 
+/** Calls imuService() and keeps the slowest time for the timing report. */
+static void timedImuService() {
+    const uint32_t started = micros();
+    imuService();
+    const uint32_t serviceUs = micros() - started;
+    if (serviceUs > g_slowestImuServiceUs) {
+        g_slowestImuServiceUs = serviceUs;
+    }
+}
+
 /**
- * Fills buf with one PACKET_LEN dummy SENSOR packet.
+ * Calls imuRead() then gestureFlag(), and prints the slowest of each, and of imuService(), to
+ * serial every IMU_TIMING_REPORT_MS, so the time they take out of loop() can be checked.
+ */
+static ImuStatus timedImuRead(int16_t *imu, GestureFlag *flag) {
+    uint32_t started = micros();
+    const ImuStatus status = imuRead(imu);
+    const uint32_t readUs = micros() - started;
+    started = micros();
+    *flag = gestureFlag(imu, status);
+    const uint32_t flagUs = micros() - started;
+    if (readUs > g_slowestImuReadUs) {
+        g_slowestImuReadUs = readUs;
+    }
+    if (flagUs > g_slowestGestureFlagUs) {
+        g_slowestGestureFlagUs = flagUs;
+    }
+
+    const uint32_t now = millis();
+    if (now - g_imuTimingReportedAt >= IMU_TIMING_REPORT_MS) {
+        Serial.printf("[IMU] status=%d, slowest since last report: imuService %u us, imuRead %u us, gestureFlag %u us\n",
+                      static_cast<int>(status), static_cast<unsigned>(g_slowestImuServiceUs),
+                      static_cast<unsigned>(g_slowestImuReadUs),
+                      static_cast<unsigned>(g_slowestGestureFlagUs));
+        imuPrintStats();
+        g_slowestImuServiceUs = 0;
+        g_slowestImuReadUs = 0;
+        g_slowestGestureFlagUs = 0;
+        g_imuTimingReportedAt = now;
+    }
+    return status;
+}
+
+/**
+ * Fills buf with one PACKET_LEN SENSOR packet: the IMU reading, its status, then the
+ * gesture flag.
  **/
 static void buildPacket(uint8_t *buf) {
     buf[0] = TYPE_SENSOR;
     buf[1] = g_seq;
 
-    const int16_t base = static_cast<int16_t>(g_seq) * 100;
+    int16_t imu[IMU_FIELD_COUNT];
+    GestureFlag flag = GESTURE_NONE;
+    const ImuStatus status = timedImuRead(imu, &flag);
 
-    // Dummy ax, ay, az, gx, gy and gz values until the real IMU is connected.
     for (size_t i = 0; i < IMU_FIELD_COUNT; i++) {
-        writeField(buf, i, static_cast<int16_t>(base + static_cast<int16_t>(i)));
+        writeField(buf, i, imu[i]);
     }
-    for (size_t i = IMU_FIELD_COUNT; i < DATA_FIELD_COUNT; i++) {
+    writeField(buf, IMU_STATUS_FIELD, status);
+    writeField(buf, GESTURE_FLAG_FIELD, flag);
+    for (size_t i = GESTURE_FLAG_FIELD + 1; i < DATA_FIELD_COUNT; i++) {
         writeField(buf, i, 0);  // reserved for later sensor expansion
     }
     writePacketCrc(buf);
+}
+
+/** Buzzes when a SENSOR packet's flag shows the detector starting a gesture or throwing one away. */
+static void buzzOnGestureFlag(const uint8_t *buf) {
+    if (readField(buf, IMU_STATUS_FIELD) != IMU_OK) {
+        return;  // no reading, so its flag says nothing about the gesture
+    }
+    const int16_t flag = readField(buf, GESTURE_FLAG_FIELD);
+    if (flag == GESTURE_ACTIVE && g_lastGestureFlag != GESTURE_ACTIVE) {
+        playMotorPattern(BUZZ_GESTURE_START);
+    } else if (flag == GESTURE_REJECTED) {
+        playMotorPattern(BUZZ_GESTURE_REJECTED);
+    }
+    g_lastGestureFlag = flag;
 }
 
 /**
@@ -258,6 +414,17 @@ void setup() {
     Serial.begin(115200);
     delay(200);
     Serial.printf("\n[BLE] boot: B16 Player-%d peripheral\n", PLAYER_ID);
+
+    configureMotor();
+    Serial.printf("[MOTOR] ready on GPIO %u\n", static_cast<unsigned>(MOTOR_PIN));
+
+    // if the IMU is missing, BLE still starts and the board sends zeros with IMU_MISSING
+    // until the IMU answers
+    if (imuBegin(PLAYER_ID)) {
+        Serial.println("[IMU] ready");
+    } else {
+        Serial.println("[IMU] not found");
+    }
 
     NimBLEDevice::init(DEVICE_NAME);
     NimBLEDevice::setMTU(PREFERRED_MTU); // negotiate MTU
@@ -297,6 +464,10 @@ void setup() {
  * PACKET_PERIOD_MS while connected and no file transfer is active.
 **/
 void loop() {
+    // every pass, connected or not, so the gesture detector gets every 500 Hz reading
+    timedImuService();
+    updateMotor();
+
     const uint32_t now = millis();
 
     // a notification carries at most MTU-3 bytes, so while the link is still on the
@@ -352,6 +523,19 @@ void loop() {
         memcpy(buf, g_downlinkBuf, length);  // copy received packet before marking as handled
         g_downlinkPending = false;
 
+        if (buf[0] == TYPE_CMD && readField(buf, CMD_KIND_FIELD) == CMD_VIBRATE) {
+            const int16_t pattern = readField(buf, 0);
+            if (pattern == VIBRATE_RECOGNISED) {
+                playMotorPattern(BUZZ_RECOGNISED);
+                Serial.printf("[MOTOR] VIBRATE seq=%u: %u ms pulse\n",
+                              static_cast<unsigned>(buf[1]),
+                              static_cast<unsigned>(BUZZ_RECOGNISED.onMs));
+            } else {
+                Serial.printf("[MOTOR] VIBRATE seq=%u: unknown pattern %d, not pulsed\n",
+                              static_cast<unsigned>(buf[1]), pattern);
+            }
+        }
+
         if (buf[0] == TYPE_CMD) {
             // "Modify the data and send it back": convert into ECHO response by
             // negating the six IMU fields and then recalculating the CRC
@@ -380,9 +564,12 @@ void loop() {
     // stack fails to send still uses up its seq and shows on the laptop as a gap
     if (g_mtuReady && g_encrypted && !g_fileTransferActive &&
         (now - g_lastTx >= PACKET_PERIOD_MS)) {
-        g_lastTx = now;
+        // stay on the 10 ms grid however long a pass of loop() takes, so the rate stays at
+        // 100 Hz, but start the grid again after a hold-up instead of sending a burst
+        g_lastTx = (now - g_lastTx >= 2 * PACKET_PERIOD_MS) ? now : g_lastTx + PACKET_PERIOD_MS;
         uint8_t buf[PACKET_LEN];
         buildPacket(buf);
+        buzzOnGestureFlag(buf);
         // setValue so a GATT read of the characteristic returns the latest sample;
         // pass same buffer to notify() so packet sent is exactly the one just built
         g_sensorChar->setValue(buf, PACKET_LEN);

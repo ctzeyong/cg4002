@@ -18,6 +18,15 @@ SESSION_ID = uuid.uuid4().hex[:8]
 PLAINTEXT_PORT = 1883
 LOOPBACK_HOST = "127.0.0.1"
 
+# One retained topic for both gloves, so one last will covers both.
+GLOVES_TOPIC = "status/gloves"
+# Its own source, so its event_ids never collide with the AI events'.
+GLOVES_SOURCE = "ultra96-gloves"
+PLAYERS = (1, 2)
+READY = "ready"  # streaming, with a working IMU
+DOWN = "down"  # silent, too slow, or no IMU reading
+OFFLINE = "offline"  # the board's client is not running
+
 
 def gesture_topic(player):
     """Topic for one player's events, e.g. game/gesture/1.
@@ -25,6 +34,11 @@ def gesture_topic(player):
     The player is in the topic, so nobody has to open the payload to route it.
     """
     return f"game/gesture/{player}"
+
+
+def gloves_payload(states):
+    """Return the status/gloves payload for {player: state}, e.g. {"player1": "ready", ...}."""
+    return {f"player{player}": states[player] for player in PLAYERS}
 
 
 def build_envelope(payload, seq, source=CLIENT_ID_ULTRA96, session=SESSION_ID):

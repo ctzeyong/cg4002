@@ -24,6 +24,20 @@ namespace BridgeRush.Match
             opponentBridgeEdge = opponentHomeAnchor - fixedLaneDirection * (territoryFraction * totalLaneLength);
             bridgePosition = (ownBridgeEdge + opponentBridgeEdge) * 0.5f;
 
+            if (twoBridges)
+            {
+                float offsetMeters = LaneWidthMeters * Mathf.Max(0f, bridgeLateralOffsetFraction);
+                bridgeLateralOffsets = new[] { -offsetMeters, offsetMeters };
+            }
+            else
+            {
+                bridgeLateralOffsets = new[] { 0f };
+            }
+            bridgeTieToggle = false;
+
+            frozenArenaScale = ComputeArenaScale(totalLaneLength);
+            arenaScaleFrozen = true;
+
             homeAnchorsCaptured = true;
         }
 
@@ -45,37 +59,121 @@ namespace BridgeRush.Match
             }
         }
 
-        // returns how wide the arena is at the given distance along the lane, taking into account the funneling effect near the bridge and the territory width multiplier.
-        public float HalfWidthAt(float distanceAlongLane)
+        // 0 on the open island, 1 on the bridge span, smooth in the funnel between. Same curve the single-bridge arena used.
+        private float FunnelBlend(float distanceAlongLane)
         {
             float ownTerritoryLength = Vector3.Distance(ownHomeAnchor, ownBridgeEdge);
             float opponentTerritoryLength = Vector3.Distance(opponentHomeAnchor, opponentBridgeEdge);
             float bridgeStart = ownTerritoryLength;
             float bridgeEnd = totalLaneLength - opponentTerritoryLength;
-
-            float islandHalfWidth = LaneWidthMeters * 0.5f * Mathf.Max(0f, territoryWidthMultiplier);
-            float bridgeHalfWidth = LaneWidthMeters * laneSpineFraction * 0.5f;
             float funnel = Mathf.Clamp01(funnelFraction);
 
-            // it means we are at the start of the bridge, and we are in our own territory. We need to calculate the width based on the funneling effect near the bridge and the territory width multiplier.
             if (distanceAlongLane <= bridgeStart)
             {
                 float funnelStart = bridgeStart * (1f - funnel);
-                if (distanceAlongLane <= funnelStart || bridgeStart <= funnelStart) return islandHalfWidth;
-                float t = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(funnelStart, bridgeStart, distanceAlongLane));
-                return Mathf.Lerp(islandHalfWidth, bridgeHalfWidth, t);
+                if (distanceAlongLane <= funnelStart || bridgeStart <= funnelStart) return 0f;
+                return Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(funnelStart, bridgeStart, distanceAlongLane));
             }
 
-            // it means we are at the end of the bridge, and we are in the opponent's territory. We need to calculate the width based on the funneling effect near the bridge and the territory width multiplier.
             if (distanceAlongLane >= bridgeEnd)
             {
                 float funnelEnd = bridgeEnd + opponentTerritoryLength * funnel;
-                if (distanceAlongLane >= funnelEnd || funnelEnd <= bridgeEnd) return islandHalfWidth;
-                float t = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(bridgeEnd, funnelEnd, distanceAlongLane));
-                return Mathf.Lerp(bridgeHalfWidth, islandHalfWidth, t);
+                if (distanceAlongLane >= funnelEnd || funnelEnd <= bridgeEnd) return 0f;
+                return 1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(bridgeEnd, funnelEnd, distanceAlongLane));
             }
-            return bridgeHalfWidth;
+            return 1f;
         }
+
+        private float IslandHalfWidth => LaneWidthMeters * 0.5f * Mathf.Max(0f, territoryWidthMultiplier);
+
+        // The walkable lateral interval around one bridge at this blend. On the open island (blend 0) every bridge's
+        // interval covers the whole island; towards the span it shrinks onto the bridge strip.
+        private bool TryGetBridgeInterval(int bridgeIndex, float blend, out float low, out float high)
+        {
+            float island = IslandHalfWidth;
+            float bridgeHalf = BridgeWidthMeters * 0.5f;
+            float widest = island + Mathf.Abs(bridgeLateralOffsets[bridgeIndex]);
+            float half = Mathf.Lerp(widest, bridgeHalf, blend);
+            low = Mathf.Max(bridgeLateralOffsets[bridgeIndex] - half, -island);
+            high = Mathf.Min(bridgeLateralOffsets[bridgeIndex] + half, island);
+            return low <= high;
+        }
+
+        // Nearest allowed lateral offset at this distance along the lane. With preferredBridge >= 0 only that bridge's
+        // interval counts, so a unit committed to one bridge is never snapped onto the other.
+        private float ClampLateral(float distanceAlongLane, float lateral, int preferredBridge = -1)
+        {
+            float blend = FunnelBlend(distanceAlongLane);
+            float best = lateral;
+            float bestDistance = float.MaxValue;
+            for (int i = 0; i < bridgeLateralOffsets.Length; i++)
+            {
+                if (preferredBridge >= 0 && preferredBridge < bridgeLateralOffsets.Length && i != preferredBridge) continue;
+                if (!TryGetBridgeInterval(i, blend, out float low, out float high)) continue;
+                float clamped = Mathf.Clamp(lateral, low, high);
+                float distance = Mathf.Abs(clamped - lateral);
+                if (distance < bestDistance)
+                {
+                    bestDistance = distance;
+                    best = clamped;
+                }
+            }
+            return best;
+        }
+
+        private float LateralOf(Vector3 position)
+        {
+            Vector3 flat = new Vector3(position.x, 0f, position.z);
+            return Vector3.Dot(flat - new Vector3(ownHomeAnchor.x, 0f, ownHomeAnchor.z), BridgeLateralAxis);
+        }
+
+        private float LongitudinalOf(Vector3 position)
+        {
+            Vector3 flat = new Vector3(position.x, 0f, position.z);
+            return Vector3.Dot(flat - new Vector3(ownHomeAnchor.x, 0f, ownHomeAnchor.z), fixedLaneDirection);
+        }
+
+        private int ChooseBridge(Vector3 worldPosition)
+        {
+            if (bridgeLateralOffsets.Length <= 1 || !homeAnchorsCaptured) return 0;
+
+            float lateral = LateralOf(worldPosition);
+            int best = 0;
+            float bestDistance = Mathf.Abs(lateral - bridgeLateralOffsets[0]);
+            for (int i = 1; i < bridgeLateralOffsets.Length; i++)
+            {
+                float distance = Mathf.Abs(lateral - bridgeLateralOffsets[i]);
+                if (distance < bestDistance) { best = i; bestDistance = distance; }
+            }
+
+            // A spawn on the axis is equally close to both: alternate so a bot or tower spawn uses both bridges.
+            if (bridgeLateralOffsets.Length == 2 && Mathf.Abs(Mathf.Abs(lateral - bridgeLateralOffsets[0]) - Mathf.Abs(lateral - bridgeLateralOffsets[1])) < 0.01f)
+            {
+                bridgeTieToggle = !bridgeTieToggle;
+                return bridgeTieToggle ? 0 : 1;
+            }
+            return best;
+        }
+
+        private bool IsOnBridgeSpan(Vector3 position)
+        {
+            float spanLength = Vector3.Distance(ownBridgeEdge, opponentBridgeEdge);
+            float along = Vector3.Dot(position - ownBridgeEdge, fixedLaneDirection);
+            return along >= 0f && along <= spanLength;
+        }
+
+        // Same rectangle as the arena but the full island width all the way along, so a spell can be aimed at the
+        // water between the two bridges.
+        public bool IsInsideSpellArea(Vector3 position)
+        {
+            if (!homeAnchorsCaptured || totalLaneLength < 0.0001f) return false;
+            float longitudinal = LongitudinalOf(position);
+            float rearMargin = totalLaneLength * Mathf.Max(0f, rearMarginFraction);
+            if (longitudinal < -rearMargin || longitudinal > totalLaneLength + rearMargin) return false;
+            return Mathf.Abs(LateralOf(position)) <= IslandHalfWidth;
+        }
+
+        public bool IsInsideArena(Vector3 position) => IsInsideArenaBounds(position);
 
         // either player standing outside drains that side's tower HP at outOfBoundsDamagePerSecond. 
         private bool IsInsideArenaBounds(Vector3 position)
@@ -91,7 +189,7 @@ namespace BridgeRush.Match
             Vector3 lateralAxis = Vector3.Cross(Vector3.up, fixedLaneDirection).normalized;
             float lateralOffset = Vector3.Dot(flat - onSpine, lateralAxis);
 
-            return Mathf.Abs(lateralOffset) <= HalfWidthAt(longitudinal) + 0.0001f;
+            return Mathf.Abs(ClampLateral(longitudinal, lateralOffset) - lateralOffset) <= 0.0001f;
         }
 
         // Checks if a given position is inside the player's own territory, based on the captured home anchors and lane information.
@@ -112,7 +210,7 @@ namespace BridgeRush.Match
             return Mathf.Abs(lateralOffset) <= islandHalfWidth + 0.0001f;
         }
         // Clamps a position to the bounds of the arena, ensuring it stays within the valid playing area.
-        private Vector3 ClampToArenaBounds(Vector3 position, float lookAheadLongitudinal = 0f)
+        private Vector3 ClampToArenaBounds(Vector3 position, float lookAheadLongitudinal = 0f, int preferredBridge = -1)
         {
             if (!homeAnchorsCaptured || totalLaneLength < 0.0001f) return position;
 
@@ -123,8 +221,7 @@ namespace BridgeRush.Match
             Vector3 lateralAxis = Vector3.Cross(Vector3.up, fixedLaneDirection).normalized;
             float lateralOffset = Vector3.Dot(flat - onSpine, lateralAxis);
 
-            float halfWidthBound = HalfWidthAt(longitudinal + lookAheadLongitudinal);
-            lateralOffset = Mathf.Clamp(lateralOffset, -halfWidthBound, halfWidthBound);
+            lateralOffset = ClampLateral(longitudinal + lookAheadLongitudinal, lateralOffset, preferredBridge);
 
             Vector3 clampedFlat = onSpine + lateralAxis * lateralOffset;
             return new Vector3(clampedFlat.x, position.y, clampedFlat.z);
@@ -146,6 +243,15 @@ namespace BridgeRush.Match
 
             float acrossBridge01 = Vector3.Dot(position - ownBridgeEdge, fixedLaneDirection) / bridgeSpanLength;
             if (acrossBridge01 < 0f || acrossBridge01 > 1f) return GroundY;
+
+            float lateral = LateralOf(position);
+            float strayLimit = BridgeWidthMeters * 0.75f;
+            bool onADeck = false;
+            for (int i = 0; i < bridgeLateralOffsets.Length; i++)
+            {
+                if (Mathf.Abs(lateral - bridgeLateralOffsets[i]) <= strayLimit) { onADeck = true; break; }
+            }
+            if (!onADeck) return GroundY;
 
             return bridgeVisualizer.DeckHeightAt(position);
         }

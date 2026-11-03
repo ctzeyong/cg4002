@@ -1,3 +1,4 @@
+using Comms.Visualiser;
 using UnityEngine;
 using BridgeRush.Match;
 using BridgeRush.Tracking;
@@ -65,7 +66,21 @@ namespace BridgeRush.Networking
             if (mqttConnection.IsConnected && myTopic != null)
             {
                 mqttConnection.Publish(myTopic, "{\"ready\":true}");
+                PublishVizReady();
             }
+        }
+
+        // viz/ready/{player} is the phone -> pipeline uplink in comms/notes/mqtt_topics.md.
+        // Sent when the arena frame is locked (not on connect), carrying the measured lane length.
+        // Not retained for now: the comms notes want retained + last will + a match id so a stale
+        // "ready" cannot open the gate for the next match, and that lifecycle is not settled.
+        private void PublishVizReady()
+        {
+            int player = matchSetup.Selected == MatchSetup.SelectedPlayer.Player2 ? 2 : 1;
+            float laneLength = arenaFrame.HasLane ? arenaFrame.Lane.Length : 0f;
+            string lane = laneLength.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+            string json = $"{{\"status\":\"ready\",\"player\":{player},\"lane_length_m\":{lane}}}";
+            mqttConnection.Publish(MqttConfig.VizReadyTopic(player), json, false, MqttConfig.QosVizReady);
         }
 
         private void TrySubscribe()

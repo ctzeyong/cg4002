@@ -6,6 +6,13 @@ namespace BridgeRush.Match
     {
         public bool SpawnUnit(UnitType type)
         {
+            bool done = SpawnUnitCore(type);
+            if (!done) OwnUnitRejected?.Invoke(type, ShortSpawnFailure(type));
+            return done;
+        }
+
+        private bool SpawnUnitCore(UnitType type)
+        {
             if (!matchStarted) return false;
 
             if (summonCursor != null && !summonCursor.IsAimValid)
@@ -27,16 +34,53 @@ namespace BridgeRush.Match
                 float along = 0f, lat = 0f;
                 if (hasAim) (along, lat) = ToCanonical(summonCursor.AimedWorldPosition);
                 networkSync?.PublishGestureRequest("spawn", type.ToString(), null, hasAim, along, lat);
+                OwnUnitSummoned?.Invoke(type);
                 return true;
             }
             if (!TrySpendMana(manaCost)) return false;
 
             if (!CreateUnit(type, UnitSide.Own))
             {
-                ManaCurrent += manaCost;
+                if (!GodMode) ManaCurrent += manaCost;
                 return false;
             }
+            OwnUnitSummoned?.Invoke(type);
             return true;
+        }
+        private enum SpawnBlock { None, NotStarted, BadAim, OutsideArena, NoMana }
+
+        // Same checks as SpawnUnitCore, in the same order, so the cards and the gesture banner can say why a summon was refused.
+        private SpawnBlock GetSpawnBlock(UnitType type)
+        {
+            if (!matchStarted) return SpawnBlock.NotStarted;
+            if (summonCursor != null && !summonCursor.IsAimValid) return SpawnBlock.BadAim;
+            if (arenaFrame.HasLane && !IsInsideArenaBounds(OwnTowerPosition)) return SpawnBlock.OutsideArena;
+            if (ManaCurrent < GetManaCost(type)) return SpawnBlock.NoMana;
+            return SpawnBlock.None;
+        }
+
+        public string DescribeSpawnFailure(UnitType type)
+        {
+            switch (GetSpawnBlock(type))
+            {
+                case SpawnBlock.NotStarted: return "The match hasn't started yet. Press Start Game first.";
+                case SpawnBlock.BadAim: return "Aim the crosshair at the ground on your own side of the arena.";
+                case SpawnBlock.OutsideArena: return "You are outside the arena. Walk back to your side.";
+                case SpawnBlock.NoMana: return $"Not enough mana: need {GetManaCost(type):0.#}, you have {ManaCurrent:0.#}.";
+                default: return "Couldn't place the unit there. Try aiming somewhere else.";
+            }
+        }
+
+        public string ShortSpawnFailure(UnitType type)
+        {
+            switch (GetSpawnBlock(type))
+            {
+                case SpawnBlock.NotStarted: return "NOT STARTED";
+                case SpawnBlock.BadAim: return "BAD AIM";
+                case SpawnBlock.OutsideArena: return "OUT OF ARENA";
+                case SpawnBlock.NoMana: return "NO MANA";
+                default: return "CAN'T PLACE";
+            }
         }
         // explicitSpawnPosition carries a remote player's own aimed crosshair position (see ApplyRemoteGestureRequest) -
         // without it, an enemy unit has no aim of its own and spawns at the tower, same as the random bot.
@@ -75,10 +119,12 @@ namespace BridgeRush.Match
 
             float maxHP = 1f;
             float attackDps = 0f;
+            float attackRange = 0f;
             if (unitStatsTable.TryGetEntry(type, out var entry))
             {
                 maxHP = entry.MaxHP;
                 attackDps = entry.AttackDps;
+                attackRange = Mathf.Max(0f, entry.AttackRangeMeters) * ArenaScale;
             }
 
             var lane = arenaFrame.Lane;
@@ -100,19 +146,23 @@ namespace BridgeRush.Match
             {
                 Vector3 spawnAnchor = side == UnitSide.Own ? OwnTowerPosition : lane.Origin + lane.Direction * lane.Length;
                 Vector3 forwardDirection = side == UnitSide.Own ? lane.Direction : -lane.Direction;
-                float forwardOffset = towerController != null ? towerController.TowerRadius : spawnForwardOffsetMeters;
+                float forwardOffset = towerController != null ? towerController.TowerRadius : spawnForwardOffsetMeters * ArenaScale;
                 spawnPosition = spawnAnchor + forwardDirection * forwardOffset;
                 spawnPosition = ClampToArenaBounds(spawnPosition);
             }
 
-            var unit = new UnitState(nextUnitId++, type, side, maxHP, attackDps, spawnPosition);
+            var unit = new UnitState(nextUnitId++, type, side, maxHP, attackDps, spawnPosition) { AttackRangeMeters = attackRange };
             units.Add(unit);
             UnitSpawned?.Invoke(unit);
             return true;
         }
 
+        // Offline/mock only (BubbleSync's mock toggle). In a real match the Ultra96 awards bubble mana, never the phone.
+        public void MockAwardMana(float amount) => ManaCurrent = Mathf.Min(manaMax, ManaCurrent + amount);
+
         public bool TrySpendMana(float amount)
         {
+            if (GodMode) return true;
             if (ManaCurrent < amount) return false;
             ManaCurrent -= amount;
             return true;
