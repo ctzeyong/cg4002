@@ -80,7 +80,7 @@ static constexpr uint8_t MOTOR_PIN = 2;
 static constexpr uint8_t MOTOR_PWM_CHANNEL = 0;  // ESP32 core 2.x only
 static constexpr uint32_t MOTOR_PWM_FREQUENCY_HZ = 20000;
 static constexpr uint8_t MOTOR_PWM_RESOLUTION_BITS = 8;
-static constexpr uint32_t MOTOR_GAP_MS = 500;  // between the pulses of a pattern
+static constexpr uint32_t MOTOR_GAP_MS = 300;  // between pulses, including across patterns
 
 // pulses at one duty (0-255), with hardware's start and reject patterns
 struct MotorPattern {
@@ -88,9 +88,9 @@ struct MotorPattern {
     uint8_t duty;
     uint32_t onMs;
 };
-static constexpr MotorPattern BUZZ_RECOGNISED = {1, 128, 200};
-static constexpr MotorPattern BUZZ_GESTURE_START = {1, 180, 150};
-static constexpr MotorPattern BUZZ_GESTURE_REJECTED = {2, 180, 150};
+static constexpr MotorPattern BUZZ_RECOGNISED = {1, 180, 300};
+static constexpr MotorPattern BUZZ_GESTURE_START = {1, 190, 150};
+static constexpr MotorPattern BUZZ_GESTURE_REJECTED = {2, 190, 120};
 
 // Requested BLE connection parameters.
 // Intervals use 1.25 ms units: 12 × 1.25 ms = 15 ms.
@@ -119,7 +119,12 @@ static uint32_t g_slowestGestureFlagUs = 0;
 static uint32_t g_imuTimingReportedAt = 0;
 
 static MotorPattern g_motorPattern = {};  // its pulses count down as they play
+static constexpr size_t MOTOR_QUEUE_CAPACITY = 8;
+static MotorPattern g_motorQueue[MOTOR_QUEUE_CAPACITY];
+static size_t g_motorQueueHead = 0;
+static size_t g_motorQueueCount = 0;
 static bool g_motorOn = false;
+static bool g_motorWaiting = false;  // enforce the gap even after a pattern's last pulse
 static uint32_t g_motorNextAt = 0;  // when the motor next turns on or off
 static int16_t g_lastGestureFlag = GESTURE_NONE;  // in the last packet with a reading
 
@@ -211,14 +216,24 @@ static void configureMotor() {
 /** Turns the motor on or off once it is due. Called every pass of loop(), so nothing blocks. */
 static void updateMotor() {
     const uint32_t now = millis();
-    if (static_cast<int32_t>(now - g_motorNextAt) < 0) {
+    if ((g_motorOn || g_motorWaiting) &&
+        static_cast<int32_t>(now - g_motorNextAt) < 0) {
         return;
     }
     if (g_motorOn) {
         writeMotorDuty(0);
         g_motorOn = false;
+        g_motorWaiting = true;
         g_motorNextAt = now + MOTOR_GAP_MS;
-    } else if (g_motorPattern.pulses > 0) {
+        return;
+    }
+    g_motorWaiting = false;
+    if (g_motorPattern.pulses == 0 && g_motorQueueCount > 0) {
+        g_motorPattern = g_motorQueue[g_motorQueueHead];
+        g_motorQueueHead = (g_motorQueueHead + 1) % MOTOR_QUEUE_CAPACITY;
+        g_motorQueueCount--;
+    }
+    if (g_motorPattern.pulses > 0) {
         writeMotorDuty(g_motorPattern.duty);
         g_motorOn = true;
         g_motorPattern.pulses--;
@@ -226,11 +241,18 @@ static void updateMotor() {
     }
 }
 
-/** Starts a pattern straight away, cutting off any pattern still playing. */
+/** Queues a pattern without interrupting a pulse or its following gap. */
 static void playMotorPattern(const MotorPattern &pattern) {
-    g_motorPattern = pattern;
-    g_motorOn = false;
-    g_motorNextAt = millis();
+    if (pattern.pulses == 0) {
+        return;
+    }
+    if (g_motorQueueCount == MOTOR_QUEUE_CAPACITY) {
+        Serial.println("[MOTOR] queue full: new pattern dropped");
+        return;
+    }
+    const size_t tail = (g_motorQueueHead + g_motorQueueCount) % MOTOR_QUEUE_CAPACITY;
+    g_motorQueue[tail] = pattern;
+    g_motorQueueCount++;
     updateMotor();
 }
 
