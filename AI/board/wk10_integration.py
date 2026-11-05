@@ -18,8 +18,9 @@ PARITY INVARIANT (must stay byte-identical to training / cosim):
       decode (no normalization):
         accel ch 0-2: counts * 0.001197100830078125  (= 9.80665 / 8192)   -> m/s^2
         gyro  ch 3-5: counts * 0.00026646248122050834 (= (pi/180) / 65.5) -> rad/s
-  * label map (class id -> gesture):
+  * label map (class id -> gesture): selected per run by --vocab (see VOCABS). old (7-class):
         0 arc, 1 caret, 2 circle, 3 infinity, 4 star, 5 triangle, 6 z
+    new (8-class): 0 warrior, 1 mage, 2 fireball, 3 rogue, 4 lightning, 5 hero, 6 shield, 7 noise
 
 Server-mode contract (networking is comms' job, NOT ours):
 
@@ -61,26 +62,36 @@ import numpy as np
 WIN            = 150          # ring-buffer / model window, in steps
 GEST           = 100          # gesture length in the CSV, in steps
 CHANNELS       = 6
-N_CLASSES      = 7
+# ---- gesture vocabulary (selected per run by the --vocab flag) ------------
+# Each profile maps class id -> name. `noise` is always the LAST index and is in REJECT_LABELS,
+# so a top `noise` prediction gives no event (like low confidence). The class ids MUST match
+# the training label order of the bitstream you load, so switch --vocab and the .xsa together.
+OLD_LABEL_MAP  = {0: "arc", 1: "caret", 2: "circle", 3: "infinity",
+                  4: "star", 5: "triangle", 6: "z"}                     # 7-class, old shapes
+NEW_LABEL_MAP  = {0: "warrior", 1: "mage", 2: "fireball", 3: "rogue",
+                  4: "lightning", 5: "hero", 6: "shield", 7: "noise"}   # 8-class, new vocab + noise
+VOCABS         = {"old": OLD_LABEL_MAP, "new": NEW_LABEL_MAP}
+# current baseline_improved.xsa is 7-class; pass --vocab new once the 8-class overlay is deployed
+DEFAULT_VOCAB  = "old"
+N_CLASSES      = len(VOCABS[DEFAULT_VOCAB])
 SCALE          = 1 << 10      # to_fixed multiplier (1024)
 OUT_FRAC       = 10           # ap_fixed<16,6> -> 10 frac bits (logits = outb / 1024)
-CONF_THRESHOLD = 0.0          # reject top class below this as rest/blank; 0.0 = never reject
+CONF_THRESHOLD = 0.7          # reject top class below this as rest/blank; 0.0 = never reject
 REJECT_LABELS  = ("noise",)   # a model's no-gesture class: top class here -> no result (8-class models)
 
 CROP           = 40           # test only: max |offset| steps the EOG may miss the gesture by
 NOISE_FRAC     = 0.05         # test only: filler noise std as a fraction of per-channel gesture std
 
-BITSTREAM = "xsa/baseline_improved.xsa"   # default overlay (constructor arg)
+BITSTREAM = "xsa/new_gestures_all.xsa"   # default overlay (constructor arg)
 CSV       = "gestures_real_train.csv"      # default decoded dataset for test mode
-KEEP      = ['0', '1', '2', '3', '4', '5', '6']
+KEEP      = [str(i) for i in range(N_CLASSES)]   # test-mode CSV labels; follows the default vocab
 
 # decode scales: counts -> physical units (the ONLY preprocessing)
 ACCEL_TO_M_S2 = 0.001197100830078125       # = 9.80665 / 8192
 GYRO_TO_RAD_S = 0.00026646248122050834     # = (pi/180) / 65.5
 
-# class id -> gesture name (all 7 are real gestures; rest is handled by CONF_THRESHOLD)
-LABEL_MAP = {0: "arc", 1: "caret", 2: "circle", 3: "infinity",
-             4: "star", 5: "triangle", 6: "z"}
+# default label map = the DEFAULT_VOCAB profile; a run overrides it via vocab_config() / --vocab
+LABEL_MAP = dict(VOCABS[DEFAULT_VOCAB])
 
 
 # ---------------------------------------------------------------------------
@@ -125,6 +136,19 @@ class ModelConfig:
     gyro_to_rad_s: float = GYRO_TO_RAD_S
     # classes that mean "no gesture": a top class in here gives no result, like low confidence
     reject_labels: tuple = REJECT_LABELS
+
+
+def vocab_config(vocab=None, **overrides):
+    """ModelConfig for a named vocabulary: "old" (7-class shapes) or "new" (8-class + noise).
+
+    n_classes and label_map come from VOCABS; None uses DEFAULT_VOCAB. The bitstream you load
+    must output that many classes in that label order. Extra kwargs override other fields.
+    """
+    name = vocab or DEFAULT_VOCAB
+    if name not in VOCABS:
+        raise ValueError(f"unknown vocab {name!r}; choose one of {sorted(VOCABS)}")
+    label_map = VOCABS[name]
+    return ModelConfig(n_classes=len(label_map), label_map=dict(label_map), **overrides)
 
 
 # ---------------------------------------------------------------------------

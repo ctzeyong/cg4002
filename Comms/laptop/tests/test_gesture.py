@@ -535,8 +535,10 @@ def test_ais_feed_and_reset_take_a_player():
         assert "player" in [a.arg for a in methods[name].args.args], name
 
 
-def test_the_bitstream_comms_loads_is_beside_ais_module():
-    assert (AI_STREAM.parent / gesture.AI_BITSTREAM).exists()
+def test_the_fpga_path_needs_a_bitstream(monkeypatch, tmp_path):
+    monkeypatch.setattr(gesture, "FPGA_MANAGER", tmp_path)  # pretend we are on the board
+    with pytest.raises(ValueError):
+        gesture.load_classifier()  # no --bitstream given
 
 
 def test_off_the_board_the_flag_path_gets_the_stub(monkeypatch, tmp_path):
@@ -548,19 +550,20 @@ def test_on_the_board_the_flag_path_loads_ais_model_with_its_bitstream(monkeypat
     built = []
     module = types.ModuleType(gesture.AI_MODULE)
     module.__file__ = str(tmp_path / f"{gesture.AI_MODULE}.py")
-    module.GestureClassifier = lambda bitstream: built.append(bitstream) or "model"
+    module.GestureClassifier = lambda bitstream, config=None: built.append(bitstream) or "model"
+    module.vocab_config = lambda vocab=None: "config"
     monkeypatch.setitem(sys.modules, gesture.AI_MODULE, module)
     monkeypatch.setattr(gesture, "FPGA_MANAGER", tmp_path)
-    ai = gesture.load_classifier()
+    ai = gesture.load_classifier(bitstream="baseline_improved.xsa")
     assert isinstance(ai, gesture.AI) and (ai.module, ai.model) == (module, "model")
-    assert built == [str(tmp_path / gesture.AI_BITSTREAM)]
+    assert built == [str(tmp_path / "baseline_improved.xsa")]
 
 
 def test_on_the_board_a_model_that_will_not_import_is_an_error_not_the_stub(monkeypatch, tmp_path):
     monkeypatch.setattr(gesture, "FPGA_MANAGER", tmp_path)
     monkeypatch.setitem(sys.modules, gesture.AI_MODULE, None)  # importing it now raises ImportError
     with pytest.raises(ImportError):
-        gesture.load_classifier()
+        gesture.load_classifier(bitstream="x.xsa")
 
 
 # --- the log fields ----------------------------------------------------------
