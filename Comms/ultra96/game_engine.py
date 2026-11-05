@@ -163,6 +163,8 @@ class Session:
         if self._seen_events.add(event_id) and (source, request.req_id) not in self._seen_requests:
             if request.action in ("start", "rematch"):
                 self._press(player, source, request)
+            elif request.action in ("god_on", "god_off"):
+                self._god(player, source, request)
             else:
                 events = self._tap(player, source, request)
         self.update(now)
@@ -430,6 +432,21 @@ class Session:
             return
         self._seen_requests.add((source, request.req_id))
         p.pressed = source
+
+    def _god(self, player, source, request):
+        """Debug: the demo's God mode for the player who asked (full mana and tower HP, free actions).
+
+        It has no game/event, so a phone never waits on one. A request for another match, or from a source that isn't
+        the one bound to this player, is dropped. A new match starts without it, so a phone sends it again.
+        """
+        self._seen_requests.add((source, request.req_id))
+        bound = self.players[player].bound
+        if request.match_id != self.match_id or (bound and source != bound):
+            self.counts["god_refused"] += 1
+            return
+        on = request.action == "god_on"
+        if self._call_core("set_god_mode", player, on) is not _FAILED:
+            log.info("match %s: God mode %s for player %d", self.match_id, "on" if on else "off", player)
 
     def _tap(self, player, source, request):
         self._seen_requests.add((source, request.req_id))
