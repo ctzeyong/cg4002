@@ -1,8 +1,9 @@
 # Comms drop-in for the Vis app
 
 1. **`Transport/`** connects your app to the MQTT broker on the Ultra96 (configuration B).
-   It runs a two-hop SSH tunnel from the phone and supervises it, then calls **your**
-   `MqttConnection.Connect()` through it. Your client is not changed.
+   It runs a two-hop SSH tunnel from the phone and supervises it, and rebuilds it when nothing
+   answers through it. It calls **your** `MqttConnection.Connect()` through it. Your client is
+   not changed.
 2. **`Hook/`** shows the gloves' status from the board and echoes each gesture back for
    latency. It doesn't act on gestures. Your `GloveGestureReceiver` does that, through
    `GestureBindings`.
@@ -15,7 +16,8 @@ fix goes into `Comms/phone/comms-visualiser/`. The design is in Comms' notes,
 comms-visualiser/
   Shared/MqttConfig.cs        topic names, ports, backoff (both halves use it)
   Transport/                  configuration B only: delete it for fallback A
-    CommsTunnelBridge.cs      the tunnel, the reconnect, the on-screen form and log
+    CommsTunnelBridge.cs      the tunnel and its reconnects, and the form and log your debug
+                              menu draws with DrawDetails()
     SshMqttTunnel.cs, TunnelConfig.cs, link.xml, Plugins/SshNet/*.dll (5)
   Hook/                       works with any broker
     AiGestureHook.cs          the gloves' status line and the latency echo
@@ -40,14 +42,14 @@ looks wrong.
    Settings → Api Compatibility Level** to **.NET Framework**. `Transport/link.xml` stops
    IL2CPP stripping SSH.NET, so leave it where it is.
 
-### Updating your existing copy (31 Oct: the hook no longer acts on gestures)
+### Updating your existing copy (31 Oct: the hook no longer acts on gestures. 2 Nov: the bridge rebuilds the tunnel)
 
 Before, the hook and your `GloveGestureReceiver` both subscribed to `game/gesture/N`. Your
 `MqttConnection` keeps one handler per topic, so whichever subscribed last got every gesture,
 and the hook rejected them all. Now only the receiver subscribes to it.
 
 Your copy is in `script/Networking/Comms/CommsVisualiser/`, with `Envelope`, `SeenEvents` and
-`MqttConfig` in `script/Networking/Comms/`. Only `Hook/` changed:
+`MqttConfig` in `script/Networking/Comms/`. `Hook/` changed on 31 Oct and the bridge on 2 Nov:
 
 1. Copy `Hook/AiGestureHook.cs` over yours. Keep its `.meta`, so the scene's component stays
    wired.
@@ -55,8 +57,9 @@ Your copy is in `script/Networking/Comms/CommsVisualiser/`, with `Envelope`, `Se
 3. Delete `Hook/GestureEventParser.cs` and its `.meta`.
 4. Don't copy `Hook/Envelope.cs`, `Hook/SeenEvents.cs` or `Shared/MqttConfig.cs`. They're the
    same as your copies in `Networking/Comms/`, so a second copy is a duplicate-type error.
-5. Leave `Transport/` alone. Your `CommsTunnelBridge.cs` has your `DrawDetails()` patch, and
-   nothing else in it has changed on our side.
+5. Copy `Transport/CommsTunnelBridge.cs` over yours, and keep its `.meta`. It is now your copy
+   with `DrawDetails()`, plus one change: after two failed broker probes in a row it rebuilds
+   the tunnel (2 Nov). Leave the rest of `Transport/` alone.
 6. Keep `GloveGestureReceiver` as it is. `GesturePad.PerformGesture` can stay; nothing of ours
    calls it now.
 7. Rebuild to **both** iPhones.
@@ -79,7 +82,7 @@ Comms sends the real values privately. They aren't written anywhere in the repo.
 
 - **NUS Cisco AnyConnect VPN connected,** on every network, campus Wi-Fi included. The jump host accepts a
   password only from inside the VPN.
-- In the bridge's form at the top of the screen:
+- In the bridge's form, which your debug menu draws:
 
   | Field | Value | Saved? |
   |---|---|---|
@@ -100,8 +103,7 @@ Comms sends the real values privately. They aren't written anywhere in the repo.
 ## 4. Bring-up, every launch
 
 1. VPN on → open the app → type the NUS password → **Connect**.
-2. Wait for **`MQTT_CONNECTED`** on the screen. The form then collapses to one status line
-   (**Show** opens the log again).
+2. Wait for **`MQTT_CONNECTED`** in the bridge's log. The form hides while the bridge runs.
 3. **Both phones show `MQTT_CONNECTED` before anyone locks in or presses start.** `ready`
    and `lock` aren't retained, so a phone that connects late never hears them. And a start
    pressed while MQTT is down runs that phone's countdown alone.
@@ -114,7 +116,7 @@ Comms sends the real values privately. They aren't written anywhere in the repo.
 
 ## 5. What you see
 
-- **The bridge's log** (top of the screen, last 15 lines, hosts and username masked). The
+- **The bridge's log** (in the debug menu, last 15 lines, hosts and username masked). The
   full lines go to Xcode's console with the tag `[comms-bridge]`: run the app from Xcode and
   read the debug area at the bottom. Those lines are **not** masked, so they are for Comms
   only, sent privately.
@@ -148,7 +150,7 @@ Comms sends the real values privately. They aren't written anywhere in the repo.
 | `… host key SHA256:… REJECTED` | Fingerprint pasted wrong, or the key really changed | Paste again. If it still fails, ask Comms before trusting a new key |
 | Key-exchange / "algorithm negotiation" error, `TypeLoadException`, `MissingMethodException` | IL2CPP stripped SSH.NET, or a DLL is missing | Check `Transport/link.xml` and `Transport/Plugins/SshNet/` are under `Assets/`. Send Comms the stack from Xcode |
 | Any other exception before `JUMP_CONNECTED` | SSH.NET on iOS, the one untested part | Send Comms the Xcode stack |
-| `PAYLOAD_FORWARD_READY`, then `NO_BROKER` repeating | The tunnel is fine; the board's broker isn't answering | Tell Comms |
+| `NO_BROKER` twice, then `NEST_REBUILD` and the tunnel building again, over and over | The tunnel comes up but nothing answers through it. Either the board's broker is down or the tunnel is broken | Tell Comms |
 | `BROKER_OK`, `MQTT_CONNECTING`, then `MQTT_CONNECT_FAILED` | The broker answers, your client doesn't connect | Broker must be `127.0.0.1:1883`. Look for `MqttConnection:` errors in Xcode |
 | `RESUMED after Ns: rebuilding the nest` | The app was in the background | Normal. Wait for `MQTT_CONNECTED` |
 

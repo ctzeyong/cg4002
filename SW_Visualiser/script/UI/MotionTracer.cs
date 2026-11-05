@@ -21,7 +21,7 @@ namespace BridgeRush.UI
         private float trailSpacing;
         private UITextureFactory.MotionEase ease;
 
-        public static void Attach(RectTransform iconRect, string motion, Color dotColor)
+        public static void Attach(RectTransform iconRect, string motion, Color dotColor, float dotScale = 1f)
         {
             var tracer = iconRect.gameObject.AddComponent<MotionTracer>();
             tracer.area = iconRect;
@@ -36,7 +36,7 @@ namespace BridgeRush.UI
             {
                 var go = UIFactory.CreateRect(i == 0 ? "MotionDot" : "MotionTrail" + i, iconRect);
                 tracer.dots[i] = (RectTransform)go.transform;
-                float size = Mathf.Lerp(15f, 6f, i / (float)TrailDots);
+                float size = Mathf.Lerp(15f, 6f, i / (float)TrailDots) * dotScale;
                 tracer.dots[i].sizeDelta = new Vector2(size, size);
                 var image = go.AddComponent<Image>();
                 image.sprite = UITextureFactory.CreateGlowDot();

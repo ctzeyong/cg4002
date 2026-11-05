@@ -15,6 +15,23 @@ namespace BridgeRush.Networking
         [SerializeField] private MatchSetup matchSetup;
         [SerializeField] private MatchState matchState;
         [SerializeField] private MqttConnection mqttConnection;
+        [Tooltip("Wire EngineLink (and MatchState's Engine Link) to play VS PLAYER on the Ultra96 engine instead of the host phone.")]
+        [SerializeField] private EngineLink engineLink;
+        [SerializeField] private bool useBoardEngine;
+
+        private const string BoardEnginePref = "use_board_engine";
+
+        // Takes effect when the next match's role is assigned (after the mode and player are chosen). Saved on the phone.
+        public bool UseBoardEngine
+        {
+            get => useBoardEngine && engineLink != null && matchState.BoardEngineAvailable;
+            set
+            {
+                useBoardEngine = value;
+                PlayerPrefs.SetInt(BoardEnginePref, value ? 1 : 0);
+            }
+        }
+        public bool BoardEngineWired => engineLink != null && matchState != null && matchState.BoardEngineAvailable;
 
         private bool roleAssigned;
         private bool subscribed;
@@ -25,7 +42,9 @@ namespace BridgeRush.Networking
             {
                 Debug.LogError($"{nameof(MatchNetworkSync)}: needs a Match Setup, a Match State and an Mqtt Connection.", this);
                 enabled = false;
+                return;
             }
+            if (PlayerPrefs.HasKey(BoardEnginePref)) useBoardEngine = PlayerPrefs.GetInt(BoardEnginePref) == 1;
         }
 
         private void OnEnable()
@@ -50,7 +69,15 @@ namespace BridgeRush.Networking
             if (!matchSetup.HasSelected) return;
 
             bool isPlayer1 = matchSetup.Selected == MatchSetup.SelectedPlayer.Player1;
-            matchState.SetNetworkRole(isPlayer1 ? MatchState.NetworkRole.Host : MatchState.NetworkRole.Client);
+            if (UseBoardEngine)
+            {
+                matchState.SetNetworkRole(MatchState.NetworkRole.BoardClient);
+                engineLink.Activate();
+            }
+            else
+            {
+                matchState.SetNetworkRole(isPlayer1 ? MatchState.NetworkRole.Host : MatchState.NetworkRole.Client);
+            }
             roleAssigned = true;
         }
 
@@ -58,6 +85,7 @@ namespace BridgeRush.Networking
         {
             roleAssigned = false;
             subscribed = false;
+            if (engineLink != null) engineLink.Deactivate();
             matchState.SetNetworkRole(MatchState.NetworkRole.Local);
         }
 
@@ -72,6 +100,9 @@ namespace BridgeRush.Networking
                 case MatchState.NetworkRole.Client:
                     mqttConnection.Subscribe(StateTopic, OnStateMessage, 0);
                     subscribed = true;
+                    break;
+                case MatchState.NetworkRole.BoardClient:
+                    subscribed = true; // EngineLink has game/state, game/match and game/event
                     break;
             }
         }

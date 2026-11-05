@@ -473,9 +473,9 @@ namespace BridgeRush.UI
 
     public static class HudLayout
     {
-        public const float CardWidth = 132f;
-        public const float CardHeight = 188f;
-        public const float CardSpacing = 12f;
+        public const float CardWidth = 150f;
+        public const float CardHeight = 214f;
+        public const float CardSpacing = 10f;
         public const float HandBottomMargin = 36f;
 
         public const float HandTotalHeight = CardHeight + HandBottomMargin;

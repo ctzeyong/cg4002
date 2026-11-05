@@ -11,6 +11,9 @@ namespace BridgeRush.UI
     public class MatchHudUI : MonoBehaviour
     {
         [SerializeField] private Canvas canvas;
+
+        // For the parts of the HUD that build themselves on the same canvas (the tutorial coach).
+        public Canvas HudCanvas => canvas;
         [SerializeField] private MatchState matchState;
         [SerializeField] private ArenaFrame arenaFrame;
         [SerializeField] private Camera hudCamera;
@@ -34,17 +37,6 @@ namespace BridgeRush.UI
         private Sprite unlockedSprite;
         private bool lockSpriteApplied;
 
-        private static readonly (string Symbol, string Action, int Mana, string Stats)[] CommandReference =
-        {
-            ("Chop", "Warrior", 2, "150 HP / 20 DPS - Melee"),
-            ("Jab", "Rogue", 3, "120 HP / 35 DPS - Melee"),
-            ("Circle", "Mage", 4, "90 HP / 30 DPS - Ranged"),
-            ("Lightning", "Lightning Strike", 5, "180 burst - Area"),
-            ("Punch", "Fireball", 6, "120 dmg + burning floor - Area"),
-            ("Shield", "Tank", 6, "700 HP / 25 DPS - Melee"),
-            ("Star", "Hero", 8, "450 HP / 70 DPS - Melee"),
-        };
-
         private Image manaFill;
         private TextMeshProUGUI manaText;
         private Image ownFill;
@@ -52,11 +44,6 @@ namespace BridgeRush.UI
 
         private TextMeshProUGUI timerText;
 
-        private GameObject commandsPanel;
-        private bool commandsExpanded;
-        private TextMeshProUGUI commandsToggleText;
-
-        private Image dimOverlay;
         private TextMeshProUGUI trackingMessage;
 
         private RectTransform offscreenArrow;
@@ -84,7 +71,7 @@ namespace BridgeRush.UI
 
             BuildStatusCluster();
             BuildTimer();
-            BuildCommandsDrawer();
+            BuildOptionsButton();
             BuildTrackingOverlay();
             BuildOffscreenArrow();
             BuildLockTowerButton();
@@ -108,6 +95,7 @@ namespace BridgeRush.UI
         {
             UpdateStatusCluster();
             UpdateTimer();
+            UpdateOptionsButton();
             UpdateTrackingOverlay();
             UpdateOffscreenArrow();
             UpdateLockTowerButton();
@@ -333,6 +321,12 @@ namespace BridgeRush.UI
 
         private void RestartToSetup()
         {
+            // On the board engine Play Again is the rematch press: the next match starts when both players have pressed it.
+            if (matchState.IsBoardClient && matchState.HasEnded)
+            {
+                matchState.BoardPressRematch();
+                return;
+            }
             matchState.ResetMatch();
             arenaFrame.DebugForgetOpponent();
             matchSetup?.DebugReset();
@@ -554,61 +548,58 @@ namespace BridgeRush.UI
             timerText.color = remaining <= 30 ? new Color(1f, 0.4f, 0.35f) : HudPalette.Cream;
         }
 
-        private void BuildCommandsDrawer()
+        private RectTransform optionsButtonRect;
+        private TextMeshProUGUI optionsButtonText;
+        private DebugMenu optionsMenu;
+
+        // Where the old COMMANDS button was. It opens the options (debug) menu, which draws its panel under this button.
+        private void BuildOptionsButton()
         {
-            var toggleGo = UIFactory.CreateRect("CommandsToggle", canvas.transform);
-            var toggleRect = toggleGo.GetComponent<RectTransform>();
-            toggleRect.anchorMin = new Vector2(1f, 1f);
-            toggleRect.anchorMax = new Vector2(1f, 1f);
-            toggleRect.pivot = new Vector2(1f, 1f);
-            toggleRect.anchoredPosition = new Vector2(-20f, -170f);
-            toggleRect.sizeDelta = new Vector2(220f, 56f);
+            var go = UIFactory.CreateRect("OptionsButton", canvas.transform);
+            optionsButtonRect = go.GetComponent<RectTransform>();
+            optionsButtonRect.anchorMin = new Vector2(1f, 1f);
+            optionsButtonRect.anchorMax = new Vector2(1f, 1f);
+            optionsButtonRect.pivot = new Vector2(1f, 1f);
+            optionsButtonRect.anchoredPosition = new Vector2(-20f, -170f);
+            optionsButtonRect.sizeDelta = new Vector2(OptionsButtonWidth, 56f);
 
-            var toggleBg = toggleGo.AddComponent<Image>();
-            toggleBg.sprite = UITextureFactory.CreateRoundedPanel(64, 12, HudPalette.Wood, HudPalette.WoodDark, 2, HudPalette.GoldDark);
-            toggleBg.type = Image.Type.Sliced;
-            var toggleButton = toggleGo.AddComponent<Button>();
-            toggleButton.targetGraphic = toggleBg;
-            toggleButton.onClick.AddListener(() =>
+            var bg = go.AddComponent<Image>();
+            bg.sprite = UITextureFactory.CreateRoundedPanel(64, 12, HudPalette.Wood, HudPalette.WoodDark, 2, HudPalette.GoldDark);
+            bg.type = Image.Type.Sliced;
+            var button = go.AddComponent<Button>();
+            button.targetGraphic = bg;
+            button.onClick.AddListener(() =>
             {
-                commandsExpanded = !commandsExpanded;
-                commandsPanel.SetActive(commandsExpanded);
-                commandsToggleText.text = commandsExpanded ? "COMMANDS v" : "COMMANDS >";
+                if (optionsMenu == null) optionsMenu = FindAnyObjectByType<DebugMenu>();
+                if (optionsMenu != null) optionsMenu.ToggleMenu();
             });
-            commandsToggleText = UIFactory.CreateText(toggleGo.transform, "COMMANDS >", 20, FontStyles.Bold, HudPalette.Cream);
-            UIFactory.StretchFull(commandsToggleText.rectTransform);
+            optionsButtonText = UIFactory.CreateText(go.transform, "OPTIONS >", 20, FontStyles.Bold, HudPalette.Cream);
+            UIFactory.StretchFull(optionsButtonText.rectTransform);
+        }
 
-            commandsPanel = UIFactory.CreateRect("CommandsPanel", canvas.transform);
-            var panelRect = commandsPanel.GetComponent<RectTransform>();
-            panelRect.anchorMin = new Vector2(1f, 1f);
-            panelRect.anchorMax = new Vector2(1f, 1f);
-            panelRect.pivot = new Vector2(1f, 1f);
-            panelRect.anchoredPosition = new Vector2(-20f, -232f);
-            panelRect.sizeDelta = new Vector2(460f, CommandReference.Length * 36f + 20f);
+        private void UpdateOptionsButton()
+        {
+            if (optionsMenu == null) optionsMenu = FindAnyObjectByType<DebugMenu>();
+            string label = optionsMenu != null && optionsMenu.MenuExpanded ? "OPTIONS v" : "OPTIONS >";
+            if (optionsButtonText.text != label) optionsButtonText.text = label;
+        }
 
-            var panelBg = commandsPanel.AddComponent<Image>();
-            panelBg.sprite = UITextureFactory.CreateRoundedPanel(64, 14, HudPalette.Wood, HudPalette.WoodDark, 2, HudPalette.GoldDark);
-            panelBg.type = Image.Type.Sliced;
+        public const float OptionsButtonWidth = 220f;
 
-            var layout = commandsPanel.AddComponent<VerticalLayoutGroup>();
-            layout.padding = new RectOffset(14, 14, 10, 10);
-            layout.spacing = 3f;
-            layout.childControlWidth = true;
-            layout.childControlHeight = false;
-
-            foreach (var entry in CommandReference)
+        // The OPTIONS button's rectangle in screen pixels with the origin at the top left (what OnGUI draws in), so the menu
+        // panel sits under it whatever the canvas scale is. Width 0 before the button exists.
+        public Rect OptionsButtonGuiRect
+        {
+            get
             {
-                var rowGo = UIFactory.CreateRect("Row", commandsPanel.transform);
-                var rowLayoutElement = rowGo.AddComponent<LayoutElement>();
-                rowLayoutElement.preferredHeight = 33f;
-
-                var row = UIFactory.CreateText(rowGo.transform, $"{entry.Symbol} -> {entry.Action}  ({entry.Stats})    [{entry.Mana}]",
-                    16f, FontStyles.Normal, HudPalette.Cream);
-                row.alignment = TextAlignmentOptions.Left;
-                UIFactory.StretchFull(row.rectTransform);
+                if (optionsButtonRect == null) return new Rect(0f, 0f, 0f, 0f);
+                var corners = new Vector3[4];
+                optionsButtonRect.GetWorldCorners(corners);
+                Camera cam = canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : canvas.worldCamera;
+                Vector2 bottomLeft = RectTransformUtility.WorldToScreenPoint(cam, corners[0]);
+                Vector2 topRight = RectTransformUtility.WorldToScreenPoint(cam, corners[2]);
+                return new Rect(bottomLeft.x, Screen.height - topRight.y, topRight.x - bottomLeft.x, topRight.y - bottomLeft.y);
             }
-
-            commandsPanel.SetActive(false);
         }
 
         private void BuildTrackingOverlay()
@@ -616,10 +607,6 @@ namespace BridgeRush.UI
             var go = UIFactory.CreateRect("TrackingOverlay", canvas.transform);
             var rect = go.GetComponent<RectTransform>();
             UIFactory.StretchFull(rect);
-
-            dimOverlay = go.AddComponent<Image>();
-            dimOverlay.color = new Color(0f, 0f, 0f, 0f);
-            dimOverlay.raycastTarget = false;
 
             trackingMessage = UIFactory.CreateText(go.transform, string.Empty, 28, FontStyles.Bold, HudPalette.Cream);
             var msgRect = trackingMessage.rectTransform;
@@ -634,39 +621,38 @@ namespace BridgeRush.UI
         {
             if (matchSetup != null && !matchSetup.IsSetupComplete)
             {
-                SetOverlay(0f, string.Empty);
+                SetOverlay(string.Empty);
                 return;
             }
 
             if (!arenaFrame.HasLane)
             {
-                SetOverlay(0.55f, "Searching for opponent marker...");
+                SetOverlay("Searching for opponent marker...");
             }
-            else if (arenaFrame.IsLongStale)
+            else if (matchState.MatchStarted && matchState.OwnTowerOutsideArena)
             {
-                SetOverlay(0.45f, "Opponent lost for a while - last known position may be very out of date");
+                SetOverlay("OUT OF ARENA - step back in");
             }
-            else if (!arenaFrame.IsOpponentTracked)
+            else if (matchState.IsBoardClient && matchState.BoardStatusMessage.Length > 0)
             {
-                SetOverlay(0.3f, "Opponent tracking lost - holding last known position");
+                SetOverlay(matchState.BoardStatusMessage);
             }
             else if (!matchState.MatchStarted && peerReadySync != null && !peerReadySync.PeerReady)
             {
-                SetOverlay(0.3f, "Waiting for the other player to also find you...");
+                SetOverlay("Waiting for the other player to also find you...");
             }
             else if (!matchState.MatchStarted)
             {
-                SetOverlay(0f, "Opponent found - walk to your spot, then press Start Game");
+                SetOverlay("Opponent found - walk to your spot, then press Start Game");
             }
             else
             {
-                SetOverlay(0f, string.Empty);
+                SetOverlay(string.Empty);
             }  
         }
 
-        private void SetOverlay(float dimAlpha, string message)
+        private void SetOverlay(string message)
         {
-            dimOverlay.color = new Color(0f, 0f, 0f, dimAlpha);
             trackingMessage.text = message;
         }
 

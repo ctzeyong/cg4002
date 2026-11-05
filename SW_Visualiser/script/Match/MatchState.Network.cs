@@ -84,10 +84,19 @@ namespace BridgeRush.Match
             timeSinceLastTick = 0f;
             CheckForMatchEnd();
 
+            ApplyUnitSnapshots(snapshot.units, "player2", true, true);
+            ApplyStrikeSnapshots(snapshot);
+        }
+
+        // Shared by the host/client path (ApplyRemoteState) and the board path (ApplyBoardState). localOwner is the owner
+        // string that is this phone's player ("player2" for a client, "player1" or "player2" for the board).
+        // restartSmoothing: the units moved to a new tick. removeMissing: a unit not listed is gone.
+        private void ApplyUnitSnapshots(List<UnitSnapshot> list, string localOwner, bool restartSmoothing, bool removeMissing)
+        {
             var seenIds = new HashSet<int>();
-            if (snapshot.units != null)
+            if (list != null)
             {
-                foreach (var u in snapshot.units)
+                foreach (var u in list)
                 {
                     seenIds.Add(u.id);
                     var combatState = u.state == nameof(UnitCombatState.Attacking) ? UnitCombatState.Attacking : UnitCombatState.Walking;
@@ -97,7 +106,7 @@ namespace BridgeRush.Match
                     if (existing == null)
                     {
                         if (!Enum.TryParse(u.type, out UnitType type)) continue;
-                        var side = u.owner == "player2" ? UnitSide.Own : UnitSide.Enemy;
+                        var side = u.owner == localOwner ? UnitSide.Own : UnitSide.Enemy;
                         var unit = new UnitState(u.id, type, side, u.maxHp, 0f, worldPos)
                         {
                             CurrentHP = u.hp,
@@ -112,7 +121,7 @@ namespace BridgeRush.Match
                     }
                     else
                     {
-                        existing.PreviousWorldPosition = existing.WorldPosition;
+                        if (restartSmoothing) existing.PreviousWorldPosition = existing.WorldPosition;
                         existing.WorldPosition = worldPos;
                         if (HasFacing(u))
                         {
@@ -132,8 +141,8 @@ namespace BridgeRush.Match
                 }
             }
 
-            ApplyStrikeSnapshots(snapshot);
 
+            if (!removeMissing) return;
             for (int i = units.Count - 1; i >= 0; i--)
             {
                 if (seenIds.Contains(units[i].Id)) continue;

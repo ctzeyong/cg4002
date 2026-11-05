@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 namespace BridgeRush.Match
@@ -6,6 +7,13 @@ namespace BridgeRush.Match
     {
         public bool SpawnUnit(UnitType type)
         {
+            string refusal = ActionFilter?.Invoke(type.ToString());
+            if (refusal != null)
+            {
+                OwnUnitRejected?.Invoke(type, refusal);
+                return false;
+            }
+            if (Role == NetworkRole.BoardClient) return BoardSendSummon(type);
             bool done = SpawnUnitCore(type);
             if (!done) OwnUnitRejected?.Invoke(type, ShortSpawnFailure(type));
             return done;
@@ -19,7 +27,7 @@ namespace BridgeRush.Match
             {
                 return false;
             }
-            if (arenaFrame.HasLane && !IsInsideArenaBounds(OwnTowerPosition))
+            if (arenaFrame.HasLane && !IsInsideArenaBounds(OwnTowerBodyPosition))
             {
                 return false;
             }
@@ -54,13 +62,14 @@ namespace BridgeRush.Match
         {
             if (!matchStarted) return SpawnBlock.NotStarted;
             if (summonCursor != null && !summonCursor.IsAimValid) return SpawnBlock.BadAim;
-            if (arenaFrame.HasLane && !IsInsideArenaBounds(OwnTowerPosition)) return SpawnBlock.OutsideArena;
+            if (arenaFrame.HasLane && !IsInsideArenaBounds(OwnTowerBodyPosition)) return SpawnBlock.OutsideArena;
             if (ManaCurrent < GetManaCost(type)) return SpawnBlock.NoMana;
             return SpawnBlock.None;
         }
 
         public string DescribeSpawnFailure(UnitType type)
         {
+            if (Role == NetworkRole.BoardClient) return BoardRefusalText;
             switch (GetSpawnBlock(type))
             {
                 case SpawnBlock.NotStarted: return "The match hasn't started yet. Press Start Game first.";
@@ -86,7 +95,7 @@ namespace BridgeRush.Match
         // without it, an enemy unit has no aim of its own and spawns at the tower, same as the random bot.
         public bool TrySpawnEnemyUnit(UnitType type, Vector3? explicitSpawnPosition = null)
         {
-            if (!matchStarted) return false;
+            if (!matchStarted || Role == NetworkRole.BoardClient) return false;
             Vector3 opponentCurrentPosition = Vector3.zero;
             bool hasOpponentPosition = false;
             if (arenaFrame.HasLane)
