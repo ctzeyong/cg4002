@@ -120,3 +120,49 @@ def test_engine_refuses_a_rules_file_without_a_tower_radius(tmp_path):
     (tmp_path / "rules.json").write_text(json.dumps(rules), encoding="utf-8")
     with pytest.raises(ge.EngineFatal):
         ge.load_core(tmp_path)
+
+
+def _running(g):
+    g.s.on_gloves({1: True, 2: True}, g.now)
+    g.run(0.5)
+    g.start(1)
+    g.start(2)
+    g.run(3.8)
+    assert g.s.phase == ge.RUNNING
+    for p in (1, 2):
+        g.position[p] = (0.0 if p == 1 else 1.0, 0.0)
+    g.run(1.2)
+
+
+def _god(g, player, action, match_id=None, source=None):
+    g.req += 1
+    request = Request(match_id or g.s.match_id, g.req, action, "", None)
+    return g.s.on_request(player, source or f"phone-{player}", request, f"god{g.req}", g.now)
+
+
+def test_god_mode_works_for_either_player_and_gives_no_event(session):
+    g = session
+    _running(g)
+    assert g.tap(1, "spawn", "Hero")[0].reason == "no_mana"  # 8 mana, the player has 5 plus a little
+    assert _god(g, 1, "god_on") == []
+    assert g.tap(1, "spawn", "Hero")[0].ok
+    assert g.tap(2, "spawn", "Hero")[0].reason == "no_mana"  # only the player who asked
+    assert _god(g, 2, "god_on") == []
+    assert g.tap(2, "spawn", "Hero")[0].ok
+    assert _god(g, 1, "god_off") == []
+    assert g.tap(1, "spawn", "Hero")[0].ok  # the mana God mode pinned at 10 pays 8 now
+    g.run(0.1)
+    assert g.states[-1]["mana1"] < 5
+    assert g.tap(1, "spawn", "Hero")[0].reason == "no_mana"
+    assert g.tap(2, "spawn", "Hero")[0].ok  # player 2 is still free
+    assert not g.s.failed
+
+
+def test_god_mode_from_another_match_or_source_is_dropped(session):
+    g = session
+    _running(g)
+    _god(g, 1, "god_on", match_id="old")
+    _god(g, 2, "god_on", source="phone-intruder")
+    assert g.tap(1, "spawn", "Hero")[0].reason == "no_mana"
+    assert g.tap(2, "spawn", "Hero")[0].reason == "no_mana"
+    assert g.s.counts["god_refused"] == 2

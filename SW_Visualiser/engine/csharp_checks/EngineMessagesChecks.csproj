@@ -11,5 +11,6 @@
     <Compile Include="../../script/Networking/Engine/EngineMessages.cs" />
     <Compile Include="../../script/Networking/NetworkMessages.cs" />
     <Compile Include="../../script/Networking/Engine/EngineLinkCore.cs" />
+    <Compile Include="../../script/Tutorial/TutorialFlow.cs" />
   </ItemGroup>
 </Project>

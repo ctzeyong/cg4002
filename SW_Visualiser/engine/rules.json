@@ -1,11 +1,12 @@
 {
-  "version": "scene-checked-1nov-r1",
+  "version": "scene-checked-3nov-r3-tower-body",
   "_about": "Draft by Comms from the C# code defaults at a26da0b, which matched the scene on 22 Oct (Week11.md section 15). Vis checks it against the saved scene and UnitStatsTable.asset, fills in TowerController.TowerRadius and changes version on every edit. Keys are the C# field names. Keys starting with _ are notes and the core ignores them. _sources paths are under SW_Visualiser/ and the lines are the same at a26da0b and 5a79e14.",
   "MatchState": {
     "ownTowerMaxHP": 1000,
     "opponentTowerMaxHP": 1000,
     "towerCounterDps": 15,
     "outOfBoundsDamagePerSecond": 20,
+    "outOfBoundsGraceSeconds": 3,
     "manaMax": 10,
     "manaStart": 5,
     "manaRegenPerSecond": 1,
@@ -98,7 +99,8 @@
     }
   },
   "TowerController": {
-    "TowerRadius": 0.1188
+    "TowerRadius": 0.1188,
+    "ownTowerForwardOffsetInRadii": 1.5
   },
   "gestures": {
     "warrior": ["spawn", "Warrior"],
@@ -167,6 +169,7 @@
     "BubbleCaptureManager.respawnCooldownSeconds": "script/Gameplay/Bubbles/BubbleCaptureManager.cs:31",
     "BubbleCaptureManager.reward": "script/Gameplay/Bubbles/BubbleCaptureManager.cs:35",
     "BubbleCaptureManager.bubbleCount": "script/Gameplay/Bubbles/BubbleCaptureManager.cs:38",
+    "TowerController.ownTowerForwardOffsetInRadii": "script/Gameplay/Towers/TowerController.cs:29 (code default 1.5; the saved scene may hold another value)",
     "TowerController.TowerRadius": "script/Gameplay/Towers/TowerController.cs:32, measured from the tower mesh at runtime (script/Gameplay/Towers/TowerController.cs:103). Vis gives the value in metres at referenceLaneMeters, where ArenaScale is 1",
     "gestures.warrior": "script/Input/GestureBindings.cs:48",
     "gestures.rogue": "script/Input/GestureBindings.cs:49",

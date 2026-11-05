@@ -62,6 +62,30 @@ namespace BridgeRush.Match
             return true;
         }
 
+        // The other player's tower where that player reports it to the board (their device, or their lock point), in this
+        // phone's world, so it stands where the engine fights over it. False outside the board role, without a fresh report
+        // or before this match's frame exists; the caller then falls back to the tag.
+        public bool TryGetOpponentTowerReported(out Vector3 worldPosition, out bool locked)
+        {
+            worldPosition = Vector3.zero;
+            locked = false;
+            if (!IsBoardClient || engineLink == null || !homeAnchorsCaptured) return false;
+            if (!engineLink.TryGetPeerTower(out float along, out float lat, out locked)) return false;
+            worldPosition = FromCanonical(along, lat);
+            return true;
+        }
+
+        // God mode for the debug menu. Where the phone simulates (VS CPU, the host) it pins your mana and tower; on the board
+        // it is this player's own request to the engine, so it works for Player 1 and Player 2 alike. A host-phone client has
+        // no way to ask the host.
+        public bool GodModeAvailable => Role == NetworkRole.Local || Role == NetworkRole.Host || Role == NetworkRole.BoardClient;
+
+        public void SetGodMode(bool on)
+        {
+            GodMode = on;
+            if (IsBoardClient && engineLink != null) engineLink.SetGodMode(on);
+        }
+
         public void SetPaused(bool paused) => Paused = paused;
 
         // --- what the screens ask ---------------------------------------------------------------------------------

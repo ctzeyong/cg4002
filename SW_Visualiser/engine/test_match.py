@@ -134,11 +134,79 @@ def test_ranged_mage_stops_at_its_range():
 
 
 def test_out_of_bounds_tower_loses_hp():
-    m = started()
+    m = started(load_rules(outOfBoundsGraceSeconds=0))
     m.set_position(1, (0.0, 2.0))  # 2 lane widths sideways, off the island
     snap = run(m, 5)
     assert snap.tower_hp[0] == pytest.approx(1000 - 20 * 5, abs=0.5)
     assert snap.tower_hp[1] == 1000
+
+
+def test_out_of_bounds_hurts_only_the_player_who_is_out():
+    for out, other in ((1, 2), (2, 1)):
+        m = started(load_rules(outOfBoundsGraceSeconds=0))
+        m.set_position(out, (0.0 if out == 1 else 1.0, 2.0))  # off the island sideways
+        m.set_position(other, (0.0 if other == 1 else 1.0, 0.0))  # on its own island
+        snap = run(m, 5)
+        assert snap.tower_hp[out - 1] == pytest.approx(1000 - 20 * 5, abs=0.5)
+        assert snap.tower_hp[other - 1] == 1000
+
+
+def test_a_tower_only_counts_as_out_once_more_than_half_of_it_is_out():
+    # The tower is drawn 1.5 radii (0.225 m) in front of the device, and the arena reaches 0.1 m behind the lane's end, so the
+    # device can be up to 0.325 m behind the end before the tower's centre (half of it) is past the edge.
+    for player, behind in ((1, 0.30), (2, 0.30)):
+        m = started(load_rules(outOfBoundsGraceSeconds=0))
+        x = -behind if player == 1 else L + behind
+        m.set_position(player, (x / L, 0.0))
+        assert run(m, 3).tower_hp[player - 1] == 1000, f"player {player}: tower still mostly inside"
+
+    for player in (1, 2):
+        m = started(load_rules(outOfBoundsGraceSeconds=0))
+        x = -0.35 if player == 1 else L + 0.35
+        m.set_position(player, (x / L, 0.0))
+        assert run(m, 3).tower_hp[player - 1] == pytest.approx(1000 - 20 * 3, abs=0.5), f"player {player}: tower mostly out"
+
+
+def test_a_summon_is_allowed_while_the_tower_is_mostly_inside():
+    m = started()
+    m.set_position(1, (-0.15 / L, 0.0))  # device 0.15 m behind the end, tower 0.075 m inside it
+    assert m.gesture(1, "warrior", (0.1, 0.0)).ok
+    m.set_position(1, (-0.40 / L, 0.0))  # tower 0.175 m past the edge
+    assert m.gesture(1, "warrior", (0.1, 0.0)).reason == "tower_out_of_arena"
+
+
+def test_out_of_bounds_costs_nothing_during_the_grace():
+    m = started()  # rules.json grace: 3 s
+    m.set_position(1, (0.0, 2.0))
+    assert run(m, 3).tower_hp[0] == 1000
+
+
+def test_out_of_bounds_drains_after_the_grace():
+    m = started()
+    m.set_position(1, (0.0, 2.0))
+    snap = run(m, 5)  # 3 s free, then 2 s at 20 a second
+    assert snap.tower_hp[0] == pytest.approx(1000 - 20 * 2, abs=0.5)
+    assert snap.tower_hp[1] == 1000
+
+
+def test_coming_back_inside_restarts_the_grace():
+    m = started()
+    m.set_position(1, (0.0, 2.0))
+    run(m, 2.5)
+    m.set_position(1, (0.0, 0.0))
+    run(m, 0.1)
+    m.set_position(1, (0.0, 2.0))
+    assert run(m, 2.5).tower_hp[0] == 1000  # 2.5 s outside twice is never 3 s in a row
+
+
+def test_out_of_bounds_is_logged_once_per_excursion(caplog):
+    m = started()
+    with caplog.at_level("WARNING", logger="match"):
+        m.set_position(2, (1.2, 0.0))  # past the far end and its rear margin
+        run(m, 4)
+    lines = [r.getMessage() for r in caplog.records]
+    assert sum("player 2 is outside the arena" in t for t in lines) == 1
+    assert sum("tower HP now draining" in t for t in lines) == 1
 
 
 def test_spawn_refused_when_own_tower_is_out_of_the_arena():

@@ -51,6 +51,17 @@ namespace BridgeRush.Networking
         public List<StrikeSnapshot> Strikes = new();
     }
 
+    // The other phone's viz/lane, read for one thing: where that player says their tower is (their device, or the lock point
+    // once they have locked), in lane units from Player 1's end. The engine fights over this same spot.
+    public class EnginePeerLane
+    {
+        public string MatchId;
+        public bool HasPosition;
+        public float Along;
+        public float Lat;
+        public bool Locked;
+    }
+
     // Builds the viz/lane and game/request payloads and parses game/match, game/event and game/state. Plain C#, no Unity,
     // so it can be checked outside the Editor. A message that fails any check is rejected whole and touches nothing
     // (engine_spec.md section 6.2): JsonUtility would fill a missing field with a default and nobody would know.
@@ -170,6 +181,26 @@ namespace BridgeRush.Networking
                 };
                 info_check(parsed);
                 evt = parsed;
+                return true;
+            }
+            catch (FormatException e) { error = e.Message; return false; }
+        }
+
+        // The tower position in the other phone's viz/lane. Rejected whole if a field this side reads is missing or out of range.
+        public static bool TryParsePeerLane(string json, out EnginePeerLane lane, out string error)
+        {
+            lane = null;
+            if (!TryObject(json, out var o, out error)) return false;
+            try
+            {
+                lane = new EnginePeerLane
+                {
+                    MatchId = Str(o, "match_id"),
+                    HasPosition = Bool(o, "hasPosition"),
+                    Along = Num(o, "along", -CoordMax, CoordMax),
+                    Lat = Num(o, "lat", -CoordMax, CoordMax),
+                    Locked = Bool(o, "locked"),
+                };
                 return true;
             }
             catch (FormatException e) { error = e.Message; return false; }

@@ -12,7 +12,8 @@ from dataclasses import dataclass
 COORD_MAX = 10.0  # lane units, enough for a player standing outside the arena
 UNIT_TYPES = ("Warrior", "Rogue", "Mage", "Tank", "Hero")
 SPELLS = ("lightning", "fireball")
-ACTIONS = ("start", "rematch", "spawn", "spell")
+# god_on and god_off are the demo's debug God mode for the player who sent them (spec 3.4). They get no game/event.
+ACTIONS = ("start", "rematch", "spawn", "spell", "god_on", "god_off")
 UNIT_STATES = ("Walking", "Attacking")
 REQ_ID_MAX = 2**31 - 1  # the phone reads req_id into a C# int
 # what each game/event action may name

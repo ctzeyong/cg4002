@@ -140,6 +140,9 @@ static class Checks
 
         Console.WriteLine($"{accepted} real states accepted ({units} units, {strikes} strikes); {failures} failures");
         failures += LinkChecks.Run();
+        failures += TutorialChecks.Run();
+        failures += PeerLaneChecks.Run();
+        failures += GodModeChecks.Run();
         return failures == 0 ? 0 : 1;
     }
 }

@@ -27,6 +27,8 @@ namespace BridgeRush.Networking
         public const float LinkAlarmS = 1f;
         public const float StallRebuildS = 5f;
         public const float StallRebuildMaxS = 60f;
+        // A peer position older than this is not trusted: the phone falls back to seeing the tag.
+        public const float PeerFreshS = 2f;
 
         public int Player; // 1 or 2, 0 until chosen
 
@@ -46,6 +48,15 @@ namespace BridgeRush.Networking
         public event Action<EngineMatchInfo> MatchUpdated;
         public event Action<EngineEvent> ActionResult; // this player's result: a tap, a glove gesture, a bubble
         public event Action<int> ActionUnknown;        // a tap whose result never came: the outcome is unknown, not "failed"
+
+        // The demo's God mode (debug). Asked for once, then sent for every match the engine runs, since a new match starts
+        // without it. It gets no game/event, so it is never waited on.
+        bool godAsked;
+        bool godWanted;
+        string godSentMatchId;
+
+        EnginePeerLane peerLane;
+        float peerLastArrival = float.NegativeInfinity;
 
         readonly List<EngineOutgoing> outgoing = new();
         readonly Dictionary<int, float> pendingTaps = new(); // req_id -> deadline
@@ -85,6 +96,7 @@ namespace BridgeRush.Networking
             {
                 LatestState = null;
                 lastStateArrival = float.NegativeInfinity;
+                peerLane = null;
             }
             if (changed) MatchChanged?.Invoke(info.MatchId);
             MatchUpdated?.Invoke(info);
@@ -102,11 +114,41 @@ namespace BridgeRush.Networking
             return true;
         }
 
+        // The other player's viz/lane that passed EngineMessages.TryParsePeerLane. Rejected unless it is of the current match.
+        public bool OnPeerLane(EnginePeerLane lane, float now)
+        {
+            if (Match == null || lane.MatchId != MatchId) return false;
+            peerLane = lane;
+            peerLastArrival = now;
+            return true;
+        }
+
+        // Where the other player says their tower is, in lane units. False when they have sent no position for this match
+        // lately, so the caller can draw from the tag instead.
+        public bool TryGetPeerTower(float now, out float along, out float lat, out bool locked)
+        {
+            along = lat = 0f;
+            locked = false;
+            if (peerLane == null || !peerLane.HasPosition || peerLane.MatchId != MatchId) return false;
+            if (now - peerLastArrival > PeerFreshS) return false;
+            along = peerLane.Along;
+            lat = peerLane.Lat;
+            locked = peerLane.Locked;
+            return true;
+        }
+
         public void OnEvent(EngineEvent e)
         {
             if (Match == null || e.MatchId != MatchId) return; // another match
             if (e.Input == "tap") pendingTaps.Remove(e.ReqId);
             if (e.Player == Player) ActionResult?.Invoke(e);
+        }
+
+        public void WantGodMode(bool on)
+        {
+            godAsked = true;
+            godWanted = on;
+            godSentMatchId = null;
         }
 
         // --- outputs ----------------------------------------------------------------------------------------------
@@ -163,8 +205,19 @@ namespace BridgeRush.Networking
         public void Tick(float now)
         {
             ExpireTaps(now);
+            SendGodMode();
             ResendPress(now);
             CheckStall(now);
+        }
+
+        void SendGodMode()
+        {
+            if (!godAsked || Match == null || Player < 1 || Player > 2 || godSentMatchId == MatchId) return;
+            godSentMatchId = MatchId;
+            outgoing.Add(new EngineOutgoing
+            {
+                ReqId = nextReqId++, MatchId = MatchId, Action = godWanted ? "god_on" : "god_off", UnitType = "", Spell = "",
+            });
         }
 
         void ExpireTaps(float now)

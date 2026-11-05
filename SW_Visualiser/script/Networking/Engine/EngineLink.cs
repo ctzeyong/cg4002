@@ -28,6 +28,9 @@ namespace BridgeRush.Networking
 
         readonly EngineLinkCore core = new();
         float nextLane;
+        // The other player's viz/lane, heard directly so their tower is drawn where they put it even when this camera
+        // cannot see their tag. Subscribed once this phone knows which player it is.
+        string peerTopic;
 
         public bool Active { get; private set; }
         public EngineLinkCore Core => core;
@@ -61,6 +64,7 @@ namespace BridgeRush.Networking
             mqtt.Subscribe(MatchTopic, OnMatchMessage, 1);
             mqtt.Subscribe(EventTopic, OnEventMessage, 1);
             mqtt.Subscribe(StateTopic, OnStateMessage, 0);
+            if (matchState.GodMode) core.WantGodMode(true); // switched on before this match's role was assigned
         }
 
         public void Deactivate()
@@ -70,11 +74,43 @@ namespace BridgeRush.Networking
             mqtt.Unsubscribe(MatchTopic);
             mqtt.Unsubscribe(EventTopic);
             mqtt.Unsubscribe(StateTopic);
+            DropPeerTopic();
+        }
+
+        void DropPeerTopic()
+        {
+            if (peerTopic == null) return;
+            mqtt.Unsubscribe(peerTopic);
+            peerTopic = null;
+        }
+
+        void FollowPeerTopic()
+        {
+            string wanted = core.Player == 0 ? null : $"viz/lane/{3 - core.Player}";
+            if (wanted == peerTopic) return;
+            DropPeerTopic();
+            if (wanted == null) return;
+            peerTopic = wanted;
+            mqtt.Subscribe(peerTopic, OnPeerLaneMessage, 0);
+        }
+
+        // Where the other player says their tower is, in lane units; false without a fresh report of this match.
+        public bool TryGetPeerTower(out float along, out float lat, out bool locked)
+        {
+            along = lat = 0f;
+            locked = false;
+            return Active && core.TryGetPeerTower(Now, out along, out lat, out locked);
         }
 
         void OnDestroy() => Deactivate();
 
         // --- what the game calls ----------------------------------------------------------------------------------
+
+        // Debug God mode for this phone's own player: full mana and tower HP, free actions. Sent again for each new match.
+        public void SetGodMode(bool on)
+        {
+            if (Active) core.WantGodMode(on);
+        }
 
         public bool PressStart() => Active && core.BeginPress("start", Now);
         public bool PressRematch() => Active && core.BeginPress("rematch", Now);
@@ -137,6 +173,16 @@ namespace BridgeRush.Networking
             core.OnState(state, Now);
         }
 
+        void OnPeerLaneMessage(string topic, string json)
+        {
+            if (!EngineMessages.TryParsePeerLane(json, out var lane, out string error))
+            {
+                Debug.LogWarning($"{nameof(EngineLink)}: bad {topic}, ignored: {error}");
+                return;
+            }
+            core.OnPeerLane(lane, Now);
+        }
+
         // --- every frame ------------------------------------------------------------------------------------------
 
         void Update()
@@ -144,6 +190,7 @@ namespace BridgeRush.Networking
             if (!Active) return;
             core.Player = matchSetup.Selected == MatchSetup.SelectedPlayer.Player1 ? 1
                         : matchSetup.Selected == MatchSetup.SelectedPlayer.Player2 ? 2 : 0;
+            FollowPeerTopic();
             core.SetConnected(mqtt.IsConnected, Now);
             core.Tick(Now);
 

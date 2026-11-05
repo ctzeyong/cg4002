@@ -16,9 +16,12 @@ Every public call checks first and changes state after, so an exception never le
 action.
 """
 
+import logging
 import math
 import random
 from dataclasses import dataclass
+
+log = logging.getLogger("match")
 
 REASONS = ("not_running", "no_mana", "bad_aim", "tower_out_of_arena", "unknown_gesture", "cooldown")
 UNIT_TYPES = ("Warrior", "Rogue", "Mage", "Tank", "Hero")
@@ -216,6 +219,8 @@ class Match:
         self._stats = rules["UnitStatsTable"]
         self._bubble = rules["BubbleCaptureManager"]
         self._tower_radius_ref = float(rules["TowerController"]["TowerRadius"])
+        # the own tower is drawn this many radii in front of the reported position; out of the arena is judged there
+        self._tower_offset_radii = float(rules["TowerController"].get("ownTowerForwardOffsetInRadii", 0.0))
         self._gestures = {str(k).lower(): tuple(v) for k, v in rules["gestures"].items()}
 
         self.result = None
@@ -228,6 +233,7 @@ class Match:
         self._mana = [float(m["manaStart"]), float(m["manaStart"])]
         self._god = {1: False, 2: False}
         self._lane_pos = {}  # player -> (along, lat) as reported
+        self._outside_for = {1: 0.0, 2: 0.0}  # seconds each player has been continuously outside the arena
         self._units = []
         self._strikes = []
         self._next_unit = 1
@@ -272,6 +278,16 @@ class Match:
         if reported is None:
             return self._home(player)
         return (reported[0] * self.lane_m, reported[1] * self.width_m)
+
+    def _body_pos(self, player):
+        """Where the player's tower is drawn: a little in front of its reported position, towards the other player.
+
+        Being out of the arena is judged here, so a tower has to be more than half out (its centre past the edge) to count,
+        however far behind it the player's device is. The phone draws it the same way (TowerController).
+        """
+        x, y = self._tower_pos(player)
+        offset = self.tower_radius * self._tower_offset_radii
+        return (x + offset, y) if player == 1 else (x - offset, y)
 
     def _funnel_blend(self, x):
         m = self._m
@@ -495,7 +511,7 @@ class Match:
     def _spawn(self, player, name, point):
         if point is None or not self._inside_territory(player, point):
             return self._refuse("bad_aim", "spawn", name)
-        if not self._inside_arena(self._tower_pos(player)):
+        if not self._inside_arena(self._body_pos(player)):
             return self._refuse("tower_out_of_arena", "spawn", name)
         cost = self._cost("spawn", name)
         if not self._can_pay(player, cost):
@@ -544,8 +560,27 @@ class Match:
                 self._tower_hp[player - 1] = self._tower_max[player - 1]
 
     def _out_of_bounds(self, dt):
+        # A player outside the arena loses HP only after outOfBoundsGraceSeconds of continuous time outside, so a
+        # sway of the phone or a tracking jump does not cost HP. Coming back inside starts the count again.
+        grace = float(self._m.get("outOfBoundsGraceSeconds", 0.0))
         for player in (1, 2):
-            if not self._inside_arena(self._tower_pos(player)):
+            pos = self._body_pos(player)
+            if self._inside_arena(pos):
+                if self._outside_for[player] > 0.0:
+                    log.info("player %d is back inside the arena after %.1f s", player, self._outside_for[player])
+                self._outside_for[player] = 0.0
+                continue
+            before = self._outside_for[player]
+            after = _tidy(before + dt)
+            self._outside_for[player] = after
+            if before == 0.0:
+                log.warning(
+                    "player %d is outside the arena: device reported %s, tower at %.2f m along and %.2f m across, "
+                    "lane %.2f m, rear margin %.2f m; HP drain starts after %.1f s",
+                    player, self._lane_pos.get(player), pos[0], pos[1], self.lane_m, self.rear, grace)
+            if after > grace:
+                if before <= grace:
+                    log.warning("player %d has been outside the arena for %.1f s, tower HP now draining", player, after)
                 self._damage_tower(player, self._m["outOfBoundsDamagePerSecond"] * dt)
 
     def _damage_tower(self, player, amount):
