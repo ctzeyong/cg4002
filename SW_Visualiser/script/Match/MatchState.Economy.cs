@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 namespace BridgeRush.Match
@@ -6,6 +7,12 @@ namespace BridgeRush.Match
     {
         public bool SpawnUnit(UnitType type)
         {
+            string refusal = ActionFilter?.Invoke(type.ToString());
+            if (refusal != null)
+            {
+                OwnUnitRejected?.Invoke(type, refusal);
+                return false;
+            }
             if (Role == NetworkRole.BoardClient) return BoardSendSummon(type);
             bool done = SpawnUnitCore(type);
             if (!done) OwnUnitRejected?.Invoke(type, ShortSpawnFailure(type));
@@ -20,7 +27,7 @@ namespace BridgeRush.Match
             {
                 return false;
             }
-            if (arenaFrame.HasLane && !IsInsideArenaBounds(OwnTowerPosition))
+            if (arenaFrame.HasLane && !IsInsideArenaBounds(OwnTowerBodyPosition))
             {
                 return false;
             }
@@ -55,7 +62,7 @@ namespace BridgeRush.Match
         {
             if (!matchStarted) return SpawnBlock.NotStarted;
             if (summonCursor != null && !summonCursor.IsAimValid) return SpawnBlock.BadAim;
-            if (arenaFrame.HasLane && !IsInsideArenaBounds(OwnTowerPosition)) return SpawnBlock.OutsideArena;
+            if (arenaFrame.HasLane && !IsInsideArenaBounds(OwnTowerBodyPosition)) return SpawnBlock.OutsideArena;
             if (ManaCurrent < GetManaCost(type)) return SpawnBlock.NoMana;
             return SpawnBlock.None;
         }

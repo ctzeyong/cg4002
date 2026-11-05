@@ -5,6 +5,7 @@ using BridgeRush.Input;
 using BridgeRush.Match;
 using BridgeRush.Tracking;
 using BridgeRush.Networking;
+using BridgeRush.Tutorial;
 using Comms.Visualiser;
 
 namespace BridgeRush.UI
@@ -41,7 +42,7 @@ namespace BridgeRush.UI
         private float timeSinceLastHeartbeat;
         private int sentSeq;
         private readonly List<string> receivedLog = new();
-            private bool menuExpanded = true;
+        private bool menuExpanded;
 
         private void Awake()
         {
@@ -82,7 +83,20 @@ namespace BridgeRush.UI
         private const float PanelWidth = 280f;
         private const float DetailsReferenceWidth = 800f;
 
-        private float UiScale => (canvas != null ? canvas.scaleFactor : 1f) * Mathf.Max(0.5f, menuScale);
+        private MatchHudUI hud;
+
+        private float UiScale
+        {
+            get
+            {
+                float scale = canvas != null ? canvas.scaleFactor : 1f;
+                if (hud != null && hud.OptionsButtonGuiRect.width > 1f) scale = hud.OptionsButtonGuiRect.width / MatchHudUI.OptionsButtonWidth;
+                return scale * Mathf.Max(0.5f, menuScale);
+            }
+        }
+
+        public bool MenuExpanded => menuExpanded;
+        public void ToggleMenu() => menuExpanded = !menuExpanded;
 
         private enum Category { None, Match, Opponent, Gestures, Tracking, Comms }
 
@@ -96,11 +110,18 @@ namespace BridgeRush.UI
 
             DrawPausedTag(s);
 
+            // The OPTIONS button is a HUD button (MatchHudUI) in the slot the COMMANDS button used to have. This draws the panel
+            // under it, at the same scale, so the two line up whatever the canvas scale is.
+            if (!menuExpanded) return;
+            float cs = canvas != null ? canvas.scaleFactor : 1f;
+            var optionsRect = new Rect(Screen.width - 240f * cs, 170f * cs, 220f * cs, 56f * cs);
+            if (hud == null) hud = FindAnyObjectByType<MatchHudUI>();
+            if (hud != null && hud.OptionsButtonGuiRect.width > 1f) optionsRect = hud.OptionsButtonGuiRect;
+
             float width = PanelWidth * s;
-            float top = 340f * s;
+            float top = optionsRect.yMax + 8f * (optionsRect.width / MatchHudUI.OptionsButtonWidth);
             float left = Screen.width - width;
             float rowWidth = width - 20f * s;
-            float rowStep = (RowHeight + RowGap) * s;
 
             var panelStyle = new GUIStyle(GUI.skin.box)
             {
@@ -108,33 +129,25 @@ namespace BridgeRush.UI
                 alignment = TextAnchor.UpperLeft,
                 padding = new RectOffset(10, 10, 8, 10)
             };
-            float height = TitleHeight * s + (menuExpanded ? contentHeight + 10f * s : 10f * s);
+            float height = contentHeight + 16f * s;
             GUI.Box(new Rect(Screen.width - width - 10f * s, top, width, height), string.Empty, panelStyle);
 
-            var titleStyle = new GUIStyle(GUI.skin.button)
-            {
-                fontSize = Mathf.RoundToInt(17f * s),
-                fontStyle = FontStyle.Bold,
-                normal = { textColor = new Color(1f, 0.55f, 0.25f) }
-            };
-            string titleArrow = menuExpanded ? "▼" : "▶";
-            if (GUI.Button(new Rect(left, top + 4f * s, rowWidth, TitleHeight * s - 8f * s), $"{titleArrow} DEBUG", titleStyle))
-            {
-                menuExpanded = !menuExpanded;
-            }
-
-            if (!menuExpanded) return;
-
-            float start = top + TitleHeight * s;
+            float start = top + 6f * s;
             float y = start;
 
-            bool godModeAvailable = matchState.Role == MatchState.NetworkRole.Local || matchState.Role == MatchState.NetworkRole.Host;
+            bool godModeAvailable = matchState.GodModeAvailable;
             string godModeLabel = !godModeAvailable
-                ? (matchState.IsBoardClient ? "God mode: N/A (board)" : "God mode: N/A (client)")
-                : $"God mode: {(matchState.GodMode ? "ON" : "OFF")}";
+                ? "God mode: N/A (client)"
+                : $"God mode: {(matchState.GodMode ? "ON" : "OFF")}{(matchState.IsBoardClient ? " (board)" : string.Empty)}";
             if (Row(godModeLabel, left, ref y, rowWidth, matchState.GodMode ? new Color(1f, 0.85f, 0.3f) : new Color(1f, 0.95f, 0.7f)) && godModeAvailable)
             {
-                matchState.GodMode = !matchState.GodMode;
+                matchState.SetGodMode(!matchState.GodMode);
+            }
+
+            var coach = TutorialCoach.Instance;
+            if (coach != null && coach.IsRunning && Row("Tutorial: skip this step", left, ref y, rowWidth, new Color(0.6f, 0.85f, 1f)))
+            {
+                coach.SkipStep();
             }
 
             if (matchNetworkSync != null && matchNetworkSync.BoardEngineWired)

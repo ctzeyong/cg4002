@@ -41,19 +41,47 @@ namespace BridgeRush.Match
             homeAnchorsCaptured = true;
         }
 
+        private float ownOutsideSeconds;
+        private float opponentOutsideSeconds;
+
+        // Where your tower is drawn: a little in front of OwnTowerPosition (your device, or your lock point), towards the other
+        // player, the same way TowerController places it. Whether you are out of the arena is judged here, so the tower has to be
+        // more than half out (its centre past the edge) before it counts, however far behind it your device is.
+        public Vector3 OwnTowerBodyPosition
+        {
+            get
+            {
+                Vector3 position = OwnTowerPosition;
+                if (towerController == null || !arenaFrame.HasLane) return position;
+
+                var lane = arenaFrame.Lane;
+                Vector3 toOpponent = lane.Origin + lane.Direction * lane.Length - position;
+                toOpponent.y = 0f;
+                Vector3 forward = toOpponent.sqrMagnitude > 0.0001f ? toOpponent.normalized : lane.Direction;
+                return position + forward * towerController.OwnTowerForwardOffsetMeters;
+            }
+        }
+
+        // True while your tower is out of the arena (see OwnTowerBodyPosition).
+        public bool OwnTowerOutsideArena => homeAnchorsCaptured && arenaFrame.HasLane && !IsInsideArenaBounds(OwnTowerBodyPosition);
+
+        // Standing outside drains that side's tower, but only after outOfBoundsGraceSeconds in a row, so a sway of the phone
+        // or a tracking jump costs nothing. The count starts again on coming back inside.
         private void ApplyOutOfBoundsDamage(float deltaTime)
         {
             if (!homeAnchorsCaptured || !arenaFrame.HasLane) return;
 
             var lane = arenaFrame.Lane;
-            Vector3 ownPosition = OwnTowerPosition;
             Vector3 opponentPosition = lane.Origin + lane.Direction * lane.Length;
 
-            if (!IsInsideArenaBounds(ownPosition))
+            ownOutsideSeconds = IsInsideArenaBounds(OwnTowerBodyPosition) ? 0f : ownOutsideSeconds + deltaTime;
+            opponentOutsideSeconds = IsInsideArenaBounds(opponentPosition) ? 0f : opponentOutsideSeconds + deltaTime;
+
+            if (ownOutsideSeconds > outOfBoundsGraceSeconds)
             {
                 OwnTowerHP = Mathf.Max(0f, OwnTowerHP - outOfBoundsDamagePerSecond * deltaTime);
             }
-            if (!IsInsideArenaBounds(opponentPosition))
+            if (opponentOutsideSeconds > outOfBoundsGraceSeconds)
             {
                 OpponentTowerHP = Mathf.Max(0f, OpponentTowerHP - outOfBoundsDamagePerSecond * deltaTime);
             }

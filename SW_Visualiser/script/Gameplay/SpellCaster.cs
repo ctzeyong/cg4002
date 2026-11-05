@@ -136,6 +136,12 @@ namespace BridgeRush.Gameplay
 
         public bool CastLightningStrike()
         {
+            string refusal = matchState.ActionFilter?.Invoke("lightning");
+            if (refusal != null)
+            {
+                SpellRejected?.Invoke("lightning", refusal);
+                return false;
+            }
             if (matchState.IsBoardClient) return matchState.BoardSendSpell("lightning");
             bool done = CastLightningCore();
             if (!done) SpellRejected?.Invoke("lightning", ShortCastFailure("lightning"));
@@ -166,6 +172,12 @@ namespace BridgeRush.Gameplay
 
         public bool CastFireball()
         {
+            string refusal = matchState.ActionFilter?.Invoke("fireball");
+            if (refusal != null)
+            {
+                SpellRejected?.Invoke("fireball", refusal);
+                return false;
+            }
             if (matchState.IsBoardClient) return matchState.BoardSendSpell("fireball");
             bool done = CastFireballCore();
             if (!done) SpellRejected?.Invoke("fireball", ShortCastFailure("fireball"));

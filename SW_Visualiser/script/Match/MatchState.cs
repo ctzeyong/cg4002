@@ -21,6 +21,8 @@ namespace BridgeRush.Match
         [SerializeField] private float opponentTowerMaxHP = 1000f;
         [SerializeField] private float towerCounterDps = 15f;
         [SerializeField] private float outOfBoundsDamagePerSecond = 20f;
+        [Tooltip("How long a player may stand outside the arena before the tower starts losing HP. The count starts again on coming back inside. The board engine has the same setting (outOfBoundsGraceSeconds in rules.json).")]
+        [SerializeField] private float outOfBoundsGraceSeconds = 3f;
 
         [Header("Mana")]
         [SerializeField] private float manaMax = 10f;
@@ -237,6 +239,14 @@ namespace BridgeRush.Match
         // simulates the match (VS CPU or the host); a client's mana and HP come from the host's snapshots, so it does nothing there.
         public bool GodMode { get; set; }
 
+        // Tutorial only: asked before every summon or spell with the unit type name or the spell key. Returns null to allow it
+        // or a short reason to refuse it, which the cards and the result banner show like any other refusal.
+        public Func<string, string> ActionFilter { get; set; }
+
+        // Tutorial only: the clock stands still, nothing ends the match, and the opponent tower is refilled when it falls, so
+        // the lesson is never cut short. TutorialCoach sets it and clears it when the lesson is done.
+        public bool EndlessMatch { get; set; }
+
         private void ApplyGodMode()
         {
             ManaCurrent = manaMax;
@@ -253,7 +263,7 @@ namespace BridgeRush.Match
 
         public void CheckForMatchEnd()
         {
-            if (HasEnded) return;
+            if (HasEnded || EndlessMatch) return;
 
             bool ownDestroyed = OwnTowerHP <= 0f;
             bool opponentDestroyed = OpponentTowerHP <= 0f;
@@ -301,6 +311,8 @@ namespace BridgeRush.Match
             doubleManaAnnounced = false;
             matchStarted = false;
             ownTowerLocked = false;
+            ownOutsideSeconds = 0f;
+            opponentOutsideSeconds = 0f;
             Result = MatchResult.None;
         }
 
@@ -335,7 +347,7 @@ namespace BridgeRush.Match
             float manaRegen = manaRegenPerSecond * ManaRegenMultiplier * Time.deltaTime;
             ManaCurrent = Mathf.Min(manaMax, ManaCurrent + manaRegen);
             enemyManaCurrent = Mathf.Min(manaMax, enemyManaCurrent + manaRegen);
-            matchTimeRemaining = Mathf.Max(0f, matchTimeRemaining - Time.deltaTime);
+            if (!EndlessMatch) matchTimeRemaining = Mathf.Max(0f, matchTimeRemaining - Time.deltaTime);
             //time.deltatime is used to esnure smoothness of the gamme
             ApplyOutOfBoundsDamage(Time.deltaTime);
             UpdateStrikes(Time.deltaTime);
@@ -352,6 +364,7 @@ namespace BridgeRush.Match
             }
 
             if (GodMode) ApplyGodMode();
+            if (EndlessMatch && OpponentTowerHP <= 0f) OpponentTowerHP = opponentTowerMaxHP;
             CheckForMatchEnd();
         }
 

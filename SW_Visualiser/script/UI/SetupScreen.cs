@@ -38,10 +38,11 @@ namespace BridgeRush.UI
 
             const float buttonHeight = 100f;
             const float spacing = 16f;
-            float halfStep = (buttonHeight + spacing) * 0.5f;
+            float step = buttonHeight + spacing;
 
-            AddButton(modeRoot.transform, "VS CPU", new Vector2(0f, halfStep), matchSetup.ChooseVsCpu);
-            AddButton(modeRoot.transform, "VS PLAYER", new Vector2(0f, -halfStep), matchSetup.ChooseVsPlayer);
+            AddButton(modeRoot.transform, "TUTORIAL", new Vector2(0f, step), matchSetup.ChooseTutorial);
+            AddButton(modeRoot.transform, "VS CPU", new Vector2(0f, 0f), matchSetup.ChooseVsCpu);
+            AddButton(modeRoot.transform, "VS PLAYER", new Vector2(0f, -step), matchSetup.ChooseVsPlayer);
         }
 
         private void BuildPlayerSelect()
