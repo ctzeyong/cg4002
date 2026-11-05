@@ -448,6 +448,34 @@ def test_a_bubble_goes_to_the_core():
     assert g.match.calls[-1] == ("bubble", (1, 0))
 
 
+# --- God mode -------------------------------------------------------------------------
+
+
+def test_god_mode_reaches_the_core_before_any_phone_streams():
+    g = Game()  # a new match with no lane yet, as when a phone sends God mode again for it
+    assert g.press(1, "god_on") == []
+    assert g.press(1, "god_off") == []
+    assert g.match.calls == [("set_god_mode", (1, True)), ("set_god_mode", (1, False))]
+    assert g.s.counts["god_refused"] == 0
+
+
+def test_a_repeated_god_request_reaches_the_core_once():
+    g = Game()
+    g.press(1, "god_on", req_id=7)
+    g.press(1, "god_on", req_id=7)  # the same request in a new envelope
+    assert g.match.calls == [("set_god_mode", (1, True))]
+
+
+def test_god_mode_comes_only_from_the_bound_phone_for_the_current_match():
+    g = running_game()
+    g.press(2, "god_on", source="phone-c")
+    g.press(2, "god_on", match_id="e1-0")
+    assert g.s.counts["god_refused"] == 2
+    assert g.press(2, "god_on") == []
+    assert g.match.calls == [("set_god_mode", (2, True))]  # never a tap
+    assert g.s.phase == ge.RUNNING
+
+
 # --- errors ---------------------------------------------------------------------------
 
 

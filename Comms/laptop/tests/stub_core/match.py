@@ -71,7 +71,7 @@ class Match:
         self.lane_m = None
         self.ticks = 0
         self.positions = {}
-        self.calls = []  # (method, args) of every action, in order
+        self.calls = []  # (method, args) of every action and God mode change, in order
         self.snapshots = 0  # snapshot() calls, ticks included
         self.refuse = ""  # a core reason code to refuse every action with
         self.raise_in = set()  # method names that raise
@@ -93,6 +93,10 @@ class Match:
     def set_position(self, player, pos):
         self._check("set_position")
         self.positions[player] = pos
+
+    def set_god_mode(self, player, enabled):
+        self._check("set_god_mode")
+        self.calls.append(("set_god_mode", (player, enabled)))
 
     def _act(self, method, action, what, *args):
         self._check(method)

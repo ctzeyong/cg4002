@@ -158,6 +158,14 @@ def test_god_mode_works_for_either_player_and_gives_no_event(session):
     assert not g.s.failed
 
 
+def test_god_mode_asked_for_before_the_start_applies_once_the_match_runs(session):
+    g = session
+    assert _god(g, 1, "god_on") == []  # as a phone does at every new match, before its first lane
+    _running(g)
+    assert g.tap(1, "spawn", "Hero")[0].ok
+    assert g.tap(2, "spawn", "Hero")[0].reason == "no_mana"
+
+
 def test_god_mode_from_another_match_or_source_is_dropped(session):
     g = session
     _running(g)
