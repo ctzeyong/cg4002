@@ -26,7 +26,7 @@ if str(SCRIPTS) not in sys.path:
 
 import dashboard.__main__ as app  # noqa: E402
 from dashboard import board_link, drawing, relay_log, stop_all  # noqa: E402
-from test_glove_status import MOSQUITTO, Broker  # noqa: E402
+from helpers import MOSQUITTO, Broker  # noqa: E402
 
 T0 = 1793700000.0  # a whole second, in UTC
 ANSI = re.compile(r"\033\[[0-9;?]*[A-Za-z]")

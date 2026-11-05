@@ -30,6 +30,10 @@ namespace BridgeRush.Gameplay
 
         // Larger of the two footprints, so units stand off from either tower without overlapping it.
         public float TowerRadius => Mathf.Max(ownFootprintRadius, opponentFootprintRadius) * ArenaScale;
+        // How far in front of the player the own tower is drawn, in metres. Being out of the arena is judged where the tower
+        // stands (MatchState.OwnTowerBodyPosition), so a tower is only "out" once its centre is past the edge: more than half
+        // of it outside.
+        public float OwnTowerForwardOffsetMeters => ownFootprintRadius * ArenaScale * ownTowerForwardOffsetInRadii;
         public float OpponentTowerHeightMeters => towerHeight * towerHeightStretch * ArenaScale;
         private float ArenaScale => matchState != null ? matchState.ArenaScale : 1f;
         public float TagToGroundOffsetMeters => tagToGroundOffsetMeters;
@@ -41,6 +45,11 @@ namespace BridgeRush.Gameplay
         private Transform tagAnchor;
         private float ownFootprintRadius;
         private float opponentFootprintRadius;
+        private Vector3 reportedOpponentBase;
+        private bool hasReportedOpponent;
+
+        // How fast the opponent tower follows its reported position (about ten reports a second), per second.
+        private const float ReportedFollowRate = 12f;
 
         private void Start()
         {
@@ -55,6 +64,7 @@ namespace BridgeRush.Gameplay
             opponentTower.SetParent(tagAnchor, false);
             opponentTower.localPosition = new Vector3(0f, -tagToGroundOffsetMeters, 0f);
             tagAnchor.gameObject.SetActive(false);
+            Debug.Log($"[TowerRadius] own {ownFootprintRadius:F4} m, opponent {opponentFootprintRadius:F4} m: put {Mathf.Max(ownFootprintRadius, opponentFootprintRadius):F4} in engine/rules.json TowerController.TowerRadius");
         }
 
         private Transform CreateTower(string name, Color color, GameObject prefabOverride, float height, float widthMultiplier, out float footprintRadius)
@@ -134,6 +144,29 @@ namespace BridgeRush.Gameplay
                 lineRenderer.SetPosition(i, new Vector3(Mathf.Cos(angle) * radius, 0.01f, Mathf.Sin(angle) * radius));
             }
         }
+        // In the board role the opponent tower stands where that player reports it to the board, which is the spot the engine
+        // fights over, not where this camera last saw their tag (so it moves and locks even when the tag is out of view).
+        // It is drawn the way that player's own phone draws their tower: their device, then a step towards the other player.
+        // Without a fresh report it stays on the tag.
+        private Vector3 OpponentBase(Vector3 tagPosition, Vector3 ownBase, float arenaScale)
+        {
+            if (!matchState.TryGetOpponentTowerReported(out var reported, out _))
+            {
+                hasReportedOpponent = false;
+                return tagPosition;
+            }
+
+            var toOwn = new Vector3(ownBase.x - reported.x, 0f, ownBase.z - reported.z);
+            toOwn = toOwn.sqrMagnitude > 0.0001f ? toOwn.normalized : -arenaFrame.Lane.Direction;
+            var target = new Vector3(reported.x, 0f, reported.z)
+                + toOwn * (opponentFootprintRadius * arenaScale * ownTowerForwardOffsetInRadii);
+
+            if (!hasReportedOpponent) reportedOpponentBase = target;
+            else reportedOpponentBase = Vector3.Lerp(reportedOpponentBase, target, 1f - Mathf.Exp(-ReportedFollowRate * Time.deltaTime));
+            hasReportedOpponent = true;
+            return reportedOpponentBase;
+        }
+
         // constantly update positon, rotation, and visibility of the towers based on the current state of the match and the arena frame.
         private void Update()
         {
@@ -174,14 +207,14 @@ namespace BridgeRush.Gameplay
                 forward.y = 0f;
                 forward = forward.sqrMagnitude > 0.0001f ? forward.normalized : Vector3.forward;
             }
-            ownTower.position = ownBase + forward * (ownFootprintRadius * arenaScale * ownTowerForwardOffsetInRadii);
+            ownTower.position = ownBase + forward * OwnTowerForwardOffsetMeters;
 
             if (arenaFrame.HasLane)
             {
                 var lane = arenaFrame.Lane;
                 // place the opponent tower at the end of the lane, and rotate both towers to face each other.
                 tagAnchor.gameObject.SetActive(true);
-                var pos = lane.Origin + lane.Direction * lane.Length;
+                var pos = OpponentBase(lane.Origin + lane.Direction * lane.Length, ownBase, arenaScale);
                 // The tower always stands on the floor, whatever height the tag is at. The anchor sits the offset above the
                 // floor so the bubbles, which are positioned relative to it, keep their layout.
                 tagAnchor.position = new Vector3(pos.x, floorY + tagToGroundOffsetMeters, pos.z);

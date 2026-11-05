@@ -20,6 +20,7 @@ details owned by one subsystem.
 | Full pipeline | [Merged Hardware -> Comms -> AI -> Visualiser flow and Configuration B runbook](integration/full-pipeline.md) |
 | Hardware ↔ Comms | [Single-MPU6050 interface, ownership, and change contract](integration/hardware-comms.md) |
 | AI ↔ Comms | [FPGA classifier in the board client](integration/ai-comms.md) |
+| Game engine on the Ultra96 | [Who owns each part of the engine, and what each side may change](integration/engine-ownership.md) |
 
 When adding documentation:
 

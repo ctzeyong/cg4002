@@ -1,17 +1,17 @@
-"""Start configuration B's board client over asyncssh, with no password prompt.
+"""Start configuration B's board client and game engine over asyncssh, with no password prompt.
 
-Opens both SSH hops, starts tcp_client_mqtt.py on the Ultra96 (or re-attaches to
-it), then shows its log here. Pane 2 of two; pane 1 is run_pipeline.ps1, and
-run_board.ps1 wraps this file. Design: notes/tunnelled_visualiser.md.
+Opens both SSH hops, starts tcp_client_mqtt.py and the game engine on the Ultra96
+(or re-attaches to them), then shows the client's log here. Pane 2 of two; pane 1 is
+run_pipeline.ps1, and run_board.ps1 wraps this file. Design: notes/tunnelled_visualiser.md.
 
-    python run_board.py                  # start it, or re-attach if running
-    python run_board.py --sync           # re-copy ultra96/*.py, then restart it
-    python run_board.py --stop           # kill it and exit
+    python run_board.py                  # start both, or re-attach if running
+    python run_board.py --sync           # re-copy ultra96/*.py and the engine, then restart both
+    python run_board.py --stop           # kill both and exit
     python run_board.py --fetch-logs     # copy today's (UTC) board logs here, then exit
     python run_board.py -v --event-every 2
 
-Ctrl-C stops the board client. It runs detached, so a dropped SSH connection does
-not stop it; to stop watching but leave it running, close the window.
+Ctrl-C stops the board client and the engine. They run detached, so a dropped SSH
+connection does not stop them; to stop watching but leave them running, close the window.
 """
 
 import argparse
@@ -62,6 +62,31 @@ A_PROCESS_PATTERN = r"^[^ ]*python[0-9.]*[ ]+[^ ]*tcp_client\.py"
 # Same name as board_logging.run_log_path.
 DAY_FOLDER = 'mkdir -p ~/comms/logs/"$(date -u +%Y-%m-%d)"'
 
+# The game engine runs as the normal user, under the restart loop in ultra96/run_engine.sh.
+ENGINE_LAUNCHER = BOARD_SOURCES / "run_engine.sh"
+ENGINE_LOOP = "~/comms/run_engine.sh"
+# The engine's core and rules.json, which Vis writes, copied to ~/comms/engine/.
+ENGINE_CORE = REPO.parent / "SW_Visualiser" / "engine"
+# Anchored at the interpreter like PROCESS_PATTERN, so neither matches our own remote shell.
+ENGINE_LOOP_PATTERN = r"^[^ ]*bash[ ]+[^ ]*run_engine\.sh"
+ENGINE_PATTERN = r"^[^ ]*python[0-9.]*[ ]+[^ ]*game_engine\.py"
+# The loop first, or it would start the engine again.
+ENGINE_KILL = (
+    f'{PKILL} -f "{ENGINE_LOOP_PATTERN}" && echo "STOPPED: engine restart loop"; '
+    f'{PKILL} -f "{ENGINE_PATTERN}" && echo "STOPPED: engine"'
+)
+# Starts the loop unless it's running, with its output in the day folder so --fetch-logs
+# brings it back. If the loop has already stopped a second later, show why.
+ENGINE_START = (
+    f'if pgrep -f "{ENGINE_LOOP_PATTERN}" >/dev/null; then echo "ENGINE: already running"; '
+    f"elif [ -f {ENGINE_LOOP} ]; then "
+    'ecap=~/comms/logs/"$(date -u +%Y-%m-%d)"/run_engine_$(date -u +%Y%m%dT%H%M%SZ).log; '
+    f'nohup setsid bash {ENGINE_LOOP} > "$ecap" 2>&1 & sleep 1; '
+    f'if pgrep -f "{ENGINE_LOOP_PATTERN}" >/dev/null; then echo "ENGINE: started, log $ecap"; '
+    'else echo "WARN: the engine stopped at once:"; cat "$ecap"; fi; '
+    "else echo 'WARN: no run_engine.sh on the board, so no engine (--sync copies it)'; fi"
+)
+
 # A board log line, so its time/name prefix can be stripped before re-logging here.
 # (The format has no level, so board warnings show here as INFO.)
 BOARD_LINE = re.compile(r"^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d,\d{3}Z \[([\w.]+)\] (.*)$")
@@ -90,6 +115,7 @@ def remote_command(port, client_args, restart):
     ]
     if restart:
         steps.append(f'{PKILL} -f "{PROCESS_PATTERN}" && echo "STOPPED: previous client killed"')
+        steps.append(ENGINE_KILL)
         steps.append("sleep 1")
     steps += [
         f"if ! ss -ltn | grep -q '127.0.0.1:{port} '; then "
@@ -104,6 +130,8 @@ def remote_command(port, client_args, restart):
         f'pgrep -af "{PROCESS_PATTERN}"; '
         "latest=$(ls -t ~/comms/logs/console_*.log 2>/dev/null | head -1); "
         f'else {launch} sleep 2; echo "STARTED"; latest="$cap"; fi',
+        # After the client's if, so the engine starts whether the client was running or not.
+        ENGINE_START,
         # A client started by hand has no console capture; tail its own log file instead.
         'if [ -z "$latest" ]; then '
         "latest=$(ls -t ~/comms/logs/*/tcp_client_mqtt_*.log 2>/dev/null | head -1); "
@@ -116,10 +144,11 @@ def remote_command(port, client_args, restart):
 
 
 def stop_command():
-    """Kill the client and say whether there was one."""
+    """Kill the client and the engine, and say which were running."""
     return (
         f'{PKILL} -f "{PROCESS_PATTERN}" && echo "STOPPED" '
-        '|| echo "nothing to stop: no client was running"'
+        '|| echo "nothing to stop: no client was running"; '
+        + ENGINE_KILL
     )
 
 
@@ -157,6 +186,22 @@ async def sync_sources(conn, bitstream=None):
         await sftp.makedirs("comms", exist_ok=True)
         await sftp.put([str(path) for path in files], "comms/")
     log.info("synced %d files to ~/comms/", len(files))
+
+
+async def sync_engine(conn):
+    """Copy run_engine.sh to ~/comms/ and the engine's core folder to ~/comms/engine/.
+
+    The script goes with LF line endings, since bash on the board fails on a CRLF checkout.
+    """
+    if not ENGINE_CORE.is_dir():
+        raise SystemExit(f"missing {ENGINE_CORE}, which the engine needs on the board")
+    core = sorted(path for path in ENGINE_CORE.iterdir() if path.is_file())
+    async with conn.start_sftp_client() as sftp:
+        async with sftp.open("comms/run_engine.sh", "wb") as remote:
+            await remote.write(ENGINE_LAUNCHER.read_bytes().replace(b"\r\n", b"\n"))
+        await sftp.makedirs("comms/engine", exist_ok=True)
+        await sftp.put([str(path) for path in core], "comms/engine/")
+    log.info("synced run_engine.sh, and %d file(s) to ~/comms/engine/", len(core))
 
 
 async def fetch_logs(conn, day):
@@ -202,22 +247,25 @@ def install_interrupt_handler(stop):
 
 
 async def stop_client(board):
-    """Stop the board client over the open connection and log the result."""
-    log.info("stopping the board client ...")
+    """Stop the board client and the engine over the open connection and log the result."""
+    log.info("stopping the board client and the engine ...")
     try:
         result = await asyncio.wait_for(
             board.run(stop_command(), check=False), timeout=STOP_TIMEOUT_S
         )
     except (asyncio.TimeoutError, asyncssh.Error, OSError) as exc:
-        log.warning("could not stop the board client (%s); --stop ends it", exc)
+        log.warning("could not stop the board client and the engine (%s); --stop ends them", exc)
         return
     log.info("%s", result.stdout.strip() or "no output")
+    # pkill prints nothing when there was nothing to kill, any stderr means the stop failed
+    if (result.stderr or "").strip():
+        log.warning("the board said: %s", result.stderr.strip())
 
 
 async def attach(board, command):
-    """Show the client's log until Ctrl-C, then stop the client.
+    """Show the client's log until Ctrl-C, then stop the client and the engine.
 
-    If the log stream ends by itself (e.g. nothing to tail), the client keeps running.
+    If the log stream ends by itself (e.g. nothing to tail), both keep running.
     """
     process = await board.create_process(command, term_type="xterm")
     stop = asyncio.Event()
@@ -257,6 +305,7 @@ async def run(config, password, args):
                 return
             if args.sync:
                 await sync_sources(board, args.bitstream)
+                await sync_engine(board)
             await attach(board, remote_command(args.port, args.client_args, restart=args.sync))
 
 
@@ -279,8 +328,10 @@ def parse_args(argv=None):
         description=__doc__.splitlines()[0],
         epilog="Any other argument is passed to tcp_client_mqtt.py, e.g. -v --event-every 2",
     )
-    parser.add_argument("--sync", action="store_true", help="re-copy ultra96/*.py, then restart")
-    parser.add_argument("--stop", action="store_true", help="kill the client and exit")
+    parser.add_argument(
+        "--sync", action="store_true", help="re-copy ultra96/*.py and the engine, then restart both"
+    )
+    parser.add_argument("--stop", action="store_true", help="kill the client and the engine")
     parser.add_argument("--port", type=int, default=None, help="override TUNNEL_PORT")
     parser.add_argument(
         "--fetch-logs",

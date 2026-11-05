@@ -52,9 +52,57 @@ namespace BridgeRush.UI
             public float PopStart = -10f;
             public bool Popping;
             public Image Reject;
+            public RectTransform Pointer;
             public Color LabelColor;
             public float RejectStart = -10f;
             public bool Rejecting;
+        }
+
+        // The tutorial's target card: it glows gold with a bobbing pointer above it, and the other cards dim.
+        private CardEntry tutorialTarget;
+        private static Sprite pointerSprite;
+        private static readonly Color PointerGold = new(1f, 0.85f, 0.3f);
+
+        public void HighlightForTutorial(UnitType? unit, string spellKey)
+        {
+            tutorialTarget = null;
+            foreach (var card in cards)
+            {
+                if ((unit.HasValue && card.Unit == unit) || (spellKey != null && card.SpellKey == spellKey)) tutorialTarget = card;
+            }
+            if (tutorialTarget == null) ClearTutorialHighlight();
+        }
+
+        public void ClearTutorialHighlight()
+        {
+            tutorialTarget = null;
+            foreach (var card in cards)
+            {
+                card.Pointer.gameObject.SetActive(false);
+                card.Glow.rectTransform.localScale = Vector3.one;
+                var accent = card.LabelColor;
+                card.Glow.color = new Color(accent.r, accent.g, accent.b, 0f);
+            }
+        }
+
+        // A white triangle pointing down, for the tutorial pointer.
+        private static Sprite PointerSprite()
+        {
+            if (pointerSprite != null) return pointerSprite;
+            const int size = 64;
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false) { filterMode = FilterMode.Bilinear, wrapMode = TextureWrapMode.Clamp };
+            for (int y = 0; y < size; y++)
+            {
+                float half = (y / (float)(size - 1)) * (size * 0.5f); // narrow at the bottom, wide at the top
+                for (int x = 0; x < size; x++)
+                {
+                    float d = Mathf.Abs(x - (size - 1) * 0.5f);
+                    tex.SetPixel(x, y, new Color(1f, 1f, 1f, Mathf.Clamp01(half - d + 0.5f)));
+                }
+            }
+            tex.Apply();
+            pointerSprite = Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f);
+            return pointerSprite;
         }
 
         private const float PopSeconds = 0.8f;
@@ -230,6 +278,21 @@ namespace BridgeRush.UI
                 card.CostText.text = cost.ToString("0");
                 AnimatePop(card);
 
+                if (tutorialTarget != null)
+                {
+                    bool target = card == tutorialTarget;
+                    float beat = 0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * 5f);
+                    card.Glow.color = target ? new Color(PointerGold.r, PointerGold.g, PointerGold.b, 0.55f + 0.45f * beat) : new Color(1f, 1f, 1f, 0f);
+                    card.Glow.rectTransform.localScale = Vector3.one * (target ? 1.05f + 0.07f * beat : 1f);
+                    card.Panel.color = target ? Color.white : new Color(0.5f, 0.5f, 0.5f, 1f);
+                    card.Pointer.gameObject.SetActive(target);
+                    if (target) card.Pointer.anchoredPosition = new Vector2(0f, 14f + 12f * beat);
+                    continue;
+                }
+
+                if (card.Pointer.gameObject.activeSelf) card.Pointer.gameObject.SetActive(false);
+                card.Glow.rectTransform.localScale = Vector3.one;
+
                 if (ready)
                 {
                     float pulse = 0.55f + Mathf.PingPong(Time.time * 1.4f, 0.45f);
@@ -371,37 +434,37 @@ namespace BridgeRush.UI
             costRect.anchorMax = new Vector2(0f, 1f);
             costRect.pivot = new Vector2(0.5f, 0.5f);
             costRect.anchoredPosition = new Vector2(0f, 0f);
-            costRect.sizeDelta = new Vector2(40f, 40f);
+            costRect.sizeDelta = new Vector2(48f, 48f);
             var costImage = costGo.AddComponent<Image>();
             costImage.sprite = UITextureFactory.CreateRoundedPanel(48, 24, HudPalette.Mana, HudPalette.ManaDeep, 2, Color.white);
             costImage.type = Image.Type.Sliced;
-            var costText = UIFactory.CreateText(costGo.transform, "0", 20, FontStyles.Bold, new Color(0.02f, 0.2f, 0.24f));
+            var costText = UIFactory.CreateText(costGo.transform, "0", 25, FontStyles.Bold, new Color(0.02f, 0.2f, 0.24f));
             UIFactory.StretchFull(costText.rectTransform);
 
             var iconGo = UIFactory.CreateRect("GestureIcon", cardRect);
             var iconRect = iconGo.GetComponent<RectTransform>();
-            iconRect.anchorMin = new Vector2(0.5f, 0.55f);
+            iconRect.anchorMin = new Vector2(0.5f, 0.5f);
             iconRect.anchorMax = new Vector2(0.5f, 1f);
-            iconRect.sizeDelta = new Vector2(64f, 0f);
+            iconRect.sizeDelta = new Vector2(104f, 0f);
             iconRect.anchoredPosition = Vector2.zero;
             var iconImage = iconGo.AddComponent<Image>();
             iconImage.sprite = UITextureFactory.CreateMotionIcon(gesture);
             iconImage.preserveAspect = true;
             iconImage.color = HudPalette.Cream;
             iconImage.raycastTarget = false;
-            MotionTracer.Attach(iconRect, gesture, accent);
+            MotionTracer.Attach(iconRect, gesture, accent, 1.5f);
 
-            var nameText = UIFactory.CreateText(cardRect, name, 15, FontStyles.Bold, HudPalette.Cream);
+            var nameText = UIFactory.CreateText(cardRect, name, 19, FontStyles.Bold, HudPalette.Cream);
             var nameRect = nameText.rectTransform;
-            nameRect.anchorMin = new Vector2(0f, 0.32f);
-            nameRect.anchorMax = new Vector2(1f, 0.5f);
+            nameRect.anchorMin = new Vector2(0f, 0.28f);
+            nameRect.anchorMax = new Vector2(1f, 0.48f);
             nameRect.offsetMin = new Vector2(2f, 0f);
             nameRect.offsetMax = new Vector2(-2f, 0f);
 
-            var statsText = UIFactory.CreateText(cardRect, getStats(), 12f, FontStyles.Normal, new Color(0.9f, 0.85f, 0.7f));
+            var statsText = UIFactory.CreateText(cardRect, getStats(), 14f, FontStyles.Normal, new Color(0.9f, 0.85f, 0.7f));
             var statsRect = statsText.rectTransform;
             statsRect.anchorMin = new Vector2(0f, 0f);
-            statsRect.anchorMax = new Vector2(1f, 0.28f);
+            statsRect.anchorMax = new Vector2(1f, 0.26f);
             statsRect.offsetMin = new Vector2(2f, 2f);
             statsRect.offsetMax = new Vector2(-2f, 0f);
 
@@ -414,7 +477,7 @@ namespace BridgeRush.UI
             rejectImage.color = new Color(0.32f, 0.02f, 0.02f, 0f);
             rejectImage.raycastTarget = false;
 
-            var summonText = UIFactory.CreateText(cardRect, string.Empty, 24f, FontStyles.Bold, accent);
+            var summonText = UIFactory.CreateText(cardRect, string.Empty, 28f, FontStyles.Bold, accent);
             var summonRect = summonText.rectTransform;
             summonRect.anchorMin = new Vector2(0f, 1f);
             summonRect.anchorMax = new Vector2(1f, 1f);
@@ -425,8 +488,22 @@ namespace BridgeRush.UI
             summonText.overflowMode = TextOverflowModes.Overflow;
             SetAlpha(summonText, 0f);
 
+            var pointerGo = UIFactory.CreateRect("TutorialPointer", cardRect);
+            var pointerRect = pointerGo.GetComponent<RectTransform>();
+            pointerRect.anchorMin = new Vector2(0.5f, 1f);
+            pointerRect.anchorMax = new Vector2(0.5f, 1f);
+            pointerRect.pivot = new Vector2(0.5f, 0f);
+            pointerRect.anchoredPosition = new Vector2(0f, 14f);
+            pointerRect.sizeDelta = new Vector2(52f, 44f);
+            var pointerImage = pointerGo.AddComponent<Image>();
+            pointerImage.sprite = PointerSprite();
+            pointerImage.color = PointerGold;
+            pointerImage.raycastTarget = false;
+            pointerGo.SetActive(false);
+
             var entry = new CardEntry
             {
+                Pointer = pointerRect,
                 Glow = glowImage,
                 Panel = panelImage,
                 CostText = costText,

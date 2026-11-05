@@ -8,9 +8,7 @@ import asyncio
 import contextlib
 import json
 import logging
-import shutil
 import signal
-import socket
 import subprocess
 import sys
 import time
@@ -22,7 +20,7 @@ import pytest
 
 import mqtt_client
 from framing import send_message
-from helpers import DEADLINE_S, serving, wait_until
+from helpers import BROKER_DEADLINE_S, DEADLINE_S, on_selector, serving, wait_until
 
 import envelope as board_envelope  # noqa: E402 - ultra96/, on sys.path via conftest
 import gesture  # noqa: E402
@@ -39,7 +37,6 @@ import latency_report  # noqa: E402
 ULTRA96 = Path(__file__).resolve().parents[2] / "ultra96"
 READY_DOWN = {"player1": "ready", "player2": "down"}
 BOTH_OFFLINE = {"player1": "offline", "player2": "offline"}
-BROKER_DEADLINE_S = 8.0  # covers a reconnect's backoff
 
 
 def sensor(node, status=gesture.IMU_OK):
@@ -460,58 +457,6 @@ async def test_the_ctrl_c_handler_is_restored_when_the_relay_ends(monkeypatch):
 # --------------------------------------------------------------------------
 # Against a real broker
 # --------------------------------------------------------------------------
-
-MOSQUITTO = shutil.which("mosquitto") or r"C:\Program Files\Mosquitto\mosquitto.exe"
-
-
-class Broker:
-    """A Mosquitto of the test's own, on a free loopback port. Only this process is stopped."""
-
-    def __init__(self):
-        with socket.socket() as probe:
-            probe.bind(("127.0.0.1", 0))
-            self.port = probe.getsockname()[1]
-        self.process = None
-
-    def start(self):
-        self.process = subprocess.Popen(
-            [MOSQUITTO, "-p", str(self.port)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-        )
-        deadline = time.monotonic() + DEADLINE_S
-        while True:
-            try:
-                socket.create_connection(("127.0.0.1", self.port), timeout=0.2).close()
-                return
-            except OSError:
-                if time.monotonic() > deadline:
-                    raise
-                time.sleep(0.05)
-
-    def stop(self):
-        if self.process is not None:
-            self.process.kill()
-            self.process.wait()
-            self.process = None
-
-
-@pytest.fixture
-def broker():
-    if not Path(MOSQUITTO).exists():
-        pytest.skip("needs Mosquitto")
-    broker = Broker()
-    broker.start()
-    yield broker
-    broker.stop()
-
-
-def on_selector(coro, timeout=BROKER_DEADLINE_S * 2):
-    """Run `coro` on a selector loop, which aiomqtt needs and Windows doesn't use by default."""
-    loop = asyncio.SelectorEventLoop()
-    try:
-        return loop.run_until_complete(asyncio.wait_for(coro, timeout))
-    finally:
-        loop.close()
-
 
 async def retained_status(port):
     """Return the retained payload a phone connecting now is told, or None if there is none.

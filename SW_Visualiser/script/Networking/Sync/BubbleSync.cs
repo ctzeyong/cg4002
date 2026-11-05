@@ -148,7 +148,7 @@ namespace BridgeRush.Networking
         private void HandleCaptured(int bubbleId)
         {
             // VS CPU is a local game with no Ultra96 behind it, so the reward is applied here. A two-player match leaves it to the board.
-            bool localGame = mockUltra96Offline || (matchSetup.HasChosenMode && matchSetup.Mode == MatchSetup.GameMode.VsCpu);
+            bool localGame = !matchState.IsBoardClient && (mockUltra96Offline || (matchSetup.HasChosenMode && matchSetup.Mode == MatchSetup.GameMode.VsCpu));
             if (localGame)
             {
                 ApplyRewardLocally(captureManager.Reward);
@@ -157,8 +157,11 @@ namespace BridgeRush.Networking
 
             if (mqttConnection == null) return;
             int player = LocalPlayer;
+            // The board engine refuses a capture without the match it belongs to.
+            string matchId = matchState.BoardMatchId;
+            string matchField = matchId.Length > 0 ? $",\"match_id\":\"{matchId}\"" : "";
             mqttConnection.Publish(CapturedTopicPrefix + player,
-                $"{{\"event\":\"bubble_captured\",\"player\":{player},\"bubble_id\":{bubbleId}}}");
+                $"{{\"event\":\"bubble_captured\",\"player\":{player},\"bubble_id\":{bubbleId}{matchField}}}");
         }
 
         // Mock only. The reward handling lives here so a new BubbleRewardType is one new case.

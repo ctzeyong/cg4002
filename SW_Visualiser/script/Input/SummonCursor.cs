@@ -29,6 +29,9 @@ namespace BridgeRush.Input
 
         public Vector3 AimedWorldPosition { get; private set; }
         public bool IsAimValid { get; private set; }
+        // The crosshair ray hit the floor within reach, whether or not the spot is valid for a summon or a spell. The board engine
+        // joins this with a glove gesture and checks the spot itself.
+        public bool HasAimHit { get; private set; }
 
         // Where a spell would land: the same floor ray as the summon aim, but valid anywhere in the arena,
         // not just in your own territory. SpellCaster sets the radius so the marker shows the area it will hit.
@@ -52,6 +55,7 @@ namespace BridgeRush.Input
             bool playing = matchState.MatchStarted;
             if (!playing)
             {
+                HasAimHit = false;
                 IsAimValid = false;
                 IsSpellAimValid = false;
                 SetVisible(false);
@@ -70,6 +74,7 @@ namespace BridgeRush.Input
         //  check if it is inside the player's territory
         private bool Aim()
         {
+            HasAimHit = false;
             IsAimValid = false;
             IsSpellAimValid = false;
 
@@ -83,6 +88,7 @@ namespace BridgeRush.Input
 
             AimedWorldPosition = hit;
             SpellAimPosition = hit;
+            HasAimHit = true;
             IsSpellAimValid = matchState.IsInsideSpellArea(hit);
             bool inTerritory = matchState.IsInsideOwnTerritory(hit);
             IsAimValid = inTerritory;

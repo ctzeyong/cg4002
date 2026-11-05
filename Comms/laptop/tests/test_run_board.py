@@ -7,8 +7,11 @@ is the shell it composes, since a wrong branch there fails silently on the board
 
 import asyncio
 import logging
+import os
 import re
+import shutil
 import signal
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -300,6 +303,7 @@ class FakeBoard:
         self.lines = lines
         self.hang = hang
         self.commands = []
+        self.stderr = ""
 
     async def _stdout(self):
         for line in self.lines:
@@ -312,7 +316,7 @@ class FakeBoard:
 
     async def run(self, command, check=False):
         self.commands.append(command)
-        return SimpleNamespace(stdout="STOPPED\n")
+        return SimpleNamespace(stdout="STOPPED\n", stderr=self.stderr)
 
 
 @pytest.fixture
@@ -326,6 +330,16 @@ def captured_stop(monkeypatch):
 
     monkeypatch.setattr(run_board, "install_interrupt_handler", install)
     return events
+
+
+@pytest.mark.asyncio
+async def test_a_stop_the_board_refuses_is_shown_not_reported_as_nothing_to_stop(caplog):
+    board = FakeBoard([], hang=False)
+    board.stderr = "sudo: a password is required\n"
+    with caplog.at_level(logging.INFO, logger="run_board"):
+        await run_board.stop_client(board)
+    warnings = [r.getMessage() for r in caplog.records if r.levelno == logging.WARNING]
+    assert warnings == ["the board said: sudo: a password is required"]
 
 
 @pytest.mark.asyncio
@@ -414,6 +428,297 @@ def test_sync_copies_the_model_gesture_loads():
     import gesture
 
     assert run_board.AI_MODULE.stem == gesture.AI_MODULE
+    
+# --- the game engine -------------------------------------------------------
+
+ENGINE_LOOPS = [
+    "bash /home/xilinx/comms/run_engine.sh",  # as run_board starts it
+    "/bin/bash ./run_engine.sh",  # started by hand
+]
+ENGINES = [
+    "/home/xilinx/comms-venv/bin/python /home/xilinx/comms/game_engine.py --host 127.0.0.1 "
+    "--port 1883 --core-dir /home/xilinx/comms/engine",
+    "python3 game_engine.py",
+]
+NEITHER = ["nano /home/xilinx/comms/run_engine.sh", "less /home/xilinx/comms/game_engine.py"]
+
+
+def test_each_engine_pattern_matches_its_own_process_only():
+    """The kill runs as root, so it mustn't catch the other process or an editor on either file."""
+    for cmdline in ENGINE_LOOPS:
+        assert re.search(run_board.ENGINE_LOOP_PATTERN, cmdline)
+        assert not re.search(run_board.ENGINE_PATTERN, cmdline)
+    for cmdline in ENGINES:
+        assert re.search(run_board.ENGINE_PATTERN, cmdline)
+        assert not re.search(run_board.ENGINE_LOOP_PATTERN, cmdline)
+    for cmdline in NEITHER:
+        assert not re.search(run_board.ENGINE_LOOP_PATTERN, cmdline)
+        assert not re.search(run_board.ENGINE_PATTERN, cmdline)
+
+
+@pytest.mark.parametrize("pattern", [run_board.ENGINE_LOOP_PATTERN, run_board.ENGINE_PATTERN])
+def test_the_engine_patterns_do_not_match_our_own_remote_shell(pattern):
+    """The shell running our command names both, as it named the client on 22 Sep."""
+    for command in (run_board.remote_command(8888, [], restart=True), run_board.stop_command()):
+        assert not re.search(pattern, f"bash -c {command}")
+    assert not re.search(pattern, f"sudo -n pkill -f {pattern}")
+    assert not re.search(pattern, "tail -f /home/xilinx/comms/logs/2026-11-02/run_engine_x.log")
+
+
+def test_ctrl_c_and_stop_also_stop_the_engine():
+    """A forgotten engine would keep publishing game/state into the next session."""
+    command = run_board.stop_command()
+
+    assert f'pkill -f "{run_board.ENGINE_LOOP_PATTERN}"' in command
+    assert f'pkill -f "{run_board.ENGINE_PATTERN}"' in command
+
+
+@pytest.mark.parametrize("restart", [False, True])
+def test_the_restart_loop_is_killed_before_the_engine(restart):
+    """The other way round, the loop would start the engine again."""
+    commands = [run_board.stop_command()]
+    if restart:
+        commands = [run_board.remote_command(8888, [], restart=True)]
+    for command in commands:
+        loop = command.index(f'pkill -f "{run_board.ENGINE_LOOP_PATTERN}"')
+        assert loop < command.index(f'pkill -f "{run_board.ENGINE_PATTERN}"')
+
+
+def test_sync_restarts_the_engine_so_it_runs_the_new_code():
+    command = run_board.remote_command(8888, [], restart=True)
+    killed = command.index(f'pkill -f "{run_board.ENGINE_PATTERN}"')
+
+    assert killed < command.index(f"nohup setsid bash {run_board.ENGINE_LOOP}")
+
+
+def test_a_plain_start_starts_the_engine_whether_or_not_the_client_was_running():
+    """Inside one branch of the client's if, the other case would never start it."""
+    command = run_board.remote_command(8888, [], restart=False)
+
+    assert f"nohup setsid bash {run_board.ENGINE_LOOP}" in command
+    assert "run_engine.sh" not in launch_branch(command)
+    assert "run_engine.sh" not in attach_branch(command)
+
+
+def test_the_engine_runs_as_the_normal_user():
+    """Only the FPGA needs root, and the engine doesn't touch it."""
+    assert f"nohup setsid bash {run_board.ENGINE_LOOP} " in run_board.ENGINE_START
+    assert "sudo" not in run_board.ENGINE_START
+
+
+def test_a_rerun_leaves_a_running_engine_alone():
+    """A second loop would mean two engines publishing game/state."""
+    start = run_board.ENGINE_START
+
+    assert start.startswith(f'if pgrep -f "{run_board.ENGINE_LOOP_PATTERN}" >/dev/null; then echo')
+    assert start.index("then echo") < start.index("nohup")
+
+
+def test_the_engine_log_goes_in_the_day_folder_that_fetch_logs_copies():
+    command = run_board.remote_command(8888, [], restart=False)
+
+    assert command.index(run_board.DAY_FOLDER) < command.index("nohup setsid bash")
+    assert 'ecap=~/comms/logs/"$(date -u +%Y-%m-%d)"/run_engine_' in command
+
+
+class FakeSftp:
+    """Records what sync_engine writes and copies."""
+
+    def __init__(self):
+        self.written = {}
+        self.put_calls = []
+
+    def open(self, path, mode):
+        written = self.written
+
+        class Remote:
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *exc):
+                return False
+
+            async def write(self, data):
+                written[path] = written.get(path, b"") + data
+
+        assert mode == "wb"
+        return Remote()
+
+    async def makedirs(self, path, exist_ok=False):
+        pass
+
+    async def put(self, paths, remote):
+        self.put_calls.append(([Path(p).name for p in paths], remote))
+
+
+def fake_conn(sftp):
+    class Opened:
+        async def __aenter__(self):
+            return sftp
+
+        async def __aexit__(self, *exc):
+            return False
+
+    return SimpleNamespace(start_sftp_client=lambda: Opened())
+
+
+@pytest.fixture
+def engine_files(tmp_path, monkeypatch):
+    """A CRLF run_engine.sh, as team/ checks it out, and a core folder with a subfolder."""
+    launcher = tmp_path / "run_engine.sh"
+    launcher.write_bytes(b"#!/usr/bin/env bash\r\necho hi\r\n")
+    core = tmp_path / "engine"
+    (core / "__pycache__").mkdir(parents=True)
+    (core / "match.py").write_text("")
+    (core / "rules.json").write_text("{}")
+    monkeypatch.setattr(run_board, "ENGINE_LAUNCHER", launcher)
+    monkeypatch.setattr(run_board, "ENGINE_CORE", core)
+    return core
+
+
+@pytest.mark.asyncio
+async def test_sync_engine_sends_the_script_with_lf_line_endings(engine_files):
+    """bash on the board fails on a CRLF script."""
+    sftp = FakeSftp()
+    await asyncio.wait_for(run_board.sync_engine(fake_conn(sftp)), DEADLINE_S)
+
+    assert sftp.written == {"comms/run_engine.sh": b"#!/usr/bin/env bash\necho hi\n"}
+
+
+@pytest.mark.asyncio
+async def test_sync_engine_copies_every_file_of_the_core_folder(engine_files):
+    sftp = FakeSftp()
+    await asyncio.wait_for(run_board.sync_engine(fake_conn(sftp)), DEADLINE_S)
+
+    assert sftp.put_calls == [(["match.py", "rules.json"], "comms/engine/")]
+
+
+@pytest.mark.asyncio
+async def test_sync_engine_stops_if_the_core_folder_is_missing(engine_files, monkeypatch):
+    monkeypatch.setattr(run_board, "ENGINE_CORE", engine_files / "missing")
+
+    with pytest.raises(SystemExit, match="missing"):
+        await run_board.sync_engine(fake_conn(FakeSftp()))
+
+
+# --- run_engine.sh itself, under a real bash with a fake python, sleep and date ---
+
+# On Windows "bash" on PATH is WSL's, which can't see these paths, so use Git's. Its usr\bin
+# one, since bin\bash.exe puts Git's folders ahead of the fakes on PATH.
+BASH = r"C:\Program Files\Git\usr\bin\bash.exe" if os.name == "nt" else shutil.which("bash")
+
+# exits with the next code from $T/codes, or 3 when they run out, so a test always ends
+FAKE_PYTHON = """#!/bin/bash
+echo "$*" >> "$T/calls"
+n=$(( $(wc -l < "$T/calls") ))
+code=$(sed -n "${n}p" "$T/codes")
+exit "${code:-3}"
+"""
+# records each wait instead of waiting
+FAKE_SLEEP = """#!/bin/bash
+echo "$1" >> "$T/sleeps"
+"""
+# date +%s gives the next line of $T/clock, or 0 when they run out. Any other date is real.
+FAKE_DATE = """#!/bin/bash
+if [ "$1" = "+%s" ]; then
+    n=$(( $(cat "$T/n" 2>/dev/null || echo 0) + 1 ))
+    echo "$n" > "$T/n"
+    sed -n "${n}p" "$T/clock" | grep . || echo 0
+else
+    command -p date "$@"
+fi
+"""
+
+
+def write_script(path, text):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(text.encode())
+    path.chmod(0o755)
+
+
+def run_loop(tmp_path, codes, clock=(), args=(), engine=True):
+    """Run run_engine.sh as it is copied to the board. Return its exit code, output, calls and waits."""
+    if not BASH or not Path(BASH).exists():
+        pytest.skip("needs bash")
+    home = tmp_path / "home"
+    script = home / "comms" / "run_engine.sh"
+    write_script(script, run_board.ENGINE_LAUNCHER.read_bytes().replace(b"\r\n", b"\n").decode())
+    if engine:
+        (home / "comms" / "game_engine.py").write_text("")
+    write_script(home / "comms-venv" / "bin" / "python", FAKE_PYTHON)
+    write_script(tmp_path / "bin" / "sleep", FAKE_SLEEP)
+    write_script(tmp_path / "bin" / "date", FAKE_DATE)
+    (tmp_path / "codes").write_text("".join(f"{c}\n" for c in codes))
+    (tmp_path / "clock").write_text("".join(f"{t}\n" for t in clock))
+    env = dict(
+        os.environ,
+        HOME=home.as_posix(),
+        T=tmp_path.as_posix(),
+        PATH=os.pathsep.join([str(tmp_path / "bin"), str(Path(BASH).parent), os.environ["PATH"]]),
+    )
+    done = subprocess.run(
+        [BASH, script.as_posix(), *args], env=env, capture_output=True, text=True, timeout=10
+    )
+
+    def lines(name):
+        path = tmp_path / name
+        return path.read_text().splitlines() if path.exists() else []
+
+    return SimpleNamespace(
+        code=done.returncode,
+        stdout=done.stdout,
+        calls=lines("calls"),
+        sleeps=[int(s) for s in lines("sleeps")],
+    )
+
+
+def test_exit_code_3_stops_the_loop_at_once(tmp_path):
+    """The engine fails the same way on every start, so retrying can't help."""
+    run = run_loop(tmp_path, codes=[3])
+
+    assert run.code == 3
+    assert len(run.calls) == 1
+    assert run.sleeps == []
+    assert "not restarting" in run.stdout
+
+
+def test_any_other_exit_restarts_it_with_the_wait_doubling_up_to_60_s(tmp_path):
+    run = run_loop(tmp_path, codes=[0, 1, 1, 1, 1, 1, 1, 3])
+
+    assert run.sleeps == [2, 4, 8, 16, 32, 60, 60]
+    assert len(run.calls) == 8
+    assert run.code == 3
+
+
+def test_a_run_of_60_s_or_more_resets_the_wait(tmp_path):
+    # date +%s is read at each start and end, so the second run lasts 100 s
+    run = run_loop(tmp_path, codes=[1, 1, 1, 3], clock=[0, 0, 0, 100, 100, 100])
+
+    assert run.sleeps == [2, 2, 2]
+
+
+def test_extra_arguments_reach_the_engine_after_the_fixed_ones(tmp_path):
+    run = run_loop(tmp_path, codes=[3], args=["-v"])
+
+    assert "game_engine.py --host 127.0.0.1 --port 1883 --core-dir " in run.calls[0]
+    assert run.calls[0].endswith("/comms/engine -v")
+
+
+def test_without_game_engine_py_the_loop_never_starts(tmp_path):
+    """Before the engine is synced, it mustn't retry a missing file every minute."""
+    run = run_loop(tmp_path, codes=[], engine=False)
+
+    assert run.code == 1
+    assert run.calls == []
+
+
+def test_its_log_lines_read_like_the_boards_own(tmp_path):
+    """So run_board's relog and the latency tools parse them like any board log."""
+    run = run_loop(tmp_path, codes=[1, 3])
+    matches = [run_board.BOARD_LINE.match(line) for line in run.stdout.splitlines()]
+
+    assert len(matches) == 4
+    assert all(m and m.group(1) == "run_engine" for m in matches)
 
 
 def test_bitstream_from_args_reads_the_forwarded_flag():
