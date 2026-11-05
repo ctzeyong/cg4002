@@ -399,7 +399,7 @@ async def test_both_panes_announce_shutdown_with_the_same_line(module_name, capl
 
 @pytest.mark.asyncio
 async def test_sync_also_copies_the_ai_teams_module_that_gesture_imports():
-    """gesture.py needs AI's two modules and their bitstreams beside it to load either model."""
+    """gesture.py needs AI's module beside it, plus the --bitstream overlay, to load the model."""
     put = []
 
     class Sftp:
@@ -417,18 +417,18 @@ async def test_sync_also_copies_the_ai_teams_module_that_gesture_imports():
             return False
 
     conn = SimpleNamespace(start_sftp_client=lambda: Opened())
-    await asyncio.wait_for(run_board.sync_sources(conn), timeout=DEADLINE_S)
+    await asyncio.wait_for(
+        run_board.sync_sources(conn, "baseline_improved.xsa"), timeout=DEADLINE_S
+    )
 
     assert {"gesture.py", "tcp_client.py", "wk10_integration.py", "baseline_improved.xsa"} <= set(put)
 
 
-def test_sync_copies_the_model_and_bitstream_gesture_loads():
+def test_sync_copies_the_model_gesture_loads():
     import gesture
 
     assert run_board.AI_MODULE.stem == gesture.AI_MODULE
-    assert run_board.AI_BITSTREAM.name == gesture.AI_BITSTREAM
-
-
+    
 # --- the game engine -------------------------------------------------------
 
 ENGINE_LOOPS = [
@@ -719,3 +719,9 @@ def test_its_log_lines_read_like_the_boards_own(tmp_path):
 
     assert len(matches) == 4
     assert all(m and m.group(1) == "run_engine" for m in matches)
+
+
+def test_bitstream_from_args_reads_the_forwarded_flag():
+    assert run_board.bitstream_from_args(["--gesture-flag", "--bitstream", "x.xsa"]) == "x.xsa"
+    assert run_board.bitstream_from_args(["--bitstream=y.xsa"]) == "y.xsa"
+    assert run_board.bitstream_from_args(["--gesture-flag"]) is None

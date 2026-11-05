@@ -153,7 +153,7 @@ async def forward_downlink(downlink, outbound, stats, stop):
 
         topic = gesture_topic(player)
         mqtt_client.enqueue_event(outbound, topic, mqtt_client.build_envelope(msg, seq), stats)
-        # INFO: once per AI event. scripts/latency_report.py reads `t=`; notes/latency.md.
+        # INFO: once per AI event. scripts/tools/latency_report.py reads `t=`; notes/latency.md.
         log.info("downlink seq=%d t=%.6f -> %s: %s", seq, time.perf_counter(), topic, msg)
         seq += 1
 

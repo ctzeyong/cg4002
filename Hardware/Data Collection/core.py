@@ -50,7 +50,9 @@ def load_csv(path):
     return seq, times, x
 
 
-def labels_for(path, times):
+def labels_for(path, times, period_us=RAW_PERIOD_US):
+    """period_us: the recording's sample period (2000 for these 500 Hz recordings; annotate.py
+    passes 10000 for Comms' 100 Hz BLE recordings)."""
     doc = json.loads(Path(path).read_text())
     if not doc.get('reviewed', False):
         raise ValueError(f'Annotations have not been reviewed: {path}')
@@ -58,7 +60,7 @@ def labels_for(path, times):
     last = -1
     for s in intervals:
         a, b = int(s['start_us']), int(s['end_us'])
-        if s['label'] not in (*GESTURES, 'ignore') or a < times[0] or b > times[-1]+RAW_PERIOD_US or b <= a:
+        if s['label'] not in (*GESTURES, 'ignore') or a < times[0] or b > times[-1]+period_us or b <= a:
             raise ValueError('Invalid annotation label, duration or boundary')
         if a < last:
             raise ValueError('Annotations overlap')

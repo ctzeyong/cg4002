@@ -49,9 +49,8 @@ FLAG_FIELD = 1
 IN_GESTURE = 1
 REJECTED = 2
 
-# AI's model and the bitstream it loads
+# AI's model module, imported on the board. The overlay it loads is passed in via --bitstream.
 AI_MODULE = "wk10_integration"
-AI_BITSTREAM = "baseline_improved.xsa"
 
 # result of classifying one gesture, missing is the number of packets lost inside it
 Result = collections.namedtuple("Result", "label confidence t_infer_ms missing")
@@ -245,16 +244,23 @@ class StubAI:
         pass
 
 
-def load_classifier(ai_h5=None):
+def load_classifier(ai_h5=None, vocab=None, bitstream=None):
     """Return AI's model on the board, or a stub anywhere else.
 
     With `ai_h5`, run that Keras model on the laptop instead (AI/board/keras_stream.py).
+    `vocab` selects the FPGA model's label vocabulary, "old" (7-class) or "new" (8-class
+    + noise); None uses wk10_integration's default. `bitstream` is the overlay filename to
+    load, resolved next to the model on the board; it is required on the FPGA path and must
+    output `vocab`'s class count. The ai_h5 path ignores both (keras reads them from the model).
     """
     if ai_h5:
         import keras_stream  # AI/board is on sys.path, added at the top
         return AI(keras_stream, keras_stream.GestureClassifier(ai_h5))
     if not FPGA_MANAGER.exists():
         return StubAI()
+    if not bitstream:
+        raise ValueError("no bitstream given; pass --bitstream NAME for the FPGA gesture path")
     module = importlib.import_module(AI_MODULE)  # needs numpy, so only on the board
-    bitstream = pathlib.Path(module.__file__).with_name(AI_BITSTREAM)
-    return AI(module, module.GestureClassifier(bitstream=str(bitstream)))
+    bitstream_path = pathlib.Path(module.__file__).with_name(bitstream)
+    config = module.vocab_config(vocab)
+    return AI(module, module.GestureClassifier(bitstream=str(bitstream_path), config=config))

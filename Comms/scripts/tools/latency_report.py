@@ -12,7 +12,7 @@ run_board*.py's relayed copy works as the board log too, provided it covers the 
 fresh start, not a re-attach that tails only the last 200 lines). The board's own file, via
 --fetch-logs, is the canonical one. notes/latency.md 3.8.
 
---phone takes the prefix scripts/phone_clock.py wrote: <prefix>_start.json, <prefix>_end.json
+--phone takes the prefix scripts/tools/phone_clock.py wrote: <prefix>_start.json, <prefix>_end.json
 and <prefix>_logcat.txt.
 
     python latency_report.py --config B --echo <echo_*.log> [--board <tcp_client_mqtt_*.log>]

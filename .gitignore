@@ -4,7 +4,7 @@ __pycache__/
 .ipynb_checkpoints/
 AI/gesture_pipeline/dataset/*
 AI/gesture_pipeline/results/*
-
+Hardware/Data Collection/old gestures/*
 # virtual environments
 .venv/
 venv/
