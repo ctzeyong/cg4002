@@ -162,7 +162,8 @@ both gloves are `ready`. If it doesn't start, the screen says what it is waiting
 - The glove buzzes once when a gesture starts, and again when the board has classified it.
 - Stay inside the arena. After 3 s outside, your tower loses HP.
 - **God mode** (OPTIONS) keeps your mana and tower HP full, for demos and testing.
-- After a match, both players press **PLAY AGAIN** for a rematch.
+- After a match, both players press **PLAY AGAIN** for a rematch. If an app was restarted, it shows
+  **START** instead, which works the same.
 
 ### 4. Stop
 
