@@ -64,7 +64,7 @@ CHANNELS       = 6
 N_CLASSES      = 7
 SCALE          = 1 << 10      # to_fixed multiplier (1024)
 OUT_FRAC       = 10           # ap_fixed<16,6> -> 10 frac bits (logits = outb / 1024)
-CONF_THRESHOLD = 0.7          # reject top class below this as rest/blank; 0.0 = never reject
+CONF_THRESHOLD = 0.0          # reject top class below this as rest/blank; 0.0 = never reject
 REJECT_LABELS  = ("noise",)   # a model's no-gesture class: top class here -> no result (8-class models)
 
 CROP           = 40           # test only: max |offset| steps the EOG may miss the gesture by

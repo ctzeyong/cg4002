@@ -3,3 +3,5 @@ matplotlib>=3.7,<4
 pyserial>=3.5,<4
 scikit-learn>=1.5,<2
 opencv-python>=4.8,<5
+pyqtgraph>=0.13,<1
+PyQt6>=6.5,<7
