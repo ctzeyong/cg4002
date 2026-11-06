@@ -424,7 +424,8 @@ class Session:
     def _press(self, player, source, request):
         """Count a START or rematch, or drop it if it doesn't apply now."""
         p = self.players[player]
-        applies = (request.action == "start" and self.phase in (WAITING, COUNTDOWN)) or (
+        # a relaunched app has no PLAY AGAIN button, so its START counts as a rematch
+        applies = (request.action == "start" and self.phase in (WAITING, COUNTDOWN, ENDED)) or (
             request.action == "rematch" and self.phase == ENDED
         )
         if request.match_id != self.match_id or (p.bound and source != p.bound) or not applies:

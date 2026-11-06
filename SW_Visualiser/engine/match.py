@@ -566,21 +566,20 @@ class Match:
         for player in (1, 2):
             pos = self._body_pos(player)
             if self._inside_arena(pos):
-                if self._outside_for[player] > 0.0:
+                if self._outside_for[player] > grace:
                     log.info("player %d is back inside the arena after %.1f s", player, self._outside_for[player])
                 self._outside_for[player] = 0.0
                 continue
             before = self._outside_for[player]
             after = _tidy(before + dt)
             self._outside_for[player] = after
-            if before == 0.0:
-                log.warning(
-                    "player %d is outside the arena: device reported %s, tower at %.2f m along and %.2f m across, "
-                    "lane %.2f m, rear margin %.2f m; HP drain starts after %.1f s",
-                    player, self._lane_pos.get(player), pos[0], pos[1], self.lane_m, self.rear, grace)
             if after > grace:
                 if before <= grace:
-                    log.warning("player %d has been outside the arena for %.1f s, tower HP now draining", player, after)
+                    # logged only once the grace runs out, so a player swaying on the edge does not flood the log
+                    log.warning(
+                        "player %d has been outside the arena for %.1f s, tower HP now draining: device reported %s, "
+                        "tower at %.2f m along and %.2f m across, lane %.2f m, rear margin %.2f m",
+                        player, after, self._lane_pos.get(player), pos[0], pos[1], self.lane_m, self.rear)
                 self._damage_tower(player, self._m["outOfBoundsDamagePerSecond"] * dt)
 
     def _damage_tower(self, player, amount):

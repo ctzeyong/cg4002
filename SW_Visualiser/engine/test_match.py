@@ -199,14 +199,29 @@ def test_coming_back_inside_restarts_the_grace():
     assert run(m, 2.5).tower_hp[0] == 1000  # 2.5 s outside twice is never 3 s in a row
 
 
-def test_out_of_bounds_is_logged_once_per_excursion(caplog):
+def test_out_of_bounds_is_logged_once_per_excursion_that_drains(caplog):
     m = started()
-    with caplog.at_level("WARNING", logger="match"):
+    with caplog.at_level("INFO", logger="match"):
         m.set_position(2, (1.2, 0.0))  # past the far end and its rear margin
         run(m, 4)
+        m.set_position(2, (1.0, 0.0))
+        run(m, 1)
     lines = [r.getMessage() for r in caplog.records]
-    assert sum("player 2 is outside the arena" in t for t in lines) == 1
-    assert sum("tower HP now draining" in t for t in lines) == 1
+    draining = [t for t in lines if "player 2 has been outside the arena" in t]
+    assert len(draining) == 1 and "tower HP now draining: device reported (1.2, 0.0)" in draining[0]
+    assert sum("player 2 is back inside the arena" in t for t in lines) == 1
+
+
+def test_swaying_on_the_edge_within_the_grace_logs_nothing(caplog):
+    m = started()
+    with caplog.at_level("INFO", logger="match"):
+        for _ in range(20):  # in and out on every tick, as tracking jitter at the edge would do
+            m.set_position(2, (1.2, 0.0))
+            run(m, DT)
+            m.set_position(2, (1.0, 0.0))
+            run(m, DT)
+    assert not caplog.records
+    assert m.snapshot().tower_hp[1] == 1000
 
 
 def test_spawn_refused_when_own_tower_is_out_of_the_arena():

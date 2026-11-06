@@ -10,7 +10,7 @@ namespace BridgeRush.Networking
     {
         public int ReqId;
         public string MatchId;
-        public string Action;   // "start", "rematch", "spawn", "spell"
+        public string Action;   // "start", "rematch", "spawn", "spell", "god_on", "god_off"
         public string UnitType; // for spawn
         public string Spell;    // for spell
         public bool HasAim;
@@ -50,7 +50,8 @@ namespace BridgeRush.Networking
         public event Action<int> ActionUnknown;        // a tap whose result never came: the outcome is unknown, not "failed"
 
         // The demo's God mode (debug). Asked for once, then sent for every match the engine runs, since a new match starts
-        // without it. It gets no game/event, so it is never waited on.
+        // without it. It gets no game/event, so it is never waited on. It is sent only while connected, and again after
+        // every reconnect, since a request sent into a dropped link is lost.
         bool godAsked;
         bool godWanted;
         string godSentMatchId;
@@ -76,7 +77,7 @@ namespace BridgeRush.Networking
 
         public void SetConnected(bool isConnected, float now)
         {
-            if (isConnected && !connected) { connectedSince = now; stallBase = now; }
+            if (isConnected && !connected) { connectedSince = now; stallBase = now; godSentMatchId = null; }
             connected = isConnected;
         }
 
@@ -212,7 +213,7 @@ namespace BridgeRush.Networking
 
         void SendGodMode()
         {
-            if (!godAsked || Match == null || Player < 1 || Player > 2 || godSentMatchId == MatchId) return;
+            if (!godAsked || !connected || Match == null || Player < 1 || Player > 2 || godSentMatchId == MatchId) return;
             godSentMatchId = MatchId;
             outgoing.Add(new EngineOutgoing
             {

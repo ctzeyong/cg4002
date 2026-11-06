@@ -166,17 +166,19 @@ follow.
 ```
 
 Or start both in one window, with a third pane that sums up both logs on one screen (each
-glove, the tunnel, the board, the last gestures per player). Its arguments go to
-`run_board.ps1`. Ctrl-C in the dashboard pane stops all three. Closing the dashboard pane
-stops only the dashboard.
+glove, the tunnel, the board, the last gestures per player) — the UI way to run the pipeline.
+Its arguments go to `run_board.ps1`. Ctrl-C in the dashboard pane stops all three. Closing the
+dashboard pane stops only the dashboard.
 
 ```powershell
-.\scripts\run_all.ps1 --sync
+.\scripts\run_all.ps1 --sync --gesture-flag --vocab new --bitstream new_gestures_all.xsa
 ```
 
-Flags typed after `run_all.ps1` go to the board pane only, same as `run_board.ps1` below. The
-full flag table (`--sync`, `--stop`, `--fetch-logs`, `--gesture-flag`, `-v`, …)
-is in
+`--gesture-flag` runs the FPGA classifier on the board (not dummy events); `--vocab` picks the
+label set and `--bitstream` the overlay to load on the board (see
+[Two inference pipelines](#two-inference-pipelines)). Flags typed after `run_all.ps1` go to the
+board pane only, same as `run_board.ps1` below. The full flag table (`--sync`, `--stop`,
+`--fetch-logs`, `--gesture-flag`, `--vocab`, `--bitstream`, `-v`, …) is in
 [full-pipeline.md](../docs/integration/full-pipeline.md#all-three-panes-at-once-run_allps1).
 
 Then press Connect in the phone app. Events appear in the app's own log; that log, not the

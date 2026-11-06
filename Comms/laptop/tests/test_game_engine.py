@@ -448,6 +448,34 @@ def test_a_bubble_goes_to_the_core():
     assert g.match.calls[-1] == ("bubble", (1, 0))
 
 
+# --- God mode -------------------------------------------------------------------------
+
+
+def test_god_mode_reaches_the_core_before_any_phone_streams():
+    g = Game()  # a new match with no lane yet, as when a phone sends God mode again for it
+    assert g.press(1, "god_on") == []
+    assert g.press(1, "god_off") == []
+    assert g.match.calls == [("set_god_mode", (1, True)), ("set_god_mode", (1, False))]
+    assert g.s.counts["god_refused"] == 0
+
+
+def test_a_repeated_god_request_reaches_the_core_once():
+    g = Game()
+    g.press(1, "god_on", req_id=7)
+    g.press(1, "god_on", req_id=7)  # the same request in a new envelope
+    assert g.match.calls == [("set_god_mode", (1, True))]
+
+
+def test_god_mode_comes_only_from_the_bound_phone_for_the_current_match():
+    g = running_game()
+    g.press(2, "god_on", source="phone-c")
+    g.press(2, "god_on", match_id="e1-0")
+    assert g.s.counts["god_refused"] == 2
+    assert g.press(2, "god_on") == []
+    assert g.match.calls == [("set_god_mode", (2, True))]  # never a tap
+    assert g.s.phase == ge.RUNNING
+
+
 # --- errors ---------------------------------------------------------------------------
 
 
@@ -546,13 +574,52 @@ def test_a_rematch_waits_for_lane_samples_of_the_new_match():
     assert g.s.phase == ge.COUNTDOWN
 
 
-def test_a_start_in_the_ended_phase_is_not_a_rematch():
+def test_restarted_apps_press_start_to_play_again_after_a_match_ends():
+    """A relaunched app has no PLAY AGAIN button, so its START must count as a rematch."""
+    g = running_game()
+    g.sources = {1: None, 2: None}
+    g.run(ge.PHONE_FRESH_S + ge.PAUSE_CAP_S + 0.1)  # the cap counts from the pause
+    assert (g.s.phase, g.info.winner) == (ge.ENDED, "none")
+    g.sources = {1: "phone-c", 2: "phone-d"}
+    g.run(0.2)
+    g.press(1)
+    assert g.info.starts == (True, False)
+    g.press(2)
+    g.run(0.15)  # time for each phone to send one sample with the new match_id
+    assert (g.s.match_id, g.s.phase) == ("e1-2", ge.COUNTDOWN)
+    g.run(ge.COUNTDOWN_S)
+    assert g.s.phase == ge.RUNNING
+
+
+def test_one_rematch_and_one_start_start_the_next_match():
+    """One phone still shows PLAY AGAIN while the other app was restarted."""
     g = running_game()
     end_by_result(g)
-    g.press(1)
+    g.sources[2] = None  # player 2's app closes
+    g.run(ge.PHONE_FRESH_S + 0.1)
+    g.sources[2] = "phone-c"  # and starts again as a new source
+    g.run(0.2)
+    g.press(1, action="rematch")
     g.press(2)
-    g.run(0.1)
-    assert g.s.match_id == "e1-1"
+    g.run(0.15)
+    assert (g.s.match_id, g.s.phase) == ("e1-2", ge.COUNTDOWN)
+
+
+def test_a_start_dropped_before_the_takeover_is_lost_and_a_restarted_app_recovers():
+    """The phone sends START only once after the end, so the player restarts the app."""
+    g = running_game()
+    end_by_result(g)
+    g.press(2, source="phone-c")  # phone-b still streams, so phone-c can't take over
+    g.sources[2] = "phone-c"
+    g.run(ge.PHONE_FRESH_S + 0.2)
+    assert g.s.players[2].bound == "phone-c"
+    assert g.info.starts == (False, False)  # its early press doesn't count after it takes over
+    g.sources[2] = None  # the player restarts the app
+    g.run(ge.PHONE_FRESH_S + 0.1)
+    g.sources[2] = "phone-d"
+    g.run(0.2)
+    g.press(2)
+    assert g.info.starts == (False, True)
 
 
 def test_a_nan_opening_state_at_a_rematch_is_fatal_before_the_new_match_is_announced():
