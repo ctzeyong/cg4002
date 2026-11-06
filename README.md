@@ -303,7 +303,7 @@ predates the board engine: its phone steps describe the host-phone game.
   engine, and which changes need the other team.
 - [Full pipeline](docs/integration/full-pipeline.md), [Hardware-Comms](docs/integration/hardware-comms.md)
   and [AI-Comms](docs/integration/ai-comms.md): each integration's contract and change guide.
-- [System diagram](docs/b16-system-diagram.html): the whole system on one page. (not updated)
+- [System diagram](docs/b16-system-diagram.html): the whole system on one page.
 
 ## Appendix A: every command and flag
 

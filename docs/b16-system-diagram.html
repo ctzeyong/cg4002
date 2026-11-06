@@ -82,19 +82,19 @@
   .wire.inner { stroke-width: 2; }
   .arrowhead { fill: var(--ink); }
 
-  .flow-title { left: 64px; top: 878px; width: 600px; font-size: 26px; font-weight: 600; line-height: 1.2; }
-  .flow { left: 64px; top: 922px; width: 1792px; display: flex; align-items: center; justify-content: space-between; }
+  .flow-title { left: 64px; top: 922px; width: 600px; font-size: 26px; font-weight: 600; line-height: 1.2; }
+  .flow { left: 64px; top: 966px; width: 1792px; display: flex; align-items: center; justify-content: space-between; }
   .flow p { width: 250px; margin: 0; font-size: 26px; line-height: 1.3; text-align: center; }
   .step-arrow { flex: none; }
-  .feedback { left: 64px; top: 1020px; width: 1792px; display: flex; align-items: center; gap: 16px; font-size: 24px; line-height: 1.3; }
-  .feedback b { font-weight: 600; margin-right: 8px; }
+  .feedback { left: 1456px; top: 746px; width: 400px; padding: 14px 20px; background: #F2F2EF; border-radius: 6px; display: flex; flex-direction: column; font-size: 22px; line-height: 1.35; }
+  .feedback b { font-size: 25px; font-weight: 600; line-height: 1.25; margin-bottom: 6px; }
 </style>
 
 <div class="frame" id="frame">
-<div class="stage" id="stage" role="img" aria-label="B16 system block diagram: two gloves stream IMU data over BLE to a relay laptop, which forwards it through an SSH tunnel to the Ultra96. The Ultra96 classifies gestures on the FPGA and publishes them over MQTT to two phones. Each classified gesture also sends a VIBRATE back through the laptop to that player's glove, which pulses its motor.">
+<div class="stage" id="stage" role="img" aria-label="B16 system block diagram: two gloves stream IMU data over BLE to a relay laptop, which forwards it through an SSH tunnel via the jump host to the Ultra96. The Ultra96 classifies gestures on the FPGA and publishes them, and whether each glove is up, over MQTT. The game engine on the Ultra96 applies them and both phones draw the result. Each classified gesture also sends a VIBRATE back through the laptop to that player's glove, which pulses its motor.">
 
   <h1 class="title">B16 System Block Diagram</h1>
-  <p class="sub">AR PvP Battle Cats</p>
+  <p class="sub">BridgeRush</p>
   <div class="legend" aria-label="Colour key">
     <span><i style="background:var(--hw-swatch)"></i>Hardware</span>
     <span><i style="background:var(--comms-swatch)"></i>Comms</span>
@@ -141,34 +141,38 @@
     <ul><li>Checks IMU status</li><li>Writes VIBRATE</li></ul>
   </div>
 
-  <!-- Ultra96: TCP in to the client (middle), classifier below, broker above -->
-  <div class="card" style="left:942px;width:400px;top:200px;height:560px"></div>
+  <!-- Ultra96: TCP in to the client (middle), classifier below, broker above, engine at the bottom
+       (wired to the broker up the right edge) -->
+  <div class="card" style="left:942px;width:400px;top:200px;height:745px"></div>
   <div class="head" style="left:962px;width:360px;top:218px"><h2>Ultra96-V2</h2><p>PYNQ Linux + FPGA fabric</p></div>
   <div class="block comms" style="left:962px;top:320px;width:360px;height:98px">
     <h3>MQTT broker</h3>
     <ul><li>Mosquitto, QoS 1</li></ul>
   </div>
-  <div class="block comms" style="left:962px;top:447px;width:360px;height:132px">
+  <div class="block comms" style="left:962px;top:447px;width:360px;height:166px">
     <h3>TCP + MQTT client</h3>
-    <ul><li>Passes samples to classifier</li><li>Publishes the gesture</li></ul>
+    <ul><li>Passes samples to classifier</li><li>Publishes the gesture</li><li>Publishes glove status</li></ul>
   </div>
-  <div class="block ai" style="left:962px;top:608px;width:360px;height:132px">
+  <div class="block ai" style="left:962px;top:637px;width:360px;height:132px">
     <h3>FPGA classifier</h3>
-    <ul><li>hls4ml CNN, 7 classes</li><li>Per-player 150-step buffer</li></ul>
+    <ul><li>hls4ml CNN, 8 classes</li><li>Per-player 150-step buffer</li></ul>
+  </div>
+  <div class="block vis" style="left:962px;top:793px;width:360px;height:132px">
+    <h3>Game engine</h3>
+    <ul><li>Runs the game logic: mana, units, spells, towers</li></ul>
   </div>
 
-  <!-- Phones: host (on the MQTT line), client, AR on both -->
-  <div class="card" style="left:1456px;width:400px;top:200px;height:594px"></div>
+  <!-- Phones: tunnel + MQTT client (on the MQTT line), match view, AR on both -->
+  <div class="card" style="left:1456px;width:400px;top:200px;height:526px"></div>
   <div class="head" style="left:1476px;width:360px;top:218px"><h2>Phone (per player)</h2><p>iPhone, Unity, MQTT client</p></div>
-  <div class="block vis" style="left:1476px;top:320px;width:360px;height:132px">
-    <h3>Player 1 (host)</h3>
-    <ul><li>Game engine (for now)</li><li>Mana, spawns, combat</li></ul>
+  <div class="block comms" style="left:1476px;top:320px;width:360px;height:64px">
+    <h3>Tunnel + MQTT client</h3>
   </div>
-  <div class="block vis" style="left:1476px;top:481px;width:360px;height:132px">
-    <h3>Player 2 (client)</h3>
-    <ul><li>Sends gesture + aim to host</li><li>Renders host's state</li></ul>
+  <div class="block vis" style="left:1476px;top:413px;width:360px;height:132px">
+    <h3>Match view</h3>
+    <ul><li>Draws engine state</li><li>Sends taps + aim</li></ul>
   </div>
-  <div class="block vis" style="left:1476px;top:642px;width:360px;height:132px">
+  <div class="block vis" style="left:1476px;top:574px;width:360px;height:132px">
     <h3>AR anchoring (both)</h3>
     <ul><li>AprilTag markers</li><li>Shared arena frame</li></ul>
   </div>
@@ -185,23 +189,24 @@
     <path class="wire inner" d="M234 706 V735" marker-end="url(#ah-sm)"/>
     <path class="wire inner" d="M673 608 V579" marker-start="url(#ah-sm)" marker-end="url(#ah-sm)"/>
     <path class="wire inner" d="M1142 447 V418" marker-end="url(#ah-sm)"/>
-    <path class="wire inner" d="M1142 579 V608" marker-start="url(#ah-sm)" marker-end="url(#ah-sm)"/>
+    <path class="wire inner" d="M1142 613 V637" marker-start="url(#ah-sm)" marker-end="url(#ah-sm)"/>
     <!-- BLE and TCP between the columns, two-way: samples up, VIBRATE back down to the glove -->
     <path class="wire" d="M384 657 H538" marker-start="url(#ah)" marker-end="url(#ah)"/>
     <path class="wire" d="M808 513 H962" marker-start="url(#ah)" marker-end="url(#ah)"/>
-    <!-- MQTT, two-way: broker <-> host, and broker <-> client along the branch -->
-    <path class="wire" d="M1322 377 H1476" marker-start="url(#ah)" marker-end="url(#ah)"/>
-    <path class="wire" d="M1476 547 H1446 V377" marker-start="url(#ah)"/>
+    <!-- engine <-> broker, two-way: gestures and phone input in, match state out -->
+    <path class="wire inner" d="M1322 404 H1346 V859 H1322" marker-start="url(#ah-sm)" marker-end="url(#ah-sm)"/>
+    <!-- MQTT, two-way: broker <-> each phone's tunnel -->
+    <path class="wire" d="M1322 352 H1476" marker-start="url(#ah)" marker-end="url(#ah)"/>
   </svg>
 
-  <!-- Link labels: name above the wire, one note below it, centred on the gap.
-       The branch down to Player 2 runs 10 px left of the phone card, clear of MQTT's labels. -->
+  <!-- Link labels: name above the wire, one note below it, centred on the gap. MQTT's both sit
+       above its wire, so the engine wire has the gap below to itself. -->
   <p class="link" style="left:391px;top:613px">BLE</p>
   <p class="link-sub" style="left:391px;top:669px">encrypted</p>
   <p class="link" style="left:815px;top:469px">TCP</p>
-  <p class="link-sub" style="left:815px;top:525px">in SSH</p>
-  <p class="link" style="left:1329px;top:333px">MQTT</p>
-  <p class="link-sub" style="left:1329px;top:389px">in SSH</p>
+  <p class="link-sub" style="left:815px;top:525px">in SSH via<br>jump host</p>
+  <p class="link" style="left:1342px;top:246px;width:114px">MQTT</p>
+  <p class="link-sub" style="left:1342px;top:280px;width:114px">in SSH via<br>jump host</p>
 
   <!-- System flow -->
   <p class="flow-title">System Flow</p>
@@ -216,18 +221,16 @@
     <svg class="step-arrow" width="48" height="20" viewBox="0 0 48 20" aria-hidden="true"><path d="M0 10 H36" stroke="#111111" stroke-width="2.5" fill="none"/><path d="M36 5 L46 10 L36 15 z" fill="#111111"/></svg>
     <p>Event published<br>over MQTT</p>
     <svg class="step-arrow" width="48" height="20" viewBox="0 0 48 20" aria-hidden="true"><path d="M0 10 H36" stroke="#111111" stroke-width="2.5" fill="none"/><path d="M36 5 L46 10 L36 15 z" fill="#111111"/></svg>
-    <p>Host engine acts,<br>both phones render</p>
+    <p>Board engine acts,<br>both phones render</p>
   </div>
-  <!-- Motor feedback: tcp_client_mqtt sends a VIBRATE after each classified gesture -->
+  <!-- Motor feedback: tcp_client_mqtt sends a VIBRATE after each classified gesture. A card of its own
+       in the space under the phone column, so the flow row has the bottom to itself. -->
   <div class="feedback">
     <b>Motor feedback</b>
     <span>FPGA classifies the gesture</span>
-    <svg class="step-arrow" width="40" height="18" viewBox="0 0 40 18" aria-hidden="true"><path d="M0 9 H30" stroke="#111111" stroke-width="2.5" fill="none"/><path d="M30 4 L40 9 L30 14 z" fill="#111111"/></svg>
-    <span>Ultra96 sends VIBRATE over TCP</span>
-    <svg class="step-arrow" width="40" height="18" viewBox="0 0 40 18" aria-hidden="true"><path d="M0 9 H30" stroke="#111111" stroke-width="2.5" fill="none"/><path d="M30 4 L40 9 L30 14 z" fill="#111111"/></svg>
-    <span>Laptop writes a CMD over BLE</span>
-    <svg class="step-arrow" width="40" height="18" viewBox="0 0 40 18" aria-hidden="true"><path d="M0 9 H30" stroke="#111111" stroke-width="2.5" fill="none"/><path d="M30 4 L40 9 L30 14 z" fill="#111111"/></svg>
-    <span>That player's glove buzzes</span>
+    <span>→ Ultra96 sends VIBRATE over TCP</span>
+    <span>→ Laptop writes a CMD over BLE</span>
+    <span>→ That player's glove buzzes</span>
   </div>
 </div>
 </div>
