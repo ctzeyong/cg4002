@@ -28,6 +28,9 @@ namespace BridgeRush.Gameplay
         [Tooltip("How far in front of the player the own tower stands, in tower footprint radii. 0 = under the player.")]
         [SerializeField] private float ownTowerForwardOffsetInRadii = 1.5f;
 
+        [Tooltip("Your own tower is hidden from your own screen (it blocks your view) until you press LOCK TOWER. The other player still sees it. Untick to always show it.")]
+        [SerializeField] private bool hideOwnTowerUntilLocked = true;
+
         // Larger of the two footprints, so units stand off from either tower without overlapping it.
         public float TowerRadius => Mathf.Max(ownFootprintRadius, opponentFootprintRadius) * ArenaScale;
         // How far in front of the player the own tower is drawn, in metres. Being out of the arena is judged where the tower
@@ -147,11 +150,17 @@ namespace BridgeRush.Gameplay
         // In the board role the opponent tower stands where that player reports it to the board, which is the spot the engine
         // fights over, not where this camera last saw their tag (so it moves and locks even when the tag is out of view).
         // It is drawn the way that player's own phone draws their tower: their device, then a step towards the other player.
-        // Without a fresh report it stays on the tag.
+        // Before the match, or before the first report of a match, it stays on the tag. Once a match is running and the tower
+        // has been placed from a report, a gap in the reports (the other phone's link dropping, or the 2 s freshness window
+        // running out) holds the tower where it was instead of snapping to the live tag, which jumps whenever the tag is
+        // lost and found again. When reports resume it glides to the new spot rather than jumping.
         private Vector3 OpponentBase(Vector3 tagPosition, Vector3 ownBase, float arenaScale)
         {
+            if (!matchState.MatchStarted) hasReportedOpponent = false;
+
             if (!matchState.TryGetOpponentTowerReported(out var reported, out _))
             {
+                if (matchState.MatchStarted && hasReportedOpponent) return reportedOpponentBase;
                 hasReportedOpponent = false;
                 return tagPosition;
             }
@@ -208,6 +217,9 @@ namespace BridgeRush.Gameplay
                 forward = forward.sqrMagnitude > 0.0001f ? forward.normalized : Vector3.forward;
             }
             ownTower.position = ownBase + forward * OwnTowerForwardOffsetMeters;
+
+            bool showOwnTower = !hideOwnTowerUntilLocked || matchState.OwnTowerLocked;
+            if (ownTower.gameObject.activeSelf != showOwnTower) ownTower.gameObject.SetActive(showOwnTower);
 
             if (arenaFrame.HasLane)
             {

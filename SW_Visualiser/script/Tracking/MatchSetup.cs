@@ -61,9 +61,8 @@ namespace BridgeRush.Tracking
             Mode = GameMode.VsCpu;
             IsTutorial = true;
             HasChosenMode = true;
-            // Nothing in a tutorial depends on which player you are, so the player screen is skipped.
-            SelectPlayer1();
-            ActivateCpuOpponent();
+            // The player screen follows, because the glove for this player sends on game/gesture/{player} and the phone only
+            // listens to its own player's topic. SetupScreen calls ActivateCpuOpponent once a player is picked.
         }
 
         public void ActivateCpuOpponent()
