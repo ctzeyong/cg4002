@@ -71,13 +71,14 @@ namespace BridgeRush.UI
 
             BuildStatusCluster();
             BuildTimer();
-            BuildOptionsButton();
+            BuildDebugButton();
             BuildTrackingOverlay();
             BuildOffscreenArrow();
             BuildLockTowerButton();
             BuildResultOverlay();
             BuildDamageFlash();
             BuildDoubleManaBanner();
+            BuildOptionsWindow();
             previousOwnTowerHP = matchState.OwnTowerHP;
         }
 
@@ -95,7 +96,8 @@ namespace BridgeRush.UI
         {
             UpdateStatusCluster();
             UpdateTimer();
-            UpdateOptionsButton();
+            UpdateDebugButton();
+            if (optionsWindow != null && optionsWindow.IsOpen) optionsWindow.Refresh();
             UpdateTrackingOverlay();
             UpdateOffscreenArrow();
             UpdateLockTowerButton();
@@ -548,20 +550,56 @@ namespace BridgeRush.UI
             timerText.color = remaining <= 30 ? new Color(1f, 0.4f, 0.35f) : HudPalette.Cream;
         }
 
-        private RectTransform optionsButtonRect;
-        private TextMeshProUGUI optionsButtonText;
-        private DebugMenu optionsMenu;
+        private RectTransform debugButtonRect;
+        private TextMeshProUGUI debugButtonText;
+        private DebugMenu debugMenu;
+        private OptionsWindow optionsWindow;
 
-        // Where the old COMMANDS button was. It opens the options (debug) menu, which draws its panel under this button.
-        private void BuildOptionsButton()
+        // The player's OPTIONS button, top right, and the window it opens (Haptics, Music, Sound, Quit to main menu).
+        private void BuildOptionsWindow()
         {
+            optionsWindow = new OptionsWindow(canvas.transform, () => matchSetup != null && matchSetup.HasChosenMode, QuitToMainMenu);
+
             var go = UIFactory.CreateRect("OptionsButton", canvas.transform);
-            optionsButtonRect = go.GetComponent<RectTransform>();
-            optionsButtonRect.anchorMin = new Vector2(1f, 1f);
-            optionsButtonRect.anchorMax = new Vector2(1f, 1f);
-            optionsButtonRect.pivot = new Vector2(1f, 1f);
-            optionsButtonRect.anchoredPosition = new Vector2(-20f, -170f);
-            optionsButtonRect.sizeDelta = new Vector2(OptionsButtonWidth, 56f);
+            var rect = go.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(1f, 1f);
+            rect.anchorMax = new Vector2(1f, 1f);
+            rect.pivot = new Vector2(1f, 1f);
+            rect.anchoredPosition = new Vector2(-20f, -20f);
+            rect.sizeDelta = new Vector2(DebugButtonWidth, 56f);
+
+            var bg = go.AddComponent<Image>();
+            bg.sprite = UITextureFactory.CreateRoundedPanel(64, 12, HudPalette.Wood, HudPalette.WoodDark, 2, HudPalette.Gold);
+            bg.type = Image.Type.Sliced;
+            var button = go.AddComponent<Button>();
+            button.targetGraphic = bg;
+            button.onClick.AddListener(() => optionsWindow.Toggle());
+            var label = UIFactory.CreateText(go.transform, "OPTIONS", 20, FontStyles.Bold, HudPalette.Cream);
+            UIFactory.StretchFull(label.rectTransform);
+        }
+
+        // Quit to main menu: the same full reset the debug menu's Restart Game did, back to the TUTORIAL / VS CPU / VS PLAYER screen.
+        // On the board engine MatchNetworkSync.DebugReset also drops the engine link, so the next VS PLAYER starts clean.
+        private void QuitToMainMenu()
+        {
+            matchState.ResetMatch();
+            arenaFrame.DebugForgetOpponent();
+            matchSetup?.DebugReset();
+            matchCountdown?.ResetCountdownGate();
+            matchNetworkSync?.DebugReset();
+            peerReadySync?.DebugReset();
+        }
+
+        // Where the old COMMANDS button was. It opens the debug menu, which draws its panel under this button.
+        private void BuildDebugButton()
+        {
+            var go = UIFactory.CreateRect("DebugButton", canvas.transform);
+            debugButtonRect = go.GetComponent<RectTransform>();
+            debugButtonRect.anchorMin = new Vector2(1f, 1f);
+            debugButtonRect.anchorMax = new Vector2(1f, 1f);
+            debugButtonRect.pivot = new Vector2(1f, 1f);
+            debugButtonRect.anchoredPosition = new Vector2(-20f, -170f);
+            debugButtonRect.sizeDelta = new Vector2(DebugButtonWidth, 56f);
 
             var bg = go.AddComponent<Image>();
             bg.sprite = UITextureFactory.CreateRoundedPanel(64, 12, HudPalette.Wood, HudPalette.WoodDark, 2, HudPalette.GoldDark);
@@ -570,31 +608,34 @@ namespace BridgeRush.UI
             button.targetGraphic = bg;
             button.onClick.AddListener(() =>
             {
-                if (optionsMenu == null) optionsMenu = FindAnyObjectByType<DebugMenu>();
-                if (optionsMenu != null) optionsMenu.ToggleMenu();
+                if (debugMenu == null) debugMenu = FindAnyObjectByType<DebugMenu>();
+                if (debugMenu != null) debugMenu.ToggleMenu();
             });
-            optionsButtonText = UIFactory.CreateText(go.transform, "OPTIONS >", 20, FontStyles.Bold, HudPalette.Cream);
-            UIFactory.StretchFull(optionsButtonText.rectTransform);
+            debugButtonText = UIFactory.CreateText(go.transform, "DEBUG >", 20, FontStyles.Bold, HudPalette.Cream);
+            UIFactory.StretchFull(debugButtonText.rectTransform);
         }
 
-        private void UpdateOptionsButton()
+        private void UpdateDebugButton()
         {
-            if (optionsMenu == null) optionsMenu = FindAnyObjectByType<DebugMenu>();
-            string label = optionsMenu != null && optionsMenu.MenuExpanded ? "OPTIONS v" : "OPTIONS >";
-            if (optionsButtonText.text != label) optionsButtonText.text = label;
+            if (debugMenu == null) debugMenu = FindAnyObjectByType<DebugMenu>();
+            string label = debugMenu != null && debugMenu.MenuExpanded ? "DEBUG v" : "DEBUG >";
+            if (debugButtonText.text != label) debugButtonText.text = label;
         }
 
-        public const float OptionsButtonWidth = 220f;
+        public const float DebugButtonWidth = 220f;
 
-        // The OPTIONS button's rectangle in screen pixels with the origin at the top left (what OnGUI draws in), so the menu
+        // Reused: the debug menu asks for this rectangle many times in every OnGUI, and a new array each time is garbage on a phone.
+        private readonly Vector3[] debugCorners = new Vector3[4];
+
+        // The DEBUG button's rectangle in screen pixels with the origin at the top left (what OnGUI draws in), so the menu
         // panel sits under it whatever the canvas scale is. Width 0 before the button exists.
-        public Rect OptionsButtonGuiRect
+        public Rect DebugButtonGuiRect
         {
             get
             {
-                if (optionsButtonRect == null) return new Rect(0f, 0f, 0f, 0f);
-                var corners = new Vector3[4];
-                optionsButtonRect.GetWorldCorners(corners);
+                if (debugButtonRect == null) return new Rect(0f, 0f, 0f, 0f);
+                debugButtonRect.GetWorldCorners(debugCorners);
+                var corners = debugCorners;
                 Camera cam = canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : canvas.worldCamera;
                 Vector2 bottomLeft = RectTransformUtility.WorldToScreenPoint(cam, corners[0]);
                 Vector2 topRight = RectTransformUtility.WorldToScreenPoint(cam, corners[2]);

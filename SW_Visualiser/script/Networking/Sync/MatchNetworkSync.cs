@@ -15,23 +15,11 @@ namespace BridgeRush.Networking
         [SerializeField] private MatchSetup matchSetup;
         [SerializeField] private MatchState matchState;
         [SerializeField] private MqttConnection mqttConnection;
-        [Tooltip("Wire EngineLink (and MatchState's Engine Link) to play VS PLAYER on the Ultra96 engine instead of the host phone.")]
+        [Tooltip("VS PLAYER always runs on the Ultra96 engine. Wire EngineLink here and in MatchState's Engine Link. Left empty, the host phone runs the game as a fallback.")]
         [SerializeField] private EngineLink engineLink;
-        [SerializeField] private bool useBoardEngine;
 
-        private const string BoardEnginePref = "use_board_engine";
-
-        // Takes effect when the next match's role is assigned (after the mode and player are chosen). Saved on the phone.
-        public bool UseBoardEngine
-        {
-            get => useBoardEngine && engineLink != null && matchState.BoardEngineAvailable;
-            set
-            {
-                useBoardEngine = value;
-                PlayerPrefs.SetInt(BoardEnginePref, value ? 1 : 0);
-            }
-        }
-        public bool BoardEngineWired => engineLink != null && matchState != null && matchState.BoardEngineAvailable;
+        // VS PLAYER always uses the Ultra96 engine when EngineLink is wired. There is no switch for it any more.
+        private bool UseBoardEngine => engineLink != null && matchState.BoardEngineAvailable;
 
         private bool roleAssigned;
         private bool subscribed;
@@ -44,7 +32,6 @@ namespace BridgeRush.Networking
                 enabled = false;
                 return;
             }
-            if (PlayerPrefs.HasKey(BoardEnginePref)) useBoardEngine = PlayerPrefs.GetInt(BoardEnginePref) == 1;
         }
 
         private void OnEnable()

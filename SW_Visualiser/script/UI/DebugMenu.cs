@@ -17,11 +17,6 @@ namespace BridgeRush.UI
 
         [SerializeField] private MatchState matchState;
         [SerializeField] private ArenaFrame arenaFrame;
-        [SerializeField] private MatchSetup matchSetup;
-        [SerializeField] private MatchCountdown matchCountdown;
-        [SerializeField] private MatchNetworkSync matchNetworkSync;
-        [SerializeField] private PeerReadySync peerReadySync;
-        [SerializeField] private TrackingDebugOverlay trackingDebugOverlay;
         [Tooltip("Optional. Lets the Tracking category tune the tag size live.")]
         [SerializeField] private AprilTagTracker aprilTagTracker;
         [Tooltip("Optional. Lets the Gestures category trigger glove gestures without the hardware.")]
@@ -90,7 +85,7 @@ namespace BridgeRush.UI
             get
             {
                 float scale = canvas != null ? canvas.scaleFactor : 1f;
-                if (hud != null && hud.OptionsButtonGuiRect.width > 1f) scale = hud.OptionsButtonGuiRect.width / MatchHudUI.OptionsButtonWidth;
+                if (hud != null && hud.DebugButtonGuiRect.width > 1f) scale = hud.DebugButtonGuiRect.width / MatchHudUI.DebugButtonWidth;
                 return scale * Mathf.Max(0.5f, menuScale);
             }
         }
@@ -108,18 +103,16 @@ namespace BridgeRush.UI
         {
             float s = UiScale;
 
-            DrawPausedTag(s);
-
-            // The OPTIONS button is a HUD button (MatchHudUI) in the slot the COMMANDS button used to have. This draws the panel
+            // The DEBUG button is a HUD button (MatchHudUI) in the slot the COMMANDS button used to have. This draws the panel
             // under it, at the same scale, so the two line up whatever the canvas scale is.
             if (!menuExpanded) return;
             float cs = canvas != null ? canvas.scaleFactor : 1f;
-            var optionsRect = new Rect(Screen.width - 240f * cs, 170f * cs, 220f * cs, 56f * cs);
+            var debugButtonRect = new Rect(Screen.width - 240f * cs, 170f * cs, 220f * cs, 56f * cs);
             if (hud == null) hud = FindAnyObjectByType<MatchHudUI>();
-            if (hud != null && hud.OptionsButtonGuiRect.width > 1f) optionsRect = hud.OptionsButtonGuiRect;
+            if (hud != null && hud.DebugButtonGuiRect.width > 1f) debugButtonRect = hud.DebugButtonGuiRect;
 
             float width = PanelWidth * s;
-            float top = optionsRect.yMax + 8f * (optionsRect.width / MatchHudUI.OptionsButtonWidth);
+            float top = debugButtonRect.yMax + 8f * (debugButtonRect.width / MatchHudUI.DebugButtonWidth);
             float left = Screen.width - width;
             float rowWidth = width - 20f * s;
 
@@ -150,21 +143,10 @@ namespace BridgeRush.UI
                 coach.SkipStep();
             }
 
-            if (matchNetworkSync != null && matchNetworkSync.BoardEngineWired)
-            {
-                bool board = matchNetworkSync.UseBoardEngine;
-                if (Row($"VS PLAYER engine: {(board ? "BOARD" : "HOST PHONE")} (next match)", left, ref y, rowWidth,
-                        board ? new Color(0.6f, 0.9f, 1f) : Color.white))
-                    matchNetworkSync.UseBoardEngine = !board;
-            }
-
             y = DrawCategory(Category.Match, "Match", left, y, rowWidth, s, DrawMatch);
             y = DrawCategory(Category.Opponent, "Opponent", left, y, rowWidth, s, DrawOpponent);
             y = DrawCategory(Category.Gestures, "Gestures", left, y, rowWidth, s, DrawGestures);
-            if (trackingDebugOverlay != null)
-            {
-                y = DrawCategory(Category.Tracking, "Tracking", left, y, rowWidth, s, DrawTracking);
-            }
+            y = DrawCategory(Category.Tracking, "Tracking", left, y, rowWidth, s, DrawTracking);
             y = DrawCategory(Category.Comms, "Comms", left, y, rowWidth, s, DrawComms);
 
             contentHeight = y - start;
@@ -210,21 +192,9 @@ namespace BridgeRush.UI
                 $"Arena scale {matchState.ArenaScale:0.00}  (lane {matchState.TotalLaneLength:0.00} m)\nNotice {matchState.EffectiveNoticeRangeMeters:0.00} m, melee hit {matchState.EffectiveHitReachMeters:0.00} m",
                 new GUIStyle(GUI.skin.label) { fontSize = Mathf.RoundToInt(14f * UiScale), normal = { textColor = new Color(0.8f, 1f, 0.8f) } });
             y += 48f * UiScale;
-            if (Row("Restart Game", left, ref y, rowWidth, new Color(1f, 0.7f, 0.6f)))
-            {
-                RestartGame();
-            }
-            if (Row(matchState.Paused ? "Resume" : "Pause", left, ref y, rowWidth, matchState.Paused ? Color.yellow : Color.white))
-            {
-                matchState.TogglePause();
-            }
             if (Row("Force Start (skip tracking)", left, ref y, rowWidth, new Color(0.6f, 0.85f, 1f)))
             {
                 matchState.StartMatch();
-            }
-            if (Row($"Haptics: {(Haptics.Enabled ? "ON" : "OFF")} (tap to switch)", left, ref y, rowWidth, new Color(1f, 0.85f, 0.7f)))
-            {
-                Haptics.Enabled = !Haptics.Enabled;
             }
             if (Row($"Test pulse: {testPulse}", left, ref y, rowWidth, new Color(1f, 0.85f, 0.7f)))
             {
@@ -234,14 +204,6 @@ namespace BridgeRush.UI
             if (Row("Jump to last minute (test 2x mana)", left, ref y, rowWidth, new Color(1f, 0.9f, 0.5f)))
             {
                 matchState.DebugSetTimeRemaining(matchState.DoubleManaLastSeconds - 1f);
-            }
-            if (Row($"Music: {(GameMusic.Enabled ? "ON" : "OFF")}", left, ref y, rowWidth, new Color(0.8f, 0.9f, 1f)))
-            {
-                GameMusic.Enabled = !GameMusic.Enabled;
-            }
-            if (Row($"Sound: {(GameAudio.Muted ? "OFF" : "ON")}", left, ref y, rowWidth, new Color(0.9f, 0.8f, 1f)))
-            {
-                GameAudio.Muted = !GameAudio.Muted;
             }
             if (Row($"Bridges: {(matchState.TwoBridges ? 2 : 1)} (tap, then Restart)", left, ref y, rowWidth, new Color(0.8f, 0.9f, 0.6f)))
             {
@@ -357,17 +319,6 @@ namespace BridgeRush.UI
                 y += (RowHeight + RowGap) * s;
             }
 
-            if (Row(SummonCursor.ShowDiagnostic ? "Hide Aim Readout" : "Show Aim Readout", left, ref y, rowWidth,
-                SummonCursor.ShowDiagnostic ? Color.white : Color.gray))
-            {
-                SummonCursor.ShowDiagnostic = !SummonCursor.ShowDiagnostic;
-            }
-
-            bool shown = trackingDebugOverlay.ShowLine;
-            if (Row(shown ? "Hide Lane Line" : "Show Lane Line", left, ref y, rowWidth, shown ? Color.white : Color.gray))
-            {
-                trackingDebugOverlay.ShowLine = !shown;
-            }
             return y;
         }
 
@@ -422,30 +373,6 @@ namespace BridgeRush.UI
             commsBridge.DrawDetails();
             GUILayout.EndArea();
             GUI.matrix = previous;
-        }
-
-        private void RestartGame()
-        {
-            matchState.ResetMatch();
-            arenaFrame?.DebugForgetOpponent();
-            matchSetup?.DebugReset();
-            matchCountdown?.ResetCountdownGate();
-            matchNetworkSync?.DebugReset();
-            peerReadySync?.DebugReset();
-        }
-
-        private void DrawPausedTag(float s)
-        {
-            if (!matchState.Paused) return;
-
-            var style = new GUIStyle(GUI.skin.label)
-            {
-                fontSize = Mathf.RoundToInt(16f * s),
-                fontStyle = FontStyle.Bold,
-                alignment = TextAnchor.MiddleCenter,
-                normal = { textColor = Color.yellow }
-            };
-            GUI.Label(new Rect(Screen.width / 2f - 80f * s, 62f * s, 160f * s, 30f * s), "❚❚ PAUSED", style);
         }
     }
 }
