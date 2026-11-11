@@ -147,9 +147,9 @@ class _BoardBackend:
         self.outb = allocate(shape=(config.n_classes,), dtype=np.int16)              # 7
 
     def _wait(self, ch, name, timeout=3.0):
-        t0 = time.time(); time.sleep(0.01)
+        t0 = time.perf_counter()
         while not ch.idle:
-            if time.time() - t0 > timeout:
+            if time.perf_counter() - t0 > timeout:
                 raise RuntimeError(f"DMA {name} stalled after {timeout}s")
 
     def run(self):

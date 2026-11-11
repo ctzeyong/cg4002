@@ -20,9 +20,9 @@ def from_fixed(q):
     return np.asarray(q).astype(np.float32) / SCALE
 
 def dma_wait(ch, name, timeout=3.0):
-    t0 = time.time(); time.sleep(0.01)
+    t0 = time.perf_counter()
     while not ch.idle:
-        if time.time() - t0 > timeout:
+        if time.perf_counter() - t0 > timeout:
             print(f"  [TIMEOUT] {name} after {timeout}s", flush=True); return False
     return True
 
