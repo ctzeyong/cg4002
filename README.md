@@ -24,7 +24,7 @@ setup. Each subsystem and each integration has its own detailed page, linked bel
 ```text
  Glove 1, Glove 2  (FireBeetle ESP32 + MPU6050, one per player)
    | reads the IMU at 500 Hz, flags the samples that are part of a gesture,
-   | sends a 26-byte packet every 10 ms
+   | sends a 20-byte packet every 10 ms
    |
    |  BLE, encrypted                                ^ VIBRATE after each classified gesture
    v                                                |

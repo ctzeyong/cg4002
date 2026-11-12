@@ -89,12 +89,13 @@ Each player has one service and two characteristics. Replace `{player}` with `1`
 | CMD | `b1160003-0000-4000-8000-00000000000{player}` | Encrypted `WRITE`; laptop → FireBeetle | Carries `CMD` and outbound file-transfer packets. |
 
 The firmware transmits only after the connection is encrypted and the negotiated MTU can carry
-a 26-byte application packet (`MTU >= 29`, including ATT overhead). SENSOR packets are emitted
-every 10 ms, giving a target rate of 100 Hz per FireBeetle.
+a 20-byte application packet (`MTU >= 23`, including ATT overhead). BLE's default MTU is 23, so
+streaming starts as soon as the link is encrypted. SENSOR packets are emitted every 10 ms, giving
+a target rate of 100 Hz per FireBeetle.
 
 ### BLE fixed packets
 
-`SENSOR`, `CMD`, and `ECHO` use the same fixed 26-byte little-endian layout:
+`SENSOR`, `CMD`, and `ECHO` use the same fixed 20-byte little-endian layout:
 
 | Bytes | Size | Field | Details |
 |---|---:|---|---|
@@ -106,14 +107,14 @@ every 10 ms, giving a target rate of 100 Hz per FireBeetle.
 | `8–9` | 2 | `gx` | Signed `int16`, little-endian. |
 | `10–11` | 2 | `gy` | Signed `int16`, little-endian. |
 | `12–13` | 2 | `gz` | Signed `int16`, little-endian. |
-| `14–23` | 10 | Reserved | Five signed `int16` values. In a SENSOR packet, the first is the IMU status (`0` legacy, `1` OK, `2` missing, `3` recovering); the remaining four are zero. |
-| `24–25` | 2 | CRC | CRC-16/CCITT-FALSE over bytes `0–23`, stored little-endian. Polynomial `0x1021`, initial value `0xFFFF`. |
+| `14–17` | 4 | Reserved | Two signed `int16` values. In a SENSOR packet, the first is the IMU status (`0` legacy, `1` OK, `2` missing, `3` recovering) and the second is the gesture flag. |
+| `18–19` | 2 | CRC | CRC-16/CCITT-FALSE over bytes `0–17`, stored little-endian. Polynomial `0x1021`, initial value `0xFFFF`. |
 
 | Type | Hex | Direction | Current behaviour |
 |---|---:|---|---|
 | `SENSOR` | `0x01` | FireBeetle → laptop | Free-running 100 Hz stream from one MPU6050 per player. It carries raw ±4 g / ±500 °/s counts, or zeros with an explicit missing/recovering status. |
-| `CMD` | `0x03` | Laptop → FireBeetle | A keypress creates 11 fields. Field 0 contains the masked key code; the remaining IMU fields are random test data and the reserved fields are zero. |
-| `ECHO` | `0x04` | FireBeetle → laptop | Reply to one CMD. It keeps the CMD sequence, changes the type, negates the first six fields, leaves the five reserved fields unchanged, and recomputes the CRC. |
+| `CMD` | `0x03` | Laptop → FireBeetle | A keypress creates 8 fields. Field 0 contains the masked key code; the remaining IMU fields are random test data and the reserved fields are zero. |
+| `ECHO` | `0x04` | FireBeetle → laptop | Reply to one CMD. It keeps the CMD sequence, changes the type, negates the first six fields, leaves the two reserved fields unchanged, and recomputes the CRC. |
 
 The laptop validates packet length, CRC, and type before forwarding. A successful BLE GATT write
 acknowledges only the transport write; receiving the application-level ECHO is the stronger proof
@@ -151,10 +152,10 @@ Example decoded SENSOR message:
   "node": 1,
   "seq": 42,
   "timestamp": 12345.678,
-  "fields": [120, -4, 8190, 7, -2, 1, 1, 0, 0, 0, 0],
+  "fields": [120, -4, 8190, 7, -2, 1, 1, 0],
   "imu": {"ax": 120, "ay": -4, "az": 8190, "gx": 7, "gy": -2, "gz": 1},
-  "reserved": [1, 0, 0, 0, 0],
-  "crc": 18695
+  "reserved": [1, 0],
+  "crc": 19132
 }
 ```
 
