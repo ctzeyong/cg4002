@@ -535,6 +535,39 @@ async def test_laptop_warns_when_the_board_is_in_the_wrong_configuration(caplog)
     assert "tcp_client_mqtt" in messages
 
 
+@pytest.mark.asyncio
+async def test_a_held_event_loop_is_reported_with_how_late_it_was(caplog):
+    """A callback that blocks the loop for 300 ms gives a warning with how late it was."""
+    import pipeline_board_broker
+
+    stop = asyncio.Event()
+    with caplog.at_level(logging.WARNING, logger="pipeline_board_broker"):
+        watch = asyncio.create_task(pipeline_board_broker.watch_loop_lag(stop))
+        await asyncio.sleep(0.05)
+        time.sleep(0.3)  # holds the loop, as a stuck callback would
+        await asyncio.sleep(0.25)
+        stop.set()
+        await asyncio.wait_for(watch, timeout=DEADLINE_S)
+
+    warnings = [r.getMessage() for r in caplog.records if "slow event loop" in r.getMessage()]
+    assert warnings
+    worst_ms = int(warnings[0].rsplit("worst ", 1)[1].split(" ms")[0])
+    assert worst_ms >= 150
+
+
+@pytest.mark.asyncio
+async def test_the_loop_watch_runs_until_stop_and_then_returns_by_itself():
+    """The relay stops when any task ends, so this one must only end on stop."""
+    import pipeline_board_broker
+
+    stop = asyncio.Event()
+    watch = asyncio.create_task(pipeline_board_broker.watch_loop_lag(stop))
+    await asyncio.sleep(0.35)
+    assert not watch.done()
+    stop.set()
+    await asyncio.wait_for(watch, timeout=1.0)
+
+
 async def drain(downlink, outboxes):
     """Run drain_downlink until it has taken every message off `downlink`."""
     import pipeline_board_broker

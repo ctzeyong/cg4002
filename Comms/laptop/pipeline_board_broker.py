@@ -29,6 +29,7 @@ Design decisions for this leg live in `notes/tunnelled_visualiser.md`, not here.
 import argparse
 import asyncio
 import logging
+import time
 from pathlib import Path
 
 import ble_client
@@ -50,6 +51,10 @@ LOG_FILE = Path(__file__).resolve().parent.parent / "logs" / "pipeline_board_bro
 log = logging.getLogger("pipeline_board_broker")
 
 VIBRATE = "VIBRATE"  # sent by the board after it classifies a gesture
+
+LOOP_CHECK_S = 0.1
+SLOW_LOOP_MS = 50.0  # an idle loop on Windows wakes up to about 21 ms late, so this stays quiet
+SLOW_LOOP_REPORT_S = 1.0
 
 
 def _is_int(value):
@@ -114,6 +119,34 @@ async def drain_downlink(downlink, outboxes, stop):
             log.warning("%d unexpected downlink messages discarded", seen)
 
 
+async def watch_loop_lag(stop):
+    """Warn when this task wakes up late, which means something held the event loop.
+
+    Late wake-ups are reported at most once a second, with the worst one.
+    """
+    late = 0
+    worst_ms = 0.0
+    last_report = float("-inf")  # so the first late wake-up is reported at once
+    while not stop.is_set():
+        started = time.perf_counter()
+        await asyncio.sleep(LOOP_CHECK_S)
+        lag_ms = (time.perf_counter() - started - LOOP_CHECK_S) * 1000
+        if lag_ms >= SLOW_LOOP_MS:
+            late += 1
+            worst_ms = max(worst_ms, lag_ms)
+        now = time.monotonic()
+        if late and now - last_report >= SLOW_LOOP_REPORT_S:
+            log.warning(
+                "slow event loop: %d wake-up(s) late by %.0f ms or more, worst %.0f ms",
+                late,
+                SLOW_LOOP_MS,
+                worst_ms,
+            )
+            late = 0
+            worst_ms = 0.0
+            last_report = now
+
+
 async def run_pipeline(nodes, tcp_host, tcp_port, tunnel_config=None, tunnel_password=None):
     """Run entire pipline (Firebeetle -> Laptop -> U96 -> Phone) until shutdown."""
     ble_queue = asyncio.Queue(maxsize=ble_client.QUEUE_MAXSIZE)
@@ -129,6 +162,7 @@ async def run_pipeline(nodes, tcp_host, tcp_port, tunnel_config=None, tunnel_pas
         asyncio.create_task(forward_uplink(ble_queue, stop)),
         asyncio.create_task(drain_downlink(downlink, outboxes, stop)),
         asyncio.create_task(keystroke_reader(nodes, outboxes, stop)),
+        asyncio.create_task(watch_loop_lag(stop)),
     ]
     if tunnel_config is not None:
         tasks.append(
