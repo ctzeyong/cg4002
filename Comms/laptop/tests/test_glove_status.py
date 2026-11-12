@@ -41,7 +41,7 @@ BOTH_OFFLINE = {"player1": "offline", "player2": "offline"}
 
 def sensor(node, status=gesture.IMU_OK):
     imu = dict.fromkeys(gesture.CHANNELS, 0)
-    return {"type": "SENSOR", "node": node, "seq": 0, "imu": imu, "reserved": [status, 0, 0, 0, 0]}
+    return {"type": "SENSOR", "node": node, "seq": 0, "imu": imu, "reserved": [status, 0]}
 
 
 def fill(gloves, node, count, now, status=gesture.IMU_OK):

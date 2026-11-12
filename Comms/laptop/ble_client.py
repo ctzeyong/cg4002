@@ -152,7 +152,7 @@ class NodeStats:
 
 
 def random_cmd_fields():
-    """Six random IMU-style int16 values, then five reserved zeros.
+    """Six random IMU-style int16 values, then two reserved zeros.
 
     Kept within ±30000 so the board's negation is always a clean sign flip
     (-32768 has no positive int16 and would come back unchanged).

@@ -70,7 +70,7 @@ def test_chunk_size_uses_negotiated_mtu_and_firmware_minimum():
     assert chunk_size_for_mtu(128) == MAX_FILE_DATA_LEN
     assert chunk_size_for_mtu(64) == 64 - 3 - FILE_HEADER_LEN
     with pytest.raises(ValueError, match="firmware"):
-        chunk_size_for_mtu(23)
+        chunk_size_for_mtu(22)
 
 
 @pytest.mark.asyncio
@@ -79,7 +79,7 @@ async def test_notify_handler_ignores_sensor_packets_and_queues_file_replies():
     handler = make_file_notify_handler(echoes)
     file_packet = build_file_data(1, 0, b"abc")
 
-    handler(None, bytes((TYPE_SENSOR, 0)) + b"\0" * 24)
+    handler(None, bytes((TYPE_SENSOR, 0)) + b"\0" * 18)
     handler(None, file_packet)
 
     assert echoes.qsize() == 1

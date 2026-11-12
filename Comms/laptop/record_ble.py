@@ -95,7 +95,7 @@ class SampleClock:
 
 
 def sample_row(fields, count, wall_ns):
-    """One CSV row from a SENSOR packet's 11 fields, in record.py's units (g, deg/s)."""
+    """One CSV row from a SENSOR packet's 8 fields, in record.py's units (g, deg/s)."""
     g_dps = [v / COUNTS_PER_G for v in fields[0:3]] + [v / COUNTS_PER_DPS for v in fields[3:6]]
     return [count, count * PACKET_PERIOD_US, *g_dps, wall_ns,
             fields[STATUS_FIELD], fields[FLAG_FIELD]]
