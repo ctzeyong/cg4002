@@ -1,0 +1,63 @@
+{
+  "same_holdout_files_and_annotations": true,
+  "validation_participant": "juven",
+  "test_participant": "jermaine",
+  "runs": {
+    "ble_comparison": {
+      "kind": "tree",
+      "nodes": 119,
+      "start_threshold": 0.2,
+      "stop_threshold": 0.1,
+      "validation": {
+        "useful_sample_recall": 0.6634196315396503,
+        "background_active_fraction": 0.35951053731142113,
+        "false_starts_per_background_minute": 25.070040146723276,
+        "gesture_detection_rate": 0.9864130434782609,
+        "onset_delay_p95_ms_detected_only": 755.9999999999995,
+        "positive_samples": 57591,
+        "background_samples": 103869,
+        "gestures": 368,
+        "detected": 363
+      },
+      "test": {
+        "useful_sample_recall": 0.6805983539415689,
+        "background_active_fraction": 0.229140550569122,
+        "false_starts_per_background_minute": 23.842952414380985,
+        "gesture_detection_rate": 1.0,
+        "onset_delay_p95_ms_detected_only": 599.9999999999999,
+        "positive_samples": 51274,
+        "background_samples": 79772,
+        "gestures": 357,
+        "detected": 357
+      }
+    },
+    "combined_500hz": {
+      "kind": "tree",
+      "nodes": 127,
+      "start_threshold": 0.6,
+      "stop_threshold": 0.4,
+      "validation": {
+        "useful_sample_recall": 0.6239342952891945,
+        "background_active_fraction": 0.2674426440997795,
+        "false_starts_per_background_minute": 22.99049764607342,
+        "gesture_detection_rate": 0.9918478260869565,
+        "onset_delay_p95_ms_detected_only": 688.0,
+        "positive_samples": 57591,
+        "background_samples": 103869,
+        "gestures": 368,
+        "detected": 365
+      },
+      "test": {
+        "useful_sample_recall": 0.5663104107344853,
+        "background_active_fraction": 0.03817128817128817,
+        "false_starts_per_background_minute": 6.694078122649551,
+        "gesture_detection_rate": 0.9859943977591037,
+        "onset_delay_p95_ms_detected_only": 732.4999999999999,
+        "positive_samples": 51274,
+        "background_samples": 79772,
+        "gestures": 357,
+        "detected": 352
+      }
+    }
+  }
+}

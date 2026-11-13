@@ -1,0 +1,9 @@
+{
+  "active_run": "ble_juven_val_ty_test",
+  "validation": "juven",
+  "test": "ty",
+  "noise_included_once": true,
+  "noise_specific_weighting": false,
+  "legacy_500hz_included": false,
+  "basis": "User requested BLE-only data including existing 100 Hz noise, Juven validation, TY test."
+}

@@ -1,0 +1,6050 @@
+[
+  {
+    "kind": "tree",
+    "start": 0.2,
+    "stop": 0.1,
+    "report": {
+      "useful_sample_recall": 0.6485909256654686,
+      "background_active_fraction": 0.3449826223416034,
+      "false_starts_per_background_minute": 26.45640181382318,
+      "gesture_detection_rate": 0.9836956521739131,
+      "onset_delay_p95_ms_detected_only": 717.4999999999999,
+      "positive_samples": 57591,
+      "background_samples": 103869,
+      "per_class": {
+        "circle": {
+          "samples": 8695,
+          "retained": 6763,
+          "gestures": 52,
+          "detected": 52,
+          "covered_80_percent": 23,
+          "sample_recall": 0.7778033352501438,
+          "gesture_detection_rate": 1.0
+        },
+        "star": {
+          "samples": 13462,
+          "retained": 11115,
+          "gestures": 56,
+          "detected": 56,
+          "covered_80_percent": 38,
+          "sample_recall": 0.8256574060317932,
+          "gesture_detection_rate": 1.0
+        },
+        "lightning": {
+          "samples": 7770,
+          "retained": 5068,
+          "gestures": 53,
+          "detected": 51,
+          "covered_80_percent": 10,
+          "sample_recall": 0.6522522522522523,
+          "gesture_detection_rate": 0.9622641509433962
+        },
+        "fireball": {
+          "samples": 6622,
+          "retained": 3725,
+          "gestures": 53,
+          "detected": 50,
+          "covered_80_percent": 10,
+          "sample_recall": 0.5625188764723649,
+          "gesture_detection_rate": 0.9433962264150944
+        },
+        "tank": {
+          "samples": 8162,
+          "retained": 3521,
+          "gestures": 54,
+          "detected": 54,
+          "covered_80_percent": 0,
+          "sample_recall": 0.43138936535162953,
+          "gesture_detection_rate": 1.0
+        },
+        "chop": {
+          "samples": 6811,
+          "retained": 3040,
+          "gestures": 50,
+          "detected": 49,
+          "covered_80_percent": 3,
+          "sample_recall": 0.4463368081045368,
+          "gesture_detection_rate": 0.98
+        },
+        "jabs": {
+          "samples": 6069,
+          "retained": 4121,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 11,
+          "sample_recall": 0.6790245509968693,
+          "gesture_detection_rate": 1.0
+        }
+      },
+      "recordings": [
+        {
+          "csv": "juven_day1_chop_air_front_cw_standing_3.csv",
+          "positive_samples": 6811,
+          "retained_positive": 3040,
+          "background_samples": 23284,
+          "active_background": 10420
+        },
+        {
+          "csv": "juven_day1_circle_air_front_cw_standing_2.csv",
+          "positive_samples": 8695,
+          "retained_positive": 6763,
+          "background_samples": 9667,
+          "active_background": 2532
+        },
+        {
+          "csv": "juven_day1_fireball_air_front_cw_standing.csv",
+          "positive_samples": 6622,
+          "retained_positive": 3725,
+          "background_samples": 11706,
+          "active_background": 3795
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_2.csv",
+          "positive_samples": 3121,
+          "retained_positive": 2027,
+          "background_samples": 9925,
+          "active_background": 2438
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_3.csv",
+          "positive_samples": 2948,
+          "retained_positive": 2094,
+          "background_samples": 5570,
+          "active_background": 1835
+        },
+        {
+          "csv": "juven_day1_lightning_air_front_cw_standing.csv",
+          "positive_samples": 7770,
+          "retained_positive": 5068,
+          "background_samples": 14462,
+          "active_background": 5167
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing.csv",
+          "positive_samples": 1383,
+          "retained_positive": 1047,
+          "background_samples": 2438,
+          "active_background": 918
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing_2.csv",
+          "positive_samples": 12079,
+          "retained_positive": 10068,
+          "background_samples": 9834,
+          "active_background": 2232
+        },
+        {
+          "csv": "juven_day1_tank_air_front_cw_standing_2.csv",
+          "positive_samples": 8162,
+          "retained_positive": 3521,
+          "background_samples": 16983,
+          "active_background": 6496
+        }
+      ]
+    }
+  },
+  {
+    "kind": "tree",
+    "start": 0.3,
+    "stop": 0.1,
+    "report": {
+      "useful_sample_recall": 0.5926794117136358,
+      "background_active_fraction": 0.24425959622216445,
+      "false_starts_per_background_minute": 19.92894896456113,
+      "gesture_detection_rate": 0.9864130434782609,
+      "onset_delay_p95_ms_detected_only": 738.0,
+      "positive_samples": 57591,
+      "background_samples": 103869,
+      "per_class": {
+        "circle": {
+          "samples": 8695,
+          "retained": 6201,
+          "gestures": 52,
+          "detected": 52,
+          "covered_80_percent": 10,
+          "sample_recall": 0.7131684876365727,
+          "gesture_detection_rate": 1.0
+        },
+        "star": {
+          "samples": 13462,
+          "retained": 10476,
+          "gestures": 56,
+          "detected": 56,
+          "covered_80_percent": 32,
+          "sample_recall": 0.7781904620413015,
+          "gesture_detection_rate": 1.0
+        },
+        "lightning": {
+          "samples": 7770,
+          "retained": 4668,
+          "gestures": 53,
+          "detected": 51,
+          "covered_80_percent": 4,
+          "sample_recall": 0.6007722007722007,
+          "gesture_detection_rate": 0.9622641509433962
+        },
+        "fireball": {
+          "samples": 6622,
+          "retained": 3257,
+          "gestures": 53,
+          "detected": 50,
+          "covered_80_percent": 8,
+          "sample_recall": 0.4918453639383872,
+          "gesture_detection_rate": 0.9433962264150944
+        },
+        "tank": {
+          "samples": 8162,
+          "retained": 3403,
+          "gestures": 54,
+          "detected": 54,
+          "covered_80_percent": 0,
+          "sample_recall": 0.4169321244792943,
+          "gesture_detection_rate": 1.0
+        },
+        "chop": {
+          "samples": 6811,
+          "retained": 2884,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 2,
+          "sample_recall": 0.4234326824254882,
+          "gesture_detection_rate": 1.0
+        },
+        "jabs": {
+          "samples": 6069,
+          "retained": 3244,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 2,
+          "sample_recall": 0.5345196902290328,
+          "gesture_detection_rate": 1.0
+        }
+      },
+      "recordings": [
+        {
+          "csv": "juven_day1_chop_air_front_cw_standing_3.csv",
+          "positive_samples": 6811,
+          "retained_positive": 2884,
+          "background_samples": 23284,
+          "active_background": 6878
+        },
+        {
+          "csv": "juven_day1_circle_air_front_cw_standing_2.csv",
+          "positive_samples": 8695,
+          "retained_positive": 6201,
+          "background_samples": 9667,
+          "active_background": 1199
+        },
+        {
+          "csv": "juven_day1_fireball_air_front_cw_standing.csv",
+          "positive_samples": 6622,
+          "retained_positive": 3257,
+          "background_samples": 11706,
+          "active_background": 3528
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_2.csv",
+          "positive_samples": 3121,
+          "retained_positive": 1546,
+          "background_samples": 9925,
+          "active_background": 1114
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_3.csv",
+          "positive_samples": 2948,
+          "retained_positive": 1698,
+          "background_samples": 5570,
+          "active_background": 1027
+        },
+        {
+          "csv": "juven_day1_lightning_air_front_cw_standing.csv",
+          "positive_samples": 7770,
+          "retained_positive": 4668,
+          "background_samples": 14462,
+          "active_background": 4072
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing.csv",
+          "positive_samples": 1383,
+          "retained_positive": 935,
+          "background_samples": 2438,
+          "active_background": 460
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing_2.csv",
+          "positive_samples": 12079,
+          "retained_positive": 9541,
+          "background_samples": 9834,
+          "active_background": 1044
+        },
+        {
+          "csv": "juven_day1_tank_air_front_cw_standing_2.csv",
+          "positive_samples": 8162,
+          "retained_positive": 3403,
+          "background_samples": 16983,
+          "active_background": 6049
+        }
+      ]
+    }
+  },
+  {
+    "kind": "tree",
+    "start": 0.3,
+    "stop": 0.2,
+    "report": {
+      "useful_sample_recall": 0.6418363980483062,
+      "background_active_fraction": 0.30902386660119957,
+      "false_starts_per_background_minute": 24.203564104785837,
+      "gesture_detection_rate": 0.9945652173913043,
+      "onset_delay_p95_ms_detected_only": 705.5,
+      "positive_samples": 57591,
+      "background_samples": 103869,
+      "per_class": {
+        "circle": {
+          "samples": 8695,
+          "retained": 6258,
+          "gestures": 52,
+          "detected": 52,
+          "covered_80_percent": 10,
+          "sample_recall": 0.7197239792984473,
+          "gesture_detection_rate": 1.0
+        },
+        "star": {
+          "samples": 13462,
+          "retained": 10677,
+          "gestures": 56,
+          "detected": 56,
+          "covered_80_percent": 34,
+          "sample_recall": 0.7931213786955876,
+          "gesture_detection_rate": 1.0
+        },
+        "lightning": {
+          "samples": 7770,
+          "retained": 5211,
+          "gestures": 53,
+          "detected": 51,
+          "covered_80_percent": 11,
+          "sample_recall": 0.6706563706563706,
+          "gesture_detection_rate": 0.9622641509433962
+        },
+        "fireball": {
+          "samples": 6622,
+          "retained": 3944,
+          "gestures": 53,
+          "detected": 53,
+          "covered_80_percent": 14,
+          "sample_recall": 0.5955904560555724,
+          "gesture_detection_rate": 1.0
+        },
+        "tank": {
+          "samples": 8162,
+          "retained": 3794,
+          "gestures": 54,
+          "detected": 54,
+          "covered_80_percent": 0,
+          "sample_recall": 0.4648370497427101,
+          "gesture_detection_rate": 1.0
+        },
+        "chop": {
+          "samples": 6811,
+          "retained": 3743,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 10,
+          "sample_recall": 0.5495521949787109,
+          "gesture_detection_rate": 1.0
+        },
+        "jabs": {
+          "samples": 6069,
+          "retained": 3337,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 3,
+          "sample_recall": 0.5498434667984841,
+          "gesture_detection_rate": 1.0
+        }
+      },
+      "recordings": [
+        {
+          "csv": "juven_day1_chop_air_front_cw_standing_3.csv",
+          "positive_samples": 6811,
+          "retained_positive": 3743,
+          "background_samples": 23284,
+          "active_background": 10352
+        },
+        {
+          "csv": "juven_day1_circle_air_front_cw_standing_2.csv",
+          "positive_samples": 8695,
+          "retained_positive": 6258,
+          "background_samples": 9667,
+          "active_background": 2287
+        },
+        {
+          "csv": "juven_day1_fireball_air_front_cw_standing.csv",
+          "positive_samples": 6622,
+          "retained_positive": 3944,
+          "background_samples": 11706,
+          "active_background": 4506
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_2.csv",
+          "positive_samples": 3121,
+          "retained_positive": 1547,
+          "background_samples": 9925,
+          "active_background": 1348
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_3.csv",
+          "positive_samples": 2948,
+          "retained_positive": 1790,
+          "background_samples": 5570,
+          "active_background": 1300
+        },
+        {
+          "csv": "juven_day1_lightning_air_front_cw_standing.csv",
+          "positive_samples": 7770,
+          "retained_positive": 5211,
+          "background_samples": 14462,
+          "active_background": 4309
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing.csv",
+          "positive_samples": 1383,
+          "retained_positive": 935,
+          "background_samples": 2438,
+          "active_background": 525
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing_2.csv",
+          "positive_samples": 12079,
+          "retained_positive": 9742,
+          "background_samples": 9834,
+          "active_background": 1138
+        },
+        {
+          "csv": "juven_day1_tank_air_front_cw_standing_2.csv",
+          "positive_samples": 8162,
+          "retained_positive": 3794,
+          "background_samples": 16983,
+          "active_background": 6333
+        }
+      ]
+    }
+  },
+  {
+    "kind": "tree",
+    "start": 0.4,
+    "stop": 0.1,
+    "report": {
+      "useful_sample_recall": 0.5924536819989235,
+      "background_active_fraction": 0.2369523149351587,
+      "false_starts_per_background_minute": 19.35129826993617,
+      "gesture_detection_rate": 0.9864130434782609,
+      "onset_delay_p95_ms_detected_only": 738.0,
+      "positive_samples": 57591,
+      "background_samples": 103869,
+      "per_class": {
+        "circle": {
+          "samples": 8695,
+          "retained": 6201,
+          "gestures": 52,
+          "detected": 52,
+          "covered_80_percent": 10,
+          "sample_recall": 0.7131684876365727,
+          "gesture_detection_rate": 1.0
+        },
+        "star": {
+          "samples": 13462,
+          "retained": 10476,
+          "gestures": 56,
+          "detected": 56,
+          "covered_80_percent": 32,
+          "sample_recall": 0.7781904620413015,
+          "gesture_detection_rate": 1.0
+        },
+        "lightning": {
+          "samples": 7770,
+          "retained": 4668,
+          "gestures": 53,
+          "detected": 51,
+          "covered_80_percent": 4,
+          "sample_recall": 0.6007722007722007,
+          "gesture_detection_rate": 0.9622641509433962
+        },
+        "fireball": {
+          "samples": 6622,
+          "retained": 3309,
+          "gestures": 53,
+          "detected": 50,
+          "covered_80_percent": 9,
+          "sample_recall": 0.49969797644216246,
+          "gesture_detection_rate": 0.9433962264150944
+        },
+        "tank": {
+          "samples": 8162,
+          "retained": 3413,
+          "gestures": 54,
+          "detected": 54,
+          "covered_80_percent": 0,
+          "sample_recall": 0.4181573143837295,
+          "gesture_detection_rate": 1.0
+        },
+        "chop": {
+          "samples": 6811,
+          "retained": 2809,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 2,
+          "sample_recall": 0.4124210835413302,
+          "gesture_detection_rate": 1.0
+        },
+        "jabs": {
+          "samples": 6069,
+          "retained": 3244,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 2,
+          "sample_recall": 0.5345196902290328,
+          "gesture_detection_rate": 1.0
+        }
+      },
+      "recordings": [
+        {
+          "csv": "juven_day1_chop_air_front_cw_standing_3.csv",
+          "positive_samples": 6811,
+          "retained_positive": 2809,
+          "background_samples": 23284,
+          "active_background": 6818
+        },
+        {
+          "csv": "juven_day1_circle_air_front_cw_standing_2.csv",
+          "positive_samples": 8695,
+          "retained_positive": 6201,
+          "background_samples": 9667,
+          "active_background": 1124
+        },
+        {
+          "csv": "juven_day1_fireball_air_front_cw_standing.csv",
+          "positive_samples": 6622,
+          "retained_positive": 3309,
+          "background_samples": 11706,
+          "active_background": 3511
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_2.csv",
+          "positive_samples": 3121,
+          "retained_positive": 1546,
+          "background_samples": 9925,
+          "active_background": 1104
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_3.csv",
+          "positive_samples": 2948,
+          "retained_positive": 1698,
+          "background_samples": 5570,
+          "active_background": 1027
+        },
+        {
+          "csv": "juven_day1_lightning_air_front_cw_standing.csv",
+          "positive_samples": 7770,
+          "retained_positive": 4668,
+          "background_samples": 14462,
+          "active_background": 4007
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing.csv",
+          "positive_samples": 1383,
+          "retained_positive": 935,
+          "background_samples": 2438,
+          "active_background": 460
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing_2.csv",
+          "positive_samples": 12079,
+          "retained_positive": 9541,
+          "background_samples": 9834,
+          "active_background": 1044
+        },
+        {
+          "csv": "juven_day1_tank_air_front_cw_standing_2.csv",
+          "positive_samples": 8162,
+          "retained_positive": 3413,
+          "background_samples": 16983,
+          "active_background": 5517
+        }
+      ]
+    }
+  },
+  {
+    "kind": "tree",
+    "start": 0.4,
+    "stop": 0.2,
+    "report": {
+      "useful_sample_recall": 0.6376517164140231,
+      "background_active_fraction": 0.30136036738584177,
+      "false_starts_per_background_minute": 23.625913410160877,
+      "gesture_detection_rate": 0.9945652173913043,
+      "onset_delay_p95_ms_detected_only": 705.5,
+      "positive_samples": 57591,
+      "background_samples": 103869,
+      "per_class": {
+        "circle": {
+          "samples": 8695,
+          "retained": 6258,
+          "gestures": 52,
+          "detected": 52,
+          "covered_80_percent": 10,
+          "sample_recall": 0.7197239792984473,
+          "gesture_detection_rate": 1.0
+        },
+        "star": {
+          "samples": 13462,
+          "retained": 10677,
+          "gestures": 56,
+          "detected": 56,
+          "covered_80_percent": 34,
+          "sample_recall": 0.7931213786955876,
+          "gesture_detection_rate": 1.0
+        },
+        "lightning": {
+          "samples": 7770,
+          "retained": 5211,
+          "gestures": 53,
+          "detected": 51,
+          "covered_80_percent": 11,
+          "sample_recall": 0.6706563706563706,
+          "gesture_detection_rate": 0.9622641509433962
+        },
+        "fireball": {
+          "samples": 6622,
+          "retained": 3921,
+          "gestures": 53,
+          "detected": 53,
+          "covered_80_percent": 14,
+          "sample_recall": 0.592117185140441,
+          "gesture_detection_rate": 1.0
+        },
+        "tank": {
+          "samples": 8162,
+          "retained": 3636,
+          "gestures": 54,
+          "detected": 54,
+          "covered_80_percent": 0,
+          "sample_recall": 0.44547904925263415,
+          "gesture_detection_rate": 1.0
+        },
+        "chop": {
+          "samples": 6811,
+          "retained": 3683,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 10,
+          "sample_recall": 0.5407429158713846,
+          "gesture_detection_rate": 1.0
+        },
+        "jabs": {
+          "samples": 6069,
+          "retained": 3337,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 3,
+          "sample_recall": 0.5498434667984841,
+          "gesture_detection_rate": 1.0
+        }
+      },
+      "recordings": [
+        {
+          "csv": "juven_day1_chop_air_front_cw_standing_3.csv",
+          "positive_samples": 6811,
+          "retained_positive": 3683,
+          "background_samples": 23284,
+          "active_background": 10202
+        },
+        {
+          "csv": "juven_day1_circle_air_front_cw_standing_2.csv",
+          "positive_samples": 8695,
+          "retained_positive": 6258,
+          "background_samples": 9667,
+          "active_background": 2212
+        },
+        {
+          "csv": "juven_day1_fireball_air_front_cw_standing.csv",
+          "positive_samples": 6622,
+          "retained_positive": 3921,
+          "background_samples": 11706,
+          "active_background": 4404
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_2.csv",
+          "positive_samples": 3121,
+          "retained_positive": 1547,
+          "background_samples": 9925,
+          "active_background": 1338
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_3.csv",
+          "positive_samples": 2948,
+          "retained_positive": 1790,
+          "background_samples": 5570,
+          "active_background": 1300
+        },
+        {
+          "csv": "juven_day1_lightning_air_front_cw_standing.csv",
+          "positive_samples": 7770,
+          "retained_positive": 5211,
+          "background_samples": 14462,
+          "active_background": 4194
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing.csv",
+          "positive_samples": 1383,
+          "retained_positive": 935,
+          "background_samples": 2438,
+          "active_background": 525
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing_2.csv",
+          "positive_samples": 12079,
+          "retained_positive": 9742,
+          "background_samples": 9834,
+          "active_background": 1133
+        },
+        {
+          "csv": "juven_day1_tank_air_front_cw_standing_2.csv",
+          "positive_samples": 8162,
+          "retained_positive": 3636,
+          "background_samples": 16983,
+          "active_background": 5994
+        }
+      ]
+    }
+  },
+  {
+    "kind": "tree",
+    "start": 0.4,
+    "stop": 0.3,
+    "report": {
+      "useful_sample_recall": 0.6290566234307444,
+      "background_active_fraction": 0.3102176780367578,
+      "false_starts_per_background_minute": 29.40242035641048,
+      "gesture_detection_rate": 0.9972826086956522,
+      "onset_delay_p95_ms_detected_only": 658.0,
+      "positive_samples": 57591,
+      "background_samples": 103869,
+      "per_class": {
+        "circle": {
+          "samples": 8695,
+          "retained": 6197,
+          "gestures": 52,
+          "detected": 52,
+          "covered_80_percent": 10,
+          "sample_recall": 0.712708453133985,
+          "gesture_detection_rate": 1.0
+        },
+        "star": {
+          "samples": 13462,
+          "retained": 10600,
+          "gestures": 56,
+          "detected": 56,
+          "covered_80_percent": 35,
+          "sample_recall": 0.7874015748031497,
+          "gesture_detection_rate": 1.0
+        },
+        "lightning": {
+          "samples": 7770,
+          "retained": 5291,
+          "gestures": 53,
+          "detected": 52,
+          "covered_80_percent": 9,
+          "sample_recall": 0.680952380952381,
+          "gesture_detection_rate": 0.9811320754716981
+        },
+        "fireball": {
+          "samples": 6622,
+          "retained": 3312,
+          "gestures": 53,
+          "detected": 53,
+          "covered_80_percent": 2,
+          "sample_recall": 0.5001510117789187,
+          "gesture_detection_rate": 1.0
+        },
+        "tank": {
+          "samples": 8162,
+          "retained": 3727,
+          "gestures": 54,
+          "detected": 54,
+          "covered_80_percent": 0,
+          "sample_recall": 0.4566282773829944,
+          "gesture_detection_rate": 1.0
+        },
+        "chop": {
+          "samples": 6811,
+          "retained": 3666,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 1,
+          "sample_recall": 0.5382469534576421,
+          "gesture_detection_rate": 1.0
+        },
+        "jabs": {
+          "samples": 6069,
+          "retained": 3435,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 4,
+          "sample_recall": 0.5659911023232822,
+          "gesture_detection_rate": 1.0
+        }
+      },
+      "recordings": [
+        {
+          "csv": "juven_day1_chop_air_front_cw_standing_3.csv",
+          "positive_samples": 6811,
+          "retained_positive": 3666,
+          "background_samples": 23284,
+          "active_background": 8519
+        },
+        {
+          "csv": "juven_day1_circle_air_front_cw_standing_2.csv",
+          "positive_samples": 8695,
+          "retained_positive": 6197,
+          "background_samples": 9667,
+          "active_background": 1638
+        },
+        {
+          "csv": "juven_day1_fireball_air_front_cw_standing.csv",
+          "positive_samples": 6622,
+          "retained_positive": 3312,
+          "background_samples": 11706,
+          "active_background": 5898
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_2.csv",
+          "positive_samples": 3121,
+          "retained_positive": 1587,
+          "background_samples": 9925,
+          "active_background": 1453
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_3.csv",
+          "positive_samples": 2948,
+          "retained_positive": 1848,
+          "background_samples": 5570,
+          "active_background": 1082
+        },
+        {
+          "csv": "juven_day1_lightning_air_front_cw_standing.csv",
+          "positive_samples": 7770,
+          "retained_positive": 5291,
+          "background_samples": 14462,
+          "active_background": 5049
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing.csv",
+          "positive_samples": 1383,
+          "retained_positive": 935,
+          "background_samples": 2438,
+          "active_background": 507
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing_2.csv",
+          "positive_samples": 12079,
+          "retained_positive": 9665,
+          "background_samples": 9834,
+          "active_background": 1120
+        },
+        {
+          "csv": "juven_day1_tank_air_front_cw_standing_2.csv",
+          "positive_samples": 8162,
+          "retained_positive": 3727,
+          "background_samples": 16983,
+          "active_background": 6956
+        }
+      ]
+    }
+  },
+  {
+    "kind": "tree",
+    "start": 0.5,
+    "stop": 0.1,
+    "report": {
+      "useful_sample_recall": 0.5821048427705718,
+      "background_active_fraction": 0.22319460089150758,
+      "false_starts_per_background_minute": 18.19599688068625,
+      "gesture_detection_rate": 0.9864130434782609,
+      "onset_delay_p95_ms_detected_only": 776.9999999999998,
+      "positive_samples": 57591,
+      "background_samples": 103869,
+      "per_class": {
+        "circle": {
+          "samples": 8695,
+          "retained": 6047,
+          "gestures": 52,
+          "detected": 52,
+          "covered_80_percent": 7,
+          "sample_recall": 0.6954571592869465,
+          "gesture_detection_rate": 1.0
+        },
+        "star": {
+          "samples": 13462,
+          "retained": 10451,
+          "gestures": 56,
+          "detected": 56,
+          "covered_80_percent": 32,
+          "sample_recall": 0.776333382855445,
+          "gesture_detection_rate": 1.0
+        },
+        "lightning": {
+          "samples": 7770,
+          "retained": 4580,
+          "gestures": 53,
+          "detected": 51,
+          "covered_80_percent": 4,
+          "sample_recall": 0.5894465894465895,
+          "gesture_detection_rate": 0.9622641509433962
+        },
+        "fireball": {
+          "samples": 6622,
+          "retained": 3220,
+          "gestures": 53,
+          "detected": 50,
+          "covered_80_percent": 10,
+          "sample_recall": 0.48625792811839325,
+          "gesture_detection_rate": 0.9433962264150944
+        },
+        "tank": {
+          "samples": 8162,
+          "retained": 3196,
+          "gestures": 54,
+          "detected": 54,
+          "covered_80_percent": 0,
+          "sample_recall": 0.3915706934574859,
+          "gesture_detection_rate": 1.0
+        },
+        "chop": {
+          "samples": 6811,
+          "retained": 2876,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 1,
+          "sample_recall": 0.4222581118778447,
+          "gesture_detection_rate": 1.0
+        },
+        "jabs": {
+          "samples": 6069,
+          "retained": 3154,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 2,
+          "sample_recall": 0.5196902290327896,
+          "gesture_detection_rate": 1.0
+        }
+      },
+      "recordings": [
+        {
+          "csv": "juven_day1_chop_air_front_cw_standing_3.csv",
+          "positive_samples": 6811,
+          "retained_positive": 2876,
+          "background_samples": 23284,
+          "active_background": 6361
+        },
+        {
+          "csv": "juven_day1_circle_air_front_cw_standing_2.csv",
+          "positive_samples": 8695,
+          "retained_positive": 6047,
+          "background_samples": 9667,
+          "active_background": 1058
+        },
+        {
+          "csv": "juven_day1_fireball_air_front_cw_standing.csv",
+          "positive_samples": 6622,
+          "retained_positive": 3220,
+          "background_samples": 11706,
+          "active_background": 3495
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_2.csv",
+          "positive_samples": 3121,
+          "retained_positive": 1496,
+          "background_samples": 9925,
+          "active_background": 909
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_3.csv",
+          "positive_samples": 2948,
+          "retained_positive": 1658,
+          "background_samples": 5570,
+          "active_background": 862
+        },
+        {
+          "csv": "juven_day1_lightning_air_front_cw_standing.csv",
+          "positive_samples": 7770,
+          "retained_positive": 4580,
+          "background_samples": 14462,
+          "active_background": 3835
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing.csv",
+          "positive_samples": 1383,
+          "retained_positive": 935,
+          "background_samples": 2438,
+          "active_background": 455
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing_2.csv",
+          "positive_samples": 12079,
+          "retained_positive": 9516,
+          "background_samples": 9834,
+          "active_background": 1014
+        },
+        {
+          "csv": "juven_day1_tank_air_front_cw_standing_2.csv",
+          "positive_samples": 8162,
+          "retained_positive": 3196,
+          "background_samples": 16983,
+          "active_background": 5194
+        }
+      ]
+    }
+  },
+  {
+    "kind": "tree",
+    "start": 0.5,
+    "stop": 0.2,
+    "report": {
+      "useful_sample_recall": 0.6184473268392631,
+      "background_active_fraction": 0.2726800103977125,
+      "false_starts_per_background_minute": 21.430840770586027,
+      "gesture_detection_rate": 0.9945652173913043,
+      "onset_delay_p95_ms_detected_only": 755.5,
+      "positive_samples": 57591,
+      "background_samples": 103869,
+      "per_class": {
+        "circle": {
+          "samples": 8695,
+          "retained": 6098,
+          "gestures": 52,
+          "detected": 52,
+          "covered_80_percent": 7,
+          "sample_recall": 0.7013225991949397,
+          "gesture_detection_rate": 1.0
+        },
+        "star": {
+          "samples": 13462,
+          "retained": 10652,
+          "gestures": 56,
+          "detected": 56,
+          "covered_80_percent": 33,
+          "sample_recall": 0.7912642995097311,
+          "gesture_detection_rate": 1.0
+        },
+        "lightning": {
+          "samples": 7770,
+          "retained": 5098,
+          "gestures": 53,
+          "detected": 51,
+          "covered_80_percent": 11,
+          "sample_recall": 0.6561132561132561,
+          "gesture_detection_rate": 0.9622641509433962
+        },
+        "fireball": {
+          "samples": 6622,
+          "retained": 3745,
+          "gestures": 53,
+          "detected": 53,
+          "covered_80_percent": 14,
+          "sample_recall": 0.5655391120507399,
+          "gesture_detection_rate": 1.0
+        },
+        "tank": {
+          "samples": 8162,
+          "retained": 3287,
+          "gestures": 54,
+          "detected": 54,
+          "covered_80_percent": 0,
+          "sample_recall": 0.40271992158784614,
+          "gesture_detection_rate": 1.0
+        },
+        "chop": {
+          "samples": 6811,
+          "retained": 3492,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 7,
+          "sample_recall": 0.5127000440463956,
+          "gesture_detection_rate": 1.0
+        },
+        "jabs": {
+          "samples": 6069,
+          "retained": 3245,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 3,
+          "sample_recall": 0.5346844620201021,
+          "gesture_detection_rate": 1.0
+        }
+      },
+      "recordings": [
+        {
+          "csv": "juven_day1_chop_air_front_cw_standing_3.csv",
+          "positive_samples": 6811,
+          "retained_positive": 3492,
+          "background_samples": 23284,
+          "active_background": 9068
+        },
+        {
+          "csv": "juven_day1_circle_air_front_cw_standing_2.csv",
+          "positive_samples": 8695,
+          "retained_positive": 6098,
+          "background_samples": 9667,
+          "active_background": 2072
+        },
+        {
+          "csv": "juven_day1_fireball_air_front_cw_standing.csv",
+          "positive_samples": 6622,
+          "retained_positive": 3745,
+          "background_samples": 11706,
+          "active_background": 4270
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_2.csv",
+          "positive_samples": 3121,
+          "retained_positive": 1502,
+          "background_samples": 9925,
+          "active_background": 953
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_3.csv",
+          "positive_samples": 2948,
+          "retained_positive": 1743,
+          "background_samples": 5570,
+          "active_background": 932
+        },
+        {
+          "csv": "juven_day1_lightning_air_front_cw_standing.csv",
+          "positive_samples": 7770,
+          "retained_positive": 5098,
+          "background_samples": 14462,
+          "active_background": 4022
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing.csv",
+          "positive_samples": 1383,
+          "retained_positive": 935,
+          "background_samples": 2438,
+          "active_background": 455
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing_2.csv",
+          "positive_samples": 12079,
+          "retained_positive": 9717,
+          "background_samples": 9834,
+          "active_background": 1068
+        },
+        {
+          "csv": "juven_day1_tank_air_front_cw_standing_2.csv",
+          "positive_samples": 8162,
+          "retained_positive": 3287,
+          "background_samples": 16983,
+          "active_background": 5483
+        }
+      ]
+    }
+  },
+  {
+    "kind": "tree",
+    "start": 0.5,
+    "stop": 0.3,
+    "report": {
+      "useful_sample_recall": 0.6075602090604435,
+      "background_active_fraction": 0.2784757723671163,
+      "false_starts_per_background_minute": 26.1675764665107,
+      "gesture_detection_rate": 0.9972826086956522,
+      "onset_delay_p95_ms_detected_only": 744.9999999999999,
+      "positive_samples": 57591,
+      "background_samples": 103869,
+      "per_class": {
+        "circle": {
+          "samples": 8695,
+          "retained": 6087,
+          "gestures": 52,
+          "detected": 52,
+          "covered_80_percent": 8,
+          "sample_recall": 0.7000575043128234,
+          "gesture_detection_rate": 1.0
+        },
+        "star": {
+          "samples": 13462,
+          "retained": 10575,
+          "gestures": 56,
+          "detected": 56,
+          "covered_80_percent": 34,
+          "sample_recall": 0.7855444956172931,
+          "gesture_detection_rate": 1.0
+        },
+        "lightning": {
+          "samples": 7770,
+          "retained": 5166,
+          "gestures": 53,
+          "detected": 52,
+          "covered_80_percent": 9,
+          "sample_recall": 0.6648648648648648,
+          "gesture_detection_rate": 0.9811320754716981
+        },
+        "fireball": {
+          "samples": 6622,
+          "retained": 3054,
+          "gestures": 53,
+          "detected": 53,
+          "covered_80_percent": 1,
+          "sample_recall": 0.46118997281787977,
+          "gesture_detection_rate": 1.0
+        },
+        "tank": {
+          "samples": 8162,
+          "retained": 3340,
+          "gestures": 54,
+          "detected": 54,
+          "covered_80_percent": 0,
+          "sample_recall": 0.40921342808135264,
+          "gesture_detection_rate": 1.0
+        },
+        "chop": {
+          "samples": 6811,
+          "retained": 3450,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 1,
+          "sample_recall": 0.5065335486712671,
+          "gesture_detection_rate": 1.0
+        },
+        "jabs": {
+          "samples": 6069,
+          "retained": 3318,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 4,
+          "sample_recall": 0.5467128027681661,
+          "gesture_detection_rate": 1.0
+        }
+      },
+      "recordings": [
+        {
+          "csv": "juven_day1_chop_air_front_cw_standing_3.csv",
+          "positive_samples": 6811,
+          "retained_positive": 3450,
+          "background_samples": 23284,
+          "active_background": 7385
+        },
+        {
+          "csv": "juven_day1_circle_air_front_cw_standing_2.csv",
+          "positive_samples": 8695,
+          "retained_positive": 6087,
+          "background_samples": 9667,
+          "active_background": 1543
+        },
+        {
+          "csv": "juven_day1_fireball_air_front_cw_standing.csv",
+          "positive_samples": 6622,
+          "retained_positive": 3054,
+          "background_samples": 11706,
+          "active_background": 5641
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_2.csv",
+          "positive_samples": 3121,
+          "retained_positive": 1537,
+          "background_samples": 9925,
+          "active_background": 1158
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_3.csv",
+          "positive_samples": 2948,
+          "retained_positive": 1781,
+          "background_samples": 5570,
+          "active_background": 754
+        },
+        {
+          "csv": "juven_day1_lightning_air_front_cw_standing.csv",
+          "positive_samples": 7770,
+          "retained_positive": 5166,
+          "background_samples": 14462,
+          "active_background": 4799
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing.csv",
+          "positive_samples": 1383,
+          "retained_positive": 935,
+          "background_samples": 2438,
+          "active_background": 477
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing_2.csv",
+          "positive_samples": 12079,
+          "retained_positive": 9640,
+          "background_samples": 9834,
+          "active_background": 955
+        },
+        {
+          "csv": "juven_day1_tank_air_front_cw_standing_2.csv",
+          "positive_samples": 8162,
+          "retained_positive": 3340,
+          "background_samples": 16983,
+          "active_background": 6213
+        }
+      ]
+    }
+  },
+  {
+    "kind": "tree",
+    "start": 0.5,
+    "stop": 0.4,
+    "report": {
+      "useful_sample_recall": 0.6087409491066312,
+      "background_active_fraction": 0.2747884354330936,
+      "false_starts_per_background_minute": 27.091817577910636,
+      "gesture_detection_rate": 0.9972826086956522,
+      "onset_delay_p95_ms_detected_only": 744.9999999999999,
+      "positive_samples": 57591,
+      "background_samples": 103869,
+      "per_class": {
+        "circle": {
+          "samples": 8695,
+          "retained": 6087,
+          "gestures": 52,
+          "detected": 52,
+          "covered_80_percent": 8,
+          "sample_recall": 0.7000575043128234,
+          "gesture_detection_rate": 1.0
+        },
+        "star": {
+          "samples": 13462,
+          "retained": 10565,
+          "gestures": 56,
+          "detected": 56,
+          "covered_80_percent": 34,
+          "sample_recall": 0.7848016639429505,
+          "gesture_detection_rate": 1.0
+        },
+        "lightning": {
+          "samples": 7770,
+          "retained": 5166,
+          "gestures": 53,
+          "detected": 52,
+          "covered_80_percent": 9,
+          "sample_recall": 0.6648648648648648,
+          "gesture_detection_rate": 0.9811320754716981
+        },
+        "fireball": {
+          "samples": 6622,
+          "retained": 3046,
+          "gestures": 53,
+          "detected": 53,
+          "covered_80_percent": 1,
+          "sample_recall": 0.4599818785865297,
+          "gesture_detection_rate": 1.0
+        },
+        "tank": {
+          "samples": 8162,
+          "retained": 3426,
+          "gestures": 54,
+          "detected": 54,
+          "covered_80_percent": 0,
+          "sample_recall": 0.4197500612594952,
+          "gesture_detection_rate": 1.0
+        },
+        "chop": {
+          "samples": 6811,
+          "retained": 3450,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 1,
+          "sample_recall": 0.5065335486712671,
+          "gesture_detection_rate": 1.0
+        },
+        "jabs": {
+          "samples": 6069,
+          "retained": 3318,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 4,
+          "sample_recall": 0.5467128027681661,
+          "gesture_detection_rate": 1.0
+        }
+      },
+      "recordings": [
+        {
+          "csv": "juven_day1_chop_air_front_cw_standing_3.csv",
+          "positive_samples": 6811,
+          "retained_positive": 3450,
+          "background_samples": 23284,
+          "active_background": 7325
+        },
+        {
+          "csv": "juven_day1_circle_air_front_cw_standing_2.csv",
+          "positive_samples": 8695,
+          "retained_positive": 6087,
+          "background_samples": 9667,
+          "active_background": 1543
+        },
+        {
+          "csv": "juven_day1_fireball_air_front_cw_standing.csv",
+          "positive_samples": 6622,
+          "retained_positive": 3046,
+          "background_samples": 11706,
+          "active_background": 5614
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_2.csv",
+          "positive_samples": 3121,
+          "retained_positive": 1537,
+          "background_samples": 9925,
+          "active_background": 1158
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_3.csv",
+          "positive_samples": 2948,
+          "retained_positive": 1781,
+          "background_samples": 5570,
+          "active_background": 729
+        },
+        {
+          "csv": "juven_day1_lightning_air_front_cw_standing.csv",
+          "positive_samples": 7770,
+          "retained_positive": 5166,
+          "background_samples": 14462,
+          "active_background": 4794
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing.csv",
+          "positive_samples": 1383,
+          "retained_positive": 935,
+          "background_samples": 2438,
+          "active_background": 477
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing_2.csv",
+          "positive_samples": 12079,
+          "retained_positive": 9630,
+          "background_samples": 9834,
+          "active_background": 955
+        },
+        {
+          "csv": "juven_day1_tank_air_front_cw_standing_2.csv",
+          "positive_samples": 8162,
+          "retained_positive": 3426,
+          "background_samples": 16983,
+          "active_background": 5947
+        }
+      ]
+    }
+  },
+  {
+    "kind": "tree",
+    "start": 0.6,
+    "stop": 0.1,
+    "report": {
+      "useful_sample_recall": 0.5670156795332604,
+      "background_active_fraction": 0.22809500428424265,
+      "false_starts_per_background_minute": 17.90717153337377,
+      "gesture_detection_rate": 0.9864130434782609,
+      "onset_delay_p95_ms_detected_only": 808.0,
+      "positive_samples": 57591,
+      "background_samples": 103869,
+      "per_class": {
+        "circle": {
+          "samples": 8695,
+          "retained": 5733,
+          "gestures": 52,
+          "detected": 52,
+          "covered_80_percent": 6,
+          "sample_recall": 0.6593444508338125,
+          "gesture_detection_rate": 1.0
+        },
+        "star": {
+          "samples": 13462,
+          "retained": 10386,
+          "gestures": 56,
+          "detected": 56,
+          "covered_80_percent": 30,
+          "sample_recall": 0.7715049769722181,
+          "gesture_detection_rate": 1.0
+        },
+        "lightning": {
+          "samples": 7770,
+          "retained": 4415,
+          "gestures": 53,
+          "detected": 51,
+          "covered_80_percent": 2,
+          "sample_recall": 0.5682110682110683,
+          "gesture_detection_rate": 0.9622641509433962
+        },
+        "fireball": {
+          "samples": 6622,
+          "retained": 3065,
+          "gestures": 53,
+          "detected": 50,
+          "covered_80_percent": 11,
+          "sample_recall": 0.4628511023859861,
+          "gesture_detection_rate": 0.9433962264150944
+        },
+        "tank": {
+          "samples": 8162,
+          "retained": 3196,
+          "gestures": 54,
+          "detected": 54,
+          "covered_80_percent": 0,
+          "sample_recall": 0.3915706934574859,
+          "gesture_detection_rate": 1.0
+        },
+        "chop": {
+          "samples": 6811,
+          "retained": 2871,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 1,
+          "sample_recall": 0.42152400528556744,
+          "gesture_detection_rate": 1.0
+        },
+        "jabs": {
+          "samples": 6069,
+          "retained": 2989,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 2,
+          "sample_recall": 0.4925028835063437,
+          "gesture_detection_rate": 1.0
+        }
+      },
+      "recordings": [
+        {
+          "csv": "juven_day1_chop_air_front_cw_standing_3.csv",
+          "positive_samples": 6811,
+          "retained_positive": 2871,
+          "background_samples": 23284,
+          "active_background": 6601
+        },
+        {
+          "csv": "juven_day1_circle_air_front_cw_standing_2.csv",
+          "positive_samples": 8695,
+          "retained_positive": 5733,
+          "background_samples": 9667,
+          "active_background": 937
+        },
+        {
+          "csv": "juven_day1_fireball_air_front_cw_standing.csv",
+          "positive_samples": 6622,
+          "retained_positive": 3065,
+          "background_samples": 11706,
+          "active_background": 4255
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_2.csv",
+          "positive_samples": 3121,
+          "retained_positive": 1426,
+          "background_samples": 9925,
+          "active_background": 909
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_3.csv",
+          "positive_samples": 2948,
+          "retained_positive": 1563,
+          "background_samples": 5570,
+          "active_background": 847
+        },
+        {
+          "csv": "juven_day1_lightning_air_front_cw_standing.csv",
+          "positive_samples": 7770,
+          "retained_positive": 4415,
+          "background_samples": 14462,
+          "active_background": 3555
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing.csv",
+          "positive_samples": 1383,
+          "retained_positive": 930,
+          "background_samples": 2438,
+          "active_background": 450
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing_2.csv",
+          "positive_samples": 12079,
+          "retained_positive": 9456,
+          "background_samples": 9834,
+          "active_background": 969
+        },
+        {
+          "csv": "juven_day1_tank_air_front_cw_standing_2.csv",
+          "positive_samples": 8162,
+          "retained_positive": 3196,
+          "background_samples": 16983,
+          "active_background": 5169
+        }
+      ]
+    }
+  },
+  {
+    "kind": "tree",
+    "start": 0.6,
+    "stop": 0.2,
+    "report": {
+      "useful_sample_recall": 0.592766230834679,
+      "background_active_fraction": 0.2661236750137192,
+      "false_starts_per_background_minute": 20.3333044507986,
+      "gesture_detection_rate": 0.9945652173913043,
+      "onset_delay_p95_ms_detected_only": 805.5,
+      "positive_samples": 57591,
+      "background_samples": 103869,
+      "per_class": {
+        "circle": {
+          "samples": 8695,
+          "retained": 5840,
+          "gestures": 52,
+          "detected": 52,
+          "covered_80_percent": 6,
+          "sample_recall": 0.6716503737780334,
+          "gesture_detection_rate": 1.0
+        },
+        "star": {
+          "samples": 13462,
+          "retained": 10557,
+          "gestures": 56,
+          "detected": 56,
+          "covered_80_percent": 31,
+          "sample_recall": 0.7842073986034764,
+          "gesture_detection_rate": 1.0
+        },
+        "lightning": {
+          "samples": 7770,
+          "retained": 4568,
+          "gestures": 53,
+          "detected": 51,
+          "covered_80_percent": 4,
+          "sample_recall": 0.587902187902188,
+          "gesture_detection_rate": 0.9622641509433962
+        },
+        "fireball": {
+          "samples": 6622,
+          "retained": 3418,
+          "gestures": 53,
+          "detected": 53,
+          "covered_80_percent": 13,
+          "sample_recall": 0.5161582603443069,
+          "gesture_detection_rate": 1.0
+        },
+        "tank": {
+          "samples": 8162,
+          "retained": 3287,
+          "gestures": 54,
+          "detected": 54,
+          "covered_80_percent": 0,
+          "sample_recall": 0.40271992158784614,
+          "gesture_detection_rate": 1.0
+        },
+        "chop": {
+          "samples": 6811,
+          "retained": 3403,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 6,
+          "sample_recall": 0.4996329467038614,
+          "gesture_detection_rate": 1.0
+        },
+        "jabs": {
+          "samples": 6069,
+          "retained": 3065,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 2,
+          "sample_recall": 0.5050255396276158,
+          "gesture_detection_rate": 1.0
+        }
+      },
+      "recordings": [
+        {
+          "csv": "juven_day1_chop_air_front_cw_standing_3.csv",
+          "positive_samples": 6811,
+          "retained_positive": 3403,
+          "background_samples": 23284,
+          "active_background": 8732
+        },
+        {
+          "csv": "juven_day1_circle_air_front_cw_standing_2.csv",
+          "positive_samples": 8695,
+          "retained_positive": 5840,
+          "background_samples": 9667,
+          "active_background": 1480
+        },
+        {
+          "csv": "juven_day1_fireball_air_front_cw_standing.csv",
+          "positive_samples": 6622,
+          "retained_positive": 3418,
+          "background_samples": 11706,
+          "active_background": 4957
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_2.csv",
+          "positive_samples": 3121,
+          "retained_positive": 1432,
+          "background_samples": 9925,
+          "active_background": 953
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_3.csv",
+          "positive_samples": 2948,
+          "retained_positive": 1633,
+          "background_samples": 5570,
+          "active_background": 917
+        },
+        {
+          "csv": "juven_day1_lightning_air_front_cw_standing.csv",
+          "positive_samples": 7770,
+          "retained_positive": 4568,
+          "background_samples": 14462,
+          "active_background": 3692
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing.csv",
+          "positive_samples": 1383,
+          "retained_positive": 930,
+          "background_samples": 2438,
+          "active_background": 450
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing_2.csv",
+          "positive_samples": 12079,
+          "retained_positive": 9627,
+          "background_samples": 9834,
+          "active_background": 1018
+        },
+        {
+          "csv": "juven_day1_tank_air_front_cw_standing_2.csv",
+          "positive_samples": 8162,
+          "retained_positive": 3287,
+          "background_samples": 16983,
+          "active_background": 5443
+        }
+      ]
+    }
+  },
+  {
+    "kind": "tree",
+    "start": 0.6,
+    "stop": 0.3,
+    "report": {
+      "useful_sample_recall": 0.5804205518223333,
+      "background_active_fraction": 0.26464103823084845,
+      "false_starts_per_background_minute": 24.550154521560813,
+      "gesture_detection_rate": 0.9972826086956522,
+      "onset_delay_p95_ms_detected_only": 834.9999999999999,
+      "positive_samples": 57591,
+      "background_samples": 103869,
+      "per_class": {
+        "circle": {
+          "samples": 8695,
+          "retained": 5777,
+          "gestures": 52,
+          "detected": 52,
+          "covered_80_percent": 6,
+          "sample_recall": 0.6644048303622772,
+          "gesture_detection_rate": 1.0
+        },
+        "star": {
+          "samples": 13462,
+          "retained": 10447,
+          "gestures": 56,
+          "detected": 56,
+          "covered_80_percent": 31,
+          "sample_recall": 0.7760362501857079,
+          "gesture_detection_rate": 1.0
+        },
+        "lightning": {
+          "samples": 7770,
+          "retained": 4718,
+          "gestures": 53,
+          "detected": 52,
+          "covered_80_percent": 5,
+          "sample_recall": 0.6072072072072072,
+          "gesture_detection_rate": 0.9811320754716981
+        },
+        "fireball": {
+          "samples": 6622,
+          "retained": 2661,
+          "gestures": 53,
+          "detected": 53,
+          "covered_80_percent": 1,
+          "sample_recall": 0.4018423437028088,
+          "gesture_detection_rate": 1.0
+        },
+        "tank": {
+          "samples": 8162,
+          "retained": 3340,
+          "gestures": 54,
+          "detected": 54,
+          "covered_80_percent": 0,
+          "sample_recall": 0.40921342808135264,
+          "gesture_detection_rate": 1.0
+        },
+        "chop": {
+          "samples": 6811,
+          "retained": 3371,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 1,
+          "sample_recall": 0.4949346645132873,
+          "gesture_detection_rate": 1.0
+        },
+        "jabs": {
+          "samples": 6069,
+          "retained": 3113,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 1,
+          "sample_recall": 0.5129345855989454,
+          "gesture_detection_rate": 1.0
+        }
+      },
+      "recordings": [
+        {
+          "csv": "juven_day1_chop_air_front_cw_standing_3.csv",
+          "positive_samples": 6811,
+          "retained_positive": 3371,
+          "background_samples": 23284,
+          "active_background": 7029
+        },
+        {
+          "csv": "juven_day1_circle_air_front_cw_standing_2.csv",
+          "positive_samples": 8695,
+          "retained_positive": 5777,
+          "background_samples": 9667,
+          "active_background": 1118
+        },
+        {
+          "csv": "juven_day1_fireball_air_front_cw_standing.csv",
+          "positive_samples": 6622,
+          "retained_positive": 2661,
+          "background_samples": 11706,
+          "active_background": 5554
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_2.csv",
+          "positive_samples": 3121,
+          "retained_positive": 1467,
+          "background_samples": 9925,
+          "active_background": 1158
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_3.csv",
+          "positive_samples": 2948,
+          "retained_positive": 1646,
+          "background_samples": 5570,
+          "active_background": 719
+        },
+        {
+          "csv": "juven_day1_lightning_air_front_cw_standing.csv",
+          "positive_samples": 7770,
+          "retained_positive": 4718,
+          "background_samples": 14462,
+          "active_background": 4492
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing.csv",
+          "positive_samples": 1383,
+          "retained_positive": 930,
+          "background_samples": 2438,
+          "active_background": 472
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing_2.csv",
+          "positive_samples": 12079,
+          "retained_positive": 9517,
+          "background_samples": 9834,
+          "active_background": 783
+        },
+        {
+          "csv": "juven_day1_tank_air_front_cw_standing_2.csv",
+          "positive_samples": 8162,
+          "retained_positive": 3340,
+          "background_samples": 16983,
+          "active_background": 6163
+        }
+      ]
+    }
+  },
+  {
+    "kind": "tree",
+    "start": 0.6,
+    "stop": 0.4,
+    "report": {
+      "useful_sample_recall": 0.5816012918685212,
+      "background_active_fraction": 0.2612425266441383,
+      "false_starts_per_background_minute": 25.474395632960746,
+      "gesture_detection_rate": 0.9972826086956522,
+      "onset_delay_p95_ms_detected_only": 834.9999999999999,
+      "positive_samples": 57591,
+      "background_samples": 103869,
+      "per_class": {
+        "circle": {
+          "samples": 8695,
+          "retained": 5777,
+          "gestures": 52,
+          "detected": 52,
+          "covered_80_percent": 6,
+          "sample_recall": 0.6644048303622772,
+          "gesture_detection_rate": 1.0
+        },
+        "star": {
+          "samples": 13462,
+          "retained": 10437,
+          "gestures": 56,
+          "detected": 56,
+          "covered_80_percent": 31,
+          "sample_recall": 0.7752934185113654,
+          "gesture_detection_rate": 1.0
+        },
+        "lightning": {
+          "samples": 7770,
+          "retained": 4718,
+          "gestures": 53,
+          "detected": 52,
+          "covered_80_percent": 5,
+          "sample_recall": 0.6072072072072072,
+          "gesture_detection_rate": 0.9811320754716981
+        },
+        "fireball": {
+          "samples": 6622,
+          "retained": 2653,
+          "gestures": 53,
+          "detected": 53,
+          "covered_80_percent": 1,
+          "sample_recall": 0.40063424947145876,
+          "gesture_detection_rate": 1.0
+        },
+        "tank": {
+          "samples": 8162,
+          "retained": 3426,
+          "gestures": 54,
+          "detected": 54,
+          "covered_80_percent": 0,
+          "sample_recall": 0.4197500612594952,
+          "gesture_detection_rate": 1.0
+        },
+        "chop": {
+          "samples": 6811,
+          "retained": 3371,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 1,
+          "sample_recall": 0.4949346645132873,
+          "gesture_detection_rate": 1.0
+        },
+        "jabs": {
+          "samples": 6069,
+          "retained": 3113,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 1,
+          "sample_recall": 0.5129345855989454,
+          "gesture_detection_rate": 1.0
+        }
+      },
+      "recordings": [
+        {
+          "csv": "juven_day1_chop_air_front_cw_standing_3.csv",
+          "positive_samples": 6811,
+          "retained_positive": 3371,
+          "background_samples": 23284,
+          "active_background": 6994
+        },
+        {
+          "csv": "juven_day1_circle_air_front_cw_standing_2.csv",
+          "positive_samples": 8695,
+          "retained_positive": 5777,
+          "background_samples": 9667,
+          "active_background": 1118
+        },
+        {
+          "csv": "juven_day1_fireball_air_front_cw_standing.csv",
+          "positive_samples": 6622,
+          "retained_positive": 2653,
+          "background_samples": 11706,
+          "active_background": 5527
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_2.csv",
+          "positive_samples": 3121,
+          "retained_positive": 1467,
+          "background_samples": 9925,
+          "active_background": 1158
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_3.csv",
+          "positive_samples": 2948,
+          "retained_positive": 1646,
+          "background_samples": 5570,
+          "active_background": 694
+        },
+        {
+          "csv": "juven_day1_lightning_air_front_cw_standing.csv",
+          "positive_samples": 7770,
+          "retained_positive": 4718,
+          "background_samples": 14462,
+          "active_background": 4492
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing.csv",
+          "positive_samples": 1383,
+          "retained_positive": 930,
+          "background_samples": 2438,
+          "active_background": 472
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing_2.csv",
+          "positive_samples": 12079,
+          "retained_positive": 9507,
+          "background_samples": 9834,
+          "active_background": 783
+        },
+        {
+          "csv": "juven_day1_tank_air_front_cw_standing_2.csv",
+          "positive_samples": 8162,
+          "retained_positive": 3426,
+          "background_samples": 16983,
+          "active_background": 5897
+        }
+      ]
+    }
+  },
+  {
+    "kind": "tree",
+    "start": 0.6,
+    "stop": 0.5,
+    "report": {
+      "useful_sample_recall": 0.5804900071191679,
+      "background_active_fraction": 0.2562265931124782,
+      "false_starts_per_background_minute": 27.6117032030731,
+      "gesture_detection_rate": 1.0,
+      "onset_delay_p95_ms_detected_only": 848.0,
+      "positive_samples": 57591,
+      "background_samples": 103869,
+      "per_class": {
+        "circle": {
+          "samples": 8695,
+          "retained": 5772,
+          "gestures": 52,
+          "detected": 52,
+          "covered_80_percent": 6,
+          "sample_recall": 0.6638297872340425,
+          "gesture_detection_rate": 1.0
+        },
+        "star": {
+          "samples": 13462,
+          "retained": 10417,
+          "gestures": 56,
+          "detected": 56,
+          "covered_80_percent": 31,
+          "sample_recall": 0.7738077551626802,
+          "gesture_detection_rate": 1.0
+        },
+        "lightning": {
+          "samples": 7770,
+          "retained": 4793,
+          "gestures": 53,
+          "detected": 53,
+          "covered_80_percent": 6,
+          "sample_recall": 0.6168597168597169,
+          "gesture_detection_rate": 1.0
+        },
+        "fireball": {
+          "samples": 6622,
+          "retained": 2537,
+          "gestures": 53,
+          "detected": 53,
+          "covered_80_percent": 0,
+          "sample_recall": 0.38311688311688313,
+          "gesture_detection_rate": 1.0
+        },
+        "tank": {
+          "samples": 8162,
+          "retained": 3466,
+          "gestures": 54,
+          "detected": 54,
+          "covered_80_percent": 0,
+          "sample_recall": 0.424650820877236,
+          "gesture_detection_rate": 1.0
+        },
+        "chop": {
+          "samples": 6811,
+          "retained": 3348,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 0,
+          "sample_recall": 0.4915577741888122,
+          "gesture_detection_rate": 1.0
+        },
+        "jabs": {
+          "samples": 6069,
+          "retained": 3098,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 1,
+          "sample_recall": 0.510463008732905,
+          "gesture_detection_rate": 1.0
+        }
+      },
+      "recordings": [
+        {
+          "csv": "juven_day1_chop_air_front_cw_standing_3.csv",
+          "positive_samples": 6811,
+          "retained_positive": 3348,
+          "background_samples": 23284,
+          "active_background": 6602
+        },
+        {
+          "csv": "juven_day1_circle_air_front_cw_standing_2.csv",
+          "positive_samples": 8695,
+          "retained_positive": 5772,
+          "background_samples": 9667,
+          "active_background": 1113
+        },
+        {
+          "csv": "juven_day1_fireball_air_front_cw_standing.csv",
+          "positive_samples": 6622,
+          "retained_positive": 2537,
+          "background_samples": 11706,
+          "active_background": 5373
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_2.csv",
+          "positive_samples": 3121,
+          "retained_positive": 1467,
+          "background_samples": 9925,
+          "active_background": 1093
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_3.csv",
+          "positive_samples": 2948,
+          "retained_positive": 1631,
+          "background_samples": 5570,
+          "active_background": 669
+        },
+        {
+          "csv": "juven_day1_lightning_air_front_cw_standing.csv",
+          "positive_samples": 7770,
+          "retained_positive": 4793,
+          "background_samples": 14462,
+          "active_background": 4582
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing.csv",
+          "positive_samples": 1383,
+          "retained_positive": 930,
+          "background_samples": 2438,
+          "active_background": 472
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing_2.csv",
+          "positive_samples": 12079,
+          "retained_positive": 9487,
+          "background_samples": 9834,
+          "active_background": 803
+        },
+        {
+          "csv": "juven_day1_tank_air_front_cw_standing_2.csv",
+          "positive_samples": 8162,
+          "retained_positive": 3466,
+          "background_samples": 16983,
+          "active_background": 5907
+        }
+      ]
+    }
+  },
+  {
+    "kind": "tree",
+    "start": 0.7,
+    "stop": 0.1,
+    "report": {
+      "useful_sample_recall": 0.5596534180687954,
+      "background_active_fraction": 0.19963608006238628,
+      "false_starts_per_background_minute": 15.82762903272391,
+      "gesture_detection_rate": 0.9864130434782609,
+      "onset_delay_p95_ms_detected_only": 846.9999999999998,
+      "positive_samples": 57591,
+      "background_samples": 103869,
+      "per_class": {
+        "circle": {
+          "samples": 8695,
+          "retained": 5673,
+          "gestures": 52,
+          "detected": 52,
+          "covered_80_percent": 5,
+          "sample_recall": 0.6524439332949972,
+          "gesture_detection_rate": 1.0
+        },
+        "star": {
+          "samples": 13462,
+          "retained": 10386,
+          "gestures": 56,
+          "detected": 56,
+          "covered_80_percent": 30,
+          "sample_recall": 0.7715049769722181,
+          "gesture_detection_rate": 1.0
+        },
+        "lightning": {
+          "samples": 7770,
+          "retained": 4415,
+          "gestures": 53,
+          "detected": 51,
+          "covered_80_percent": 2,
+          "sample_recall": 0.5682110682110683,
+          "gesture_detection_rate": 0.9622641509433962
+        },
+        "fireball": {
+          "samples": 6622,
+          "retained": 3001,
+          "gestures": 53,
+          "detected": 50,
+          "covered_80_percent": 10,
+          "sample_recall": 0.45318634853518575,
+          "gesture_detection_rate": 0.9433962264150944
+        },
+        "tank": {
+          "samples": 8162,
+          "retained": 3151,
+          "gestures": 54,
+          "detected": 54,
+          "covered_80_percent": 1,
+          "sample_recall": 0.3860573388875276,
+          "gesture_detection_rate": 1.0
+        },
+        "chop": {
+          "samples": 6811,
+          "retained": 2702,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 2,
+          "sample_recall": 0.39671120246659813,
+          "gesture_detection_rate": 1.0
+        },
+        "jabs": {
+          "samples": 6069,
+          "retained": 2903,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 2,
+          "sample_recall": 0.478332509474378,
+          "gesture_detection_rate": 1.0
+        }
+      },
+      "recordings": [
+        {
+          "csv": "juven_day1_chop_air_front_cw_standing_3.csv",
+          "positive_samples": 6811,
+          "retained_positive": 2702,
+          "background_samples": 23284,
+          "active_background": 5125
+        },
+        {
+          "csv": "juven_day1_circle_air_front_cw_standing_2.csv",
+          "positive_samples": 8695,
+          "retained_positive": 5673,
+          "background_samples": 9667,
+          "active_background": 907
+        },
+        {
+          "csv": "juven_day1_fireball_air_front_cw_standing.csv",
+          "positive_samples": 6622,
+          "retained_positive": 3001,
+          "background_samples": 11706,
+          "active_background": 4139
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_2.csv",
+          "positive_samples": 3121,
+          "retained_positive": 1385,
+          "background_samples": 9925,
+          "active_background": 780
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_3.csv",
+          "positive_samples": 2948,
+          "retained_positive": 1518,
+          "background_samples": 5570,
+          "active_background": 837
+        },
+        {
+          "csv": "juven_day1_lightning_air_front_cw_standing.csv",
+          "positive_samples": 7770,
+          "retained_positive": 4415,
+          "background_samples": 14462,
+          "active_background": 3495
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing.csv",
+          "positive_samples": 1383,
+          "retained_positive": 930,
+          "background_samples": 2438,
+          "active_background": 445
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing_2.csv",
+          "positive_samples": 12079,
+          "retained_positive": 9456,
+          "background_samples": 9834,
+          "active_background": 934
+        },
+        {
+          "csv": "juven_day1_tank_air_front_cw_standing_2.csv",
+          "positive_samples": 8162,
+          "retained_positive": 3151,
+          "background_samples": 16983,
+          "active_background": 4074
+        }
+      ]
+    }
+  },
+  {
+    "kind": "tree",
+    "start": 0.7,
+    "stop": 0.2,
+    "report": {
+      "useful_sample_recall": 0.5770693337500651,
+      "background_active_fraction": 0.22611173689936362,
+      "false_starts_per_background_minute": 17.618346186061288,
+      "gesture_detection_rate": 0.9945652173913043,
+      "onset_delay_p95_ms_detected_only": 848.0,
+      "positive_samples": 57591,
+      "background_samples": 103869,
+      "per_class": {
+        "circle": {
+          "samples": 8695,
+          "retained": 5743,
+          "gestures": 52,
+          "detected": 52,
+          "covered_80_percent": 4,
+          "sample_recall": 0.6604945370902817,
+          "gesture_detection_rate": 1.0
+        },
+        "star": {
+          "samples": 13462,
+          "retained": 10557,
+          "gestures": 56,
+          "detected": 56,
+          "covered_80_percent": 31,
+          "sample_recall": 0.7842073986034764,
+          "gesture_detection_rate": 1.0
+        },
+        "lightning": {
+          "samples": 7770,
+          "retained": 4568,
+          "gestures": 53,
+          "detected": 51,
+          "covered_80_percent": 4,
+          "sample_recall": 0.587902187902188,
+          "gesture_detection_rate": 0.9622641509433962
+        },
+        "fireball": {
+          "samples": 6622,
+          "retained": 3293,
+          "gestures": 53,
+          "detected": 53,
+          "covered_80_percent": 11,
+          "sample_recall": 0.4972817879794624,
+          "gesture_detection_rate": 1.0
+        },
+        "tank": {
+          "samples": 8162,
+          "retained": 3147,
+          "gestures": 54,
+          "detected": 54,
+          "covered_80_percent": 0,
+          "sample_recall": 0.3855672629257535,
+          "gesture_detection_rate": 1.0
+        },
+        "chop": {
+          "samples": 6811,
+          "retained": 2947,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 3,
+          "sample_recall": 0.43268242548818087,
+          "gesture_detection_rate": 1.0
+        },
+        "jabs": {
+          "samples": 6069,
+          "retained": 2979,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 2,
+          "sample_recall": 0.49085516559565,
+          "gesture_detection_rate": 1.0
+        }
+      },
+      "recordings": [
+        {
+          "csv": "juven_day1_chop_air_front_cw_standing_3.csv",
+          "positive_samples": 6811,
+          "retained_positive": 2947,
+          "background_samples": 23284,
+          "active_background": 6268
+        },
+        {
+          "csv": "juven_day1_circle_air_front_cw_standing_2.csv",
+          "positive_samples": 8695,
+          "retained_positive": 5743,
+          "background_samples": 9667,
+          "active_background": 1132
+        },
+        {
+          "csv": "juven_day1_fireball_air_front_cw_standing.csv",
+          "positive_samples": 6622,
+          "retained_positive": 3293,
+          "background_samples": 11706,
+          "active_background": 4792
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_2.csv",
+          "positive_samples": 3121,
+          "retained_positive": 1391,
+          "background_samples": 9925,
+          "active_background": 824
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_3.csv",
+          "positive_samples": 2948,
+          "retained_positive": 1588,
+          "background_samples": 5570,
+          "active_background": 907
+        },
+        {
+          "csv": "juven_day1_lightning_air_front_cw_standing.csv",
+          "positive_samples": 7770,
+          "retained_positive": 4568,
+          "background_samples": 14462,
+          "active_background": 3632
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing.csv",
+          "positive_samples": 1383,
+          "retained_positive": 930,
+          "background_samples": 2438,
+          "active_background": 445
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing_2.csv",
+          "positive_samples": 12079,
+          "retained_positive": 9627,
+          "background_samples": 9834,
+          "active_background": 983
+        },
+        {
+          "csv": "juven_day1_tank_air_front_cw_standing_2.csv",
+          "positive_samples": 8162,
+          "retained_positive": 3147,
+          "background_samples": 16983,
+          "active_background": 4503
+        }
+      ]
+    }
+  },
+  {
+    "kind": "tree",
+    "start": 0.7,
+    "stop": 0.3,
+    "report": {
+      "useful_sample_recall": 0.564063829417791,
+      "background_active_fraction": 0.23330348804744439,
+      "false_starts_per_background_minute": 21.54637090951102,
+      "gesture_detection_rate": 0.9972826086956522,
+      "onset_delay_p95_ms_detected_only": 848.0,
+      "positive_samples": 57591,
+      "background_samples": 103869,
+      "per_class": {
+        "circle": {
+          "samples": 8695,
+          "retained": 5687,
+          "gestures": 52,
+          "detected": 52,
+          "covered_80_percent": 4,
+          "sample_recall": 0.654054054054054,
+          "gesture_detection_rate": 1.0
+        },
+        "star": {
+          "samples": 13462,
+          "retained": 10447,
+          "gestures": 56,
+          "detected": 56,
+          "covered_80_percent": 31,
+          "sample_recall": 0.7760362501857079,
+          "gesture_detection_rate": 1.0
+        },
+        "lightning": {
+          "samples": 7770,
+          "retained": 4718,
+          "gestures": 53,
+          "detected": 52,
+          "covered_80_percent": 5,
+          "sample_recall": 0.6072072072072072,
+          "gesture_detection_rate": 0.9811320754716981
+        },
+        "fireball": {
+          "samples": 6622,
+          "retained": 2592,
+          "gestures": 53,
+          "detected": 53,
+          "covered_80_percent": 1,
+          "sample_recall": 0.3914225309574147,
+          "gesture_detection_rate": 1.0
+        },
+        "tank": {
+          "samples": 8162,
+          "retained": 3124,
+          "gestures": 54,
+          "detected": 54,
+          "covered_80_percent": 0,
+          "sample_recall": 0.38274932614555257,
+          "gesture_detection_rate": 1.0
+        },
+        "chop": {
+          "samples": 6811,
+          "retained": 2895,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 0,
+          "sample_recall": 0.425047716928498,
+          "gesture_detection_rate": 1.0
+        },
+        "jabs": {
+          "samples": 6069,
+          "retained": 3022,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 1,
+          "sample_recall": 0.4979403526116329,
+          "gesture_detection_rate": 1.0
+        }
+      },
+      "recordings": [
+        {
+          "csv": "juven_day1_chop_air_front_cw_standing_3.csv",
+          "positive_samples": 6811,
+          "retained_positive": 2895,
+          "background_samples": 23284,
+          "active_background": 5200
+        },
+        {
+          "csv": "juven_day1_circle_air_front_cw_standing_2.csv",
+          "positive_samples": 8695,
+          "retained_positive": 5687,
+          "background_samples": 9667,
+          "active_background": 953
+        },
+        {
+          "csv": "juven_day1_fireball_air_front_cw_standing.csv",
+          "positive_samples": 6622,
+          "retained_positive": 2592,
+          "background_samples": 11706,
+          "active_background": 5478
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_2.csv",
+          "positive_samples": 3121,
+          "retained_positive": 1421,
+          "background_samples": 9925,
+          "active_background": 914
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_3.csv",
+          "positive_samples": 2948,
+          "retained_positive": 1601,
+          "background_samples": 5570,
+          "active_background": 709
+        },
+        {
+          "csv": "juven_day1_lightning_air_front_cw_standing.csv",
+          "positive_samples": 7770,
+          "retained_positive": 4718,
+          "background_samples": 14462,
+          "active_background": 4277
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing.csv",
+          "positive_samples": 1383,
+          "retained_positive": 930,
+          "background_samples": 2438,
+          "active_background": 445
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing_2.csv",
+          "positive_samples": 12079,
+          "retained_positive": 9517,
+          "background_samples": 9834,
+          "active_background": 708
+        },
+        {
+          "csv": "juven_day1_tank_air_front_cw_standing_2.csv",
+          "positive_samples": 8162,
+          "retained_positive": 3124,
+          "background_samples": 16983,
+          "active_background": 5549
+        }
+      ]
+    }
+  },
+  {
+    "kind": "tree",
+    "start": 0.7,
+    "stop": 0.4,
+    "report": {
+      "useful_sample_recall": 0.5633171849768193,
+      "background_active_fraction": 0.22697821294130105,
+      "false_starts_per_background_minute": 22.066256534673485,
+      "gesture_detection_rate": 0.9972826086956522,
+      "onset_delay_p95_ms_detected_only": 848.0,
+      "positive_samples": 57591,
+      "background_samples": 103869,
+      "per_class": {
+        "circle": {
+          "samples": 8695,
+          "retained": 5687,
+          "gestures": 52,
+          "detected": 52,
+          "covered_80_percent": 4,
+          "sample_recall": 0.654054054054054,
+          "gesture_detection_rate": 1.0
+        },
+        "star": {
+          "samples": 13462,
+          "retained": 10437,
+          "gestures": 56,
+          "detected": 56,
+          "covered_80_percent": 31,
+          "sample_recall": 0.7752934185113654,
+          "gesture_detection_rate": 1.0
+        },
+        "lightning": {
+          "samples": 7770,
+          "retained": 4718,
+          "gestures": 53,
+          "detected": 52,
+          "covered_80_percent": 5,
+          "sample_recall": 0.6072072072072072,
+          "gesture_detection_rate": 0.9811320754716981
+        },
+        "fireball": {
+          "samples": 6622,
+          "retained": 2584,
+          "gestures": 53,
+          "detected": 53,
+          "covered_80_percent": 1,
+          "sample_recall": 0.39021443672606465,
+          "gesture_detection_rate": 1.0
+        },
+        "tank": {
+          "samples": 8162,
+          "retained": 3099,
+          "gestures": 54,
+          "detected": 54,
+          "covered_80_percent": 0,
+          "sample_recall": 0.3796863513844646,
+          "gesture_detection_rate": 1.0
+        },
+        "chop": {
+          "samples": 6811,
+          "retained": 2895,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 0,
+          "sample_recall": 0.425047716928498,
+          "gesture_detection_rate": 1.0
+        },
+        "jabs": {
+          "samples": 6069,
+          "retained": 3022,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 1,
+          "sample_recall": 0.4979403526116329,
+          "gesture_detection_rate": 1.0
+        }
+      },
+      "recordings": [
+        {
+          "csv": "juven_day1_chop_air_front_cw_standing_3.csv",
+          "positive_samples": 6811,
+          "retained_positive": 2895,
+          "background_samples": 23284,
+          "active_background": 5160
+        },
+        {
+          "csv": "juven_day1_circle_air_front_cw_standing_2.csv",
+          "positive_samples": 8695,
+          "retained_positive": 5687,
+          "background_samples": 9667,
+          "active_background": 953
+        },
+        {
+          "csv": "juven_day1_fireball_air_front_cw_standing.csv",
+          "positive_samples": 6622,
+          "retained_positive": 2584,
+          "background_samples": 11706,
+          "active_background": 5451
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_2.csv",
+          "positive_samples": 3121,
+          "retained_positive": 1421,
+          "background_samples": 9925,
+          "active_background": 914
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_3.csv",
+          "positive_samples": 2948,
+          "retained_positive": 1601,
+          "background_samples": 5570,
+          "active_background": 684
+        },
+        {
+          "csv": "juven_day1_lightning_air_front_cw_standing.csv",
+          "positive_samples": 7770,
+          "retained_positive": 4718,
+          "background_samples": 14462,
+          "active_background": 4277
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing.csv",
+          "positive_samples": 1383,
+          "retained_positive": 930,
+          "background_samples": 2438,
+          "active_background": 445
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing_2.csv",
+          "positive_samples": 12079,
+          "retained_positive": 9507,
+          "background_samples": 9834,
+          "active_background": 708
+        },
+        {
+          "csv": "juven_day1_tank_air_front_cw_standing_2.csv",
+          "positive_samples": 8162,
+          "retained_positive": 3099,
+          "background_samples": 16983,
+          "active_background": 4984
+        }
+      ]
+    }
+  },
+  {
+    "kind": "tree",
+    "start": 0.7,
+    "stop": 0.5,
+    "report": {
+      "useful_sample_recall": 0.5610598878296956,
+      "background_active_fraction": 0.22336789609989505,
+      "false_starts_per_background_minute": 23.45261820177339,
+      "gesture_detection_rate": 1.0,
+      "onset_delay_p95_ms_detected_only": 854.4999999999998,
+      "positive_samples": 57591,
+      "background_samples": 103869,
+      "per_class": {
+        "circle": {
+          "samples": 8695,
+          "retained": 5682,
+          "gestures": 52,
+          "detected": 52,
+          "covered_80_percent": 4,
+          "sample_recall": 0.6534790109258194,
+          "gesture_detection_rate": 1.0
+        },
+        "star": {
+          "samples": 13462,
+          "retained": 10417,
+          "gestures": 56,
+          "detected": 56,
+          "covered_80_percent": 31,
+          "sample_recall": 0.7738077551626802,
+          "gesture_detection_rate": 1.0
+        },
+        "lightning": {
+          "samples": 7770,
+          "retained": 4793,
+          "gestures": 53,
+          "detected": 53,
+          "covered_80_percent": 6,
+          "sample_recall": 0.6168597168597169,
+          "gesture_detection_rate": 1.0
+        },
+        "fireball": {
+          "samples": 6622,
+          "retained": 2468,
+          "gestures": 53,
+          "detected": 53,
+          "covered_80_percent": 0,
+          "sample_recall": 0.37269707037148897,
+          "gesture_detection_rate": 1.0
+        },
+        "tank": {
+          "samples": 8162,
+          "retained": 3104,
+          "gestures": 54,
+          "detected": 54,
+          "covered_80_percent": 0,
+          "sample_recall": 0.3802989463366822,
+          "gesture_detection_rate": 1.0
+        },
+        "chop": {
+          "samples": 6811,
+          "retained": 2841,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 0,
+          "sample_recall": 0.4171193657319043,
+          "gesture_detection_rate": 1.0
+        },
+        "jabs": {
+          "samples": 6069,
+          "retained": 3007,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 1,
+          "sample_recall": 0.49546877574559234,
+          "gesture_detection_rate": 1.0
+        }
+      },
+      "recordings": [
+        {
+          "csv": "juven_day1_chop_air_front_cw_standing_3.csv",
+          "positive_samples": 6811,
+          "retained_positive": 2841,
+          "background_samples": 23284,
+          "active_background": 4894
+        },
+        {
+          "csv": "juven_day1_circle_air_front_cw_standing_2.csv",
+          "positive_samples": 8695,
+          "retained_positive": 5682,
+          "background_samples": 9667,
+          "active_background": 933
+        },
+        {
+          "csv": "juven_day1_fireball_air_front_cw_standing.csv",
+          "positive_samples": 6622,
+          "retained_positive": 2468,
+          "background_samples": 11706,
+          "active_background": 5262
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_2.csv",
+          "positive_samples": 3121,
+          "retained_positive": 1421,
+          "background_samples": 9925,
+          "active_background": 834
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_3.csv",
+          "positive_samples": 2948,
+          "retained_positive": 1586,
+          "background_samples": 5570,
+          "active_background": 659
+        },
+        {
+          "csv": "juven_day1_lightning_air_front_cw_standing.csv",
+          "positive_samples": 7770,
+          "retained_positive": 4793,
+          "background_samples": 14462,
+          "active_background": 4402
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing.csv",
+          "positive_samples": 1383,
+          "retained_positive": 930,
+          "background_samples": 2438,
+          "active_background": 445
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing_2.csv",
+          "positive_samples": 12079,
+          "retained_positive": 9487,
+          "background_samples": 9834,
+          "active_background": 733
+        },
+        {
+          "csv": "juven_day1_tank_air_front_cw_standing_2.csv",
+          "positive_samples": 8162,
+          "retained_positive": 3104,
+          "background_samples": 16983,
+          "active_background": 5039
+        }
+      ]
+    }
+  },
+  {
+    "kind": "tree",
+    "start": 0.7,
+    "stop": 0.6,
+    "report": {
+      "useful_sample_recall": 0.560799430466566,
+      "background_active_fraction": 0.22216445715275973,
+      "false_starts_per_background_minute": 24.03026889639835,
+      "gesture_detection_rate": 1.0,
+      "onset_delay_p95_ms_detected_only": 854.4999999999998,
+      "positive_samples": 57591,
+      "background_samples": 103869,
+      "per_class": {
+        "circle": {
+          "samples": 8695,
+          "retained": 5682,
+          "gestures": 52,
+          "detected": 52,
+          "covered_80_percent": 4,
+          "sample_recall": 0.6534790109258194,
+          "gesture_detection_rate": 1.0
+        },
+        "star": {
+          "samples": 13462,
+          "retained": 10432,
+          "gestures": 56,
+          "detected": 56,
+          "covered_80_percent": 31,
+          "sample_recall": 0.774922002674194,
+          "gesture_detection_rate": 1.0
+        },
+        "lightning": {
+          "samples": 7770,
+          "retained": 4753,
+          "gestures": 53,
+          "detected": 53,
+          "covered_80_percent": 6,
+          "sample_recall": 0.6117117117117117,
+          "gesture_detection_rate": 1.0
+        },
+        "fireball": {
+          "samples": 6622,
+          "retained": 2448,
+          "gestures": 53,
+          "detected": 53,
+          "covered_80_percent": 0,
+          "sample_recall": 0.36967683479311386,
+          "gesture_detection_rate": 1.0
+        },
+        "tank": {
+          "samples": 8162,
+          "retained": 3142,
+          "gestures": 54,
+          "detected": 54,
+          "covered_80_percent": 0,
+          "sample_recall": 0.3849546679735359,
+          "gesture_detection_rate": 1.0
+        },
+        "chop": {
+          "samples": 6811,
+          "retained": 2846,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 0,
+          "sample_recall": 0.41785347232418146,
+          "gesture_detection_rate": 1.0
+        },
+        "jabs": {
+          "samples": 6069,
+          "retained": 2994,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 1,
+          "sample_recall": 0.49332674246169056,
+          "gesture_detection_rate": 1.0
+        }
+      },
+      "recordings": [
+        {
+          "csv": "juven_day1_chop_air_front_cw_standing_3.csv",
+          "positive_samples": 6811,
+          "retained_positive": 2846,
+          "background_samples": 23284,
+          "active_background": 4829
+        },
+        {
+          "csv": "juven_day1_circle_air_front_cw_standing_2.csv",
+          "positive_samples": 8695,
+          "retained_positive": 5682,
+          "background_samples": 9667,
+          "active_background": 883
+        },
+        {
+          "csv": "juven_day1_fireball_air_front_cw_standing.csv",
+          "positive_samples": 6622,
+          "retained_positive": 2448,
+          "background_samples": 11706,
+          "active_background": 5227
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_2.csv",
+          "positive_samples": 3121,
+          "retained_positive": 1418,
+          "background_samples": 9925,
+          "active_background": 842
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_3.csv",
+          "positive_samples": 2948,
+          "retained_positive": 1576,
+          "background_samples": 5570,
+          "active_background": 659
+        },
+        {
+          "csv": "juven_day1_lightning_air_front_cw_standing.csv",
+          "positive_samples": 7770,
+          "retained_positive": 4753,
+          "background_samples": 14462,
+          "active_background": 4372
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing.csv",
+          "positive_samples": 1383,
+          "retained_positive": 930,
+          "background_samples": 2438,
+          "active_background": 445
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing_2.csv",
+          "positive_samples": 12079,
+          "retained_positive": 9502,
+          "background_samples": 9834,
+          "active_background": 818
+        },
+        {
+          "csv": "juven_day1_tank_air_front_cw_standing_2.csv",
+          "positive_samples": 8162,
+          "retained_positive": 3142,
+          "background_samples": 16983,
+          "active_background": 5001
+        }
+      ]
+    }
+  },
+  {
+    "kind": "forest",
+    "start": 0.2,
+    "stop": 0.1,
+    "report": {
+      "useful_sample_recall": 0.4700734489764026,
+      "background_active_fraction": 0.1818444386679375,
+      "false_starts_per_background_minute": 12.130664587124167,
+      "gesture_detection_rate": 0.9456521739130435,
+      "onset_delay_p95_ms_detected_only": 948.0,
+      "positive_samples": 57591,
+      "background_samples": 103869,
+      "per_class": {
+        "circle": {
+          "samples": 8695,
+          "retained": 5142,
+          "gestures": 52,
+          "detected": 50,
+          "covered_80_percent": 4,
+          "sample_recall": 0.5913743530764808,
+          "gesture_detection_rate": 0.9615384615384616
+        },
+        "star": {
+          "samples": 13462,
+          "retained": 9274,
+          "gestures": 56,
+          "detected": 55,
+          "covered_80_percent": 15,
+          "sample_recall": 0.6889020947853216,
+          "gesture_detection_rate": 0.9821428571428571
+        },
+        "lightning": {
+          "samples": 7770,
+          "retained": 3370,
+          "gestures": 53,
+          "detected": 45,
+          "covered_80_percent": 3,
+          "sample_recall": 0.4337194337194337,
+          "gesture_detection_rate": 0.8490566037735849
+        },
+        "fireball": {
+          "samples": 6622,
+          "retained": 2251,
+          "gestures": 53,
+          "detected": 45,
+          "covered_80_percent": 4,
+          "sample_recall": 0.339927514346119,
+          "gesture_detection_rate": 0.8490566037735849
+        },
+        "tank": {
+          "samples": 8162,
+          "retained": 2847,
+          "gestures": 54,
+          "detected": 53,
+          "covered_80_percent": 0,
+          "sample_recall": 0.34881156579269784,
+          "gesture_detection_rate": 0.9814814814814815
+        },
+        "chop": {
+          "samples": 6811,
+          "retained": 2048,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 1,
+          "sample_recall": 0.30069006019674055,
+          "gesture_detection_rate": 1.0
+        },
+        "jabs": {
+          "samples": 6069,
+          "retained": 2140,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 0,
+          "sample_recall": 0.3526116328884495,
+          "gesture_detection_rate": 1.0
+        }
+      },
+      "recordings": [
+        {
+          "csv": "juven_day1_chop_air_front_cw_standing_3.csv",
+          "positive_samples": 6811,
+          "retained_positive": 2048,
+          "background_samples": 23284,
+          "active_background": 5210
+        },
+        {
+          "csv": "juven_day1_circle_air_front_cw_standing_2.csv",
+          "positive_samples": 8695,
+          "retained_positive": 5142,
+          "background_samples": 9667,
+          "active_background": 813
+        },
+        {
+          "csv": "juven_day1_fireball_air_front_cw_standing.csv",
+          "positive_samples": 6622,
+          "retained_positive": 2251,
+          "background_samples": 11706,
+          "active_background": 2329
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_2.csv",
+          "positive_samples": 3121,
+          "retained_positive": 962,
+          "background_samples": 9925,
+          "active_background": 1048
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_3.csv",
+          "positive_samples": 2948,
+          "retained_positive": 1178,
+          "background_samples": 5570,
+          "active_background": 1032
+        },
+        {
+          "csv": "juven_day1_lightning_air_front_cw_standing.csv",
+          "positive_samples": 7770,
+          "retained_positive": 3370,
+          "background_samples": 14462,
+          "active_background": 1595
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing.csv",
+          "positive_samples": 1383,
+          "retained_positive": 870,
+          "background_samples": 2438,
+          "active_background": 460
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing_2.csv",
+          "positive_samples": 12079,
+          "retained_positive": 8404,
+          "background_samples": 9834,
+          "active_background": 1171
+        },
+        {
+          "csv": "juven_day1_tank_air_front_cw_standing_2.csv",
+          "positive_samples": 8162,
+          "retained_positive": 2847,
+          "background_samples": 16983,
+          "active_background": 5230
+        }
+      ]
+    }
+  },
+  {
+    "kind": "forest",
+    "start": 0.3,
+    "stop": 0.1,
+    "report": {
+      "useful_sample_recall": 0.4658366758694935,
+      "background_active_fraction": 0.15969153452907028,
+      "false_starts_per_background_minute": 11.668544031424197,
+      "gesture_detection_rate": 0.9456521739130435,
+      "onset_delay_p95_ms_detected_only": 948.0,
+      "positive_samples": 57591,
+      "background_samples": 103869,
+      "per_class": {
+        "circle": {
+          "samples": 8695,
+          "retained": 5107,
+          "gestures": 52,
+          "detected": 50,
+          "covered_80_percent": 4,
+          "sample_recall": 0.5873490511788384,
+          "gesture_detection_rate": 0.9615384615384616
+        },
+        "star": {
+          "samples": 13462,
+          "retained": 9185,
+          "gestures": 56,
+          "detected": 55,
+          "covered_80_percent": 12,
+          "sample_recall": 0.6822908928836725,
+          "gesture_detection_rate": 0.9821428571428571
+        },
+        "lightning": {
+          "samples": 7770,
+          "retained": 3370,
+          "gestures": 53,
+          "detected": 45,
+          "covered_80_percent": 3,
+          "sample_recall": 0.4337194337194337,
+          "gesture_detection_rate": 0.8490566037735849
+        },
+        "fireball": {
+          "samples": 6622,
+          "retained": 2226,
+          "gestures": 53,
+          "detected": 45,
+          "covered_80_percent": 4,
+          "sample_recall": 0.3361522198731501,
+          "gesture_detection_rate": 0.8490566037735849
+        },
+        "tank": {
+          "samples": 8162,
+          "retained": 2767,
+          "gestures": 54,
+          "detected": 53,
+          "covered_80_percent": 0,
+          "sample_recall": 0.3390100465572164,
+          "gesture_detection_rate": 0.9814814814814815
+        },
+        "chop": {
+          "samples": 6811,
+          "retained": 2043,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 1,
+          "sample_recall": 0.29995595360446337,
+          "gesture_detection_rate": 1.0
+        },
+        "jabs": {
+          "samples": 6069,
+          "retained": 2130,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 0,
+          "sample_recall": 0.3509639149777558,
+          "gesture_detection_rate": 1.0
+        }
+      },
+      "recordings": [
+        {
+          "csv": "juven_day1_chop_air_front_cw_standing_3.csv",
+          "positive_samples": 6811,
+          "retained_positive": 2043,
+          "background_samples": 23284,
+          "active_background": 4165
+        },
+        {
+          "csv": "juven_day1_circle_air_front_cw_standing_2.csv",
+          "positive_samples": 8695,
+          "retained_positive": 5107,
+          "background_samples": 9667,
+          "active_background": 793
+        },
+        {
+          "csv": "juven_day1_fireball_air_front_cw_standing.csv",
+          "positive_samples": 6622,
+          "retained_positive": 2226,
+          "background_samples": 11706,
+          "active_background": 2344
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_2.csv",
+          "positive_samples": 3121,
+          "retained_positive": 957,
+          "background_samples": 9925,
+          "active_background": 763
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_3.csv",
+          "positive_samples": 2948,
+          "retained_positive": 1173,
+          "background_samples": 5570,
+          "active_background": 967
+        },
+        {
+          "csv": "juven_day1_lightning_air_front_cw_standing.csv",
+          "positive_samples": 7770,
+          "retained_positive": 3370,
+          "background_samples": 14462,
+          "active_background": 1355
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing.csv",
+          "positive_samples": 1383,
+          "retained_positive": 870,
+          "background_samples": 2438,
+          "active_background": 460
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing_2.csv",
+          "positive_samples": 12079,
+          "retained_positive": 8315,
+          "background_samples": 9834,
+          "active_background": 865
+        },
+        {
+          "csv": "juven_day1_tank_air_front_cw_standing_2.csv",
+          "positive_samples": 8162,
+          "retained_positive": 2767,
+          "background_samples": 16983,
+          "active_background": 4875
+        }
+      ]
+    }
+  },
+  {
+    "kind": "forest",
+    "start": 0.3,
+    "stop": 0.2,
+    "report": {
+      "useful_sample_recall": 0.6054939139796148,
+      "background_active_fraction": 0.26674946326622956,
+      "false_starts_per_background_minute": 20.391069520261098,
+      "gesture_detection_rate": 0.9945652173913043,
+      "onset_delay_p95_ms_detected_only": 705.5,
+      "positive_samples": 57591,
+      "background_samples": 103869,
+      "per_class": {
+        "circle": {
+          "samples": 8695,
+          "retained": 6294,
+          "gestures": 52,
+          "detected": 52,
+          "covered_80_percent": 12,
+          "sample_recall": 0.7238642898217367,
+          "gesture_detection_rate": 1.0
+        },
+        "star": {
+          "samples": 13462,
+          "retained": 10546,
+          "gestures": 56,
+          "detected": 56,
+          "covered_80_percent": 32,
+          "sample_recall": 0.7833902837616996,
+          "gesture_detection_rate": 1.0
+        },
+        "lightning": {
+          "samples": 7770,
+          "retained": 5102,
+          "gestures": 53,
+          "detected": 52,
+          "covered_80_percent": 7,
+          "sample_recall": 0.6566280566280567,
+          "gesture_detection_rate": 0.9811320754716981
+        },
+        "fireball": {
+          "samples": 6622,
+          "retained": 3337,
+          "gestures": 53,
+          "detected": 52,
+          "covered_80_percent": 2,
+          "sample_recall": 0.5039263062518876,
+          "gesture_detection_rate": 0.9811320754716981
+        },
+        "tank": {
+          "samples": 8162,
+          "retained": 3302,
+          "gestures": 54,
+          "detected": 54,
+          "covered_80_percent": 0,
+          "sample_recall": 0.4045577064444989,
+          "gesture_detection_rate": 1.0
+        },
+        "chop": {
+          "samples": 6811,
+          "retained": 2730,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 0,
+          "sample_recall": 0.40082219938335045,
+          "gesture_detection_rate": 1.0
+        },
+        "jabs": {
+          "samples": 6069,
+          "retained": 3560,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 5,
+          "sample_recall": 0.5865875762069533,
+          "gesture_detection_rate": 1.0
+        }
+      },
+      "recordings": [
+        {
+          "csv": "juven_day1_chop_air_front_cw_standing_3.csv",
+          "positive_samples": 6811,
+          "retained_positive": 2730,
+          "background_samples": 23284,
+          "active_background": 6999
+        },
+        {
+          "csv": "juven_day1_circle_air_front_cw_standing_2.csv",
+          "positive_samples": 8695,
+          "retained_positive": 6294,
+          "background_samples": 9667,
+          "active_background": 1241
+        },
+        {
+          "csv": "juven_day1_fireball_air_front_cw_standing.csv",
+          "positive_samples": 6622,
+          "retained_positive": 3337,
+          "background_samples": 11706,
+          "active_background": 3773
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_2.csv",
+          "positive_samples": 3121,
+          "retained_positive": 1642,
+          "background_samples": 9925,
+          "active_background": 1563
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_3.csv",
+          "positive_samples": 2948,
+          "retained_positive": 1918,
+          "background_samples": 5570,
+          "active_background": 1032
+        },
+        {
+          "csv": "juven_day1_lightning_air_front_cw_standing.csv",
+          "positive_samples": 7770,
+          "retained_positive": 5102,
+          "background_samples": 14462,
+          "active_background": 5003
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing.csv",
+          "positive_samples": 1383,
+          "retained_positive": 935,
+          "background_samples": 2438,
+          "active_background": 482
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing_2.csv",
+          "positive_samples": 12079,
+          "retained_positive": 9611,
+          "background_samples": 9834,
+          "active_background": 1499
+        },
+        {
+          "csv": "juven_day1_tank_air_front_cw_standing_2.csv",
+          "positive_samples": 8162,
+          "retained_positive": 3302,
+          "background_samples": 16983,
+          "active_background": 6115
+        }
+      ]
+    }
+  },
+  {
+    "kind": "forest",
+    "start": 0.4,
+    "stop": 0.1,
+    "report": {
+      "useful_sample_recall": 0.46241600250039067,
+      "background_active_fraction": 0.15205691784844372,
+      "false_starts_per_background_minute": 11.20642347572423,
+      "gesture_detection_rate": 0.9456521739130435,
+      "onset_delay_p95_ms_detected_only": 954.4999999999998,
+      "positive_samples": 57591,
+      "background_samples": 103869,
+      "per_class": {
+        "circle": {
+          "samples": 8695,
+          "retained": 5077,
+          "gestures": 52,
+          "detected": 50,
+          "covered_80_percent": 4,
+          "sample_recall": 0.5838987924094307,
+          "gesture_detection_rate": 0.9615384615384616
+        },
+        "star": {
+          "samples": 13462,
+          "retained": 9098,
+          "gestures": 56,
+          "detected": 55,
+          "covered_80_percent": 11,
+          "sample_recall": 0.675828257316892,
+          "gesture_detection_rate": 0.9821428571428571
+        },
+        "lightning": {
+          "samples": 7770,
+          "retained": 3427,
+          "gestures": 53,
+          "detected": 45,
+          "covered_80_percent": 4,
+          "sample_recall": 0.44105534105534105,
+          "gesture_detection_rate": 0.8490566037735849
+        },
+        "fireball": {
+          "samples": 6622,
+          "retained": 2176,
+          "gestures": 53,
+          "detected": 45,
+          "covered_80_percent": 3,
+          "sample_recall": 0.32860163092721234,
+          "gesture_detection_rate": 0.8490566037735849
+        },
+        "tank": {
+          "samples": 8162,
+          "retained": 2683,
+          "gestures": 54,
+          "detected": 53,
+          "covered_80_percent": 0,
+          "sample_recall": 0.3287184513599608,
+          "gesture_detection_rate": 0.9814814814814815
+        },
+        "chop": {
+          "samples": 6811,
+          "retained": 2048,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 1,
+          "sample_recall": 0.30069006019674055,
+          "gesture_detection_rate": 1.0
+        },
+        "jabs": {
+          "samples": 6069,
+          "retained": 2122,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 0,
+          "sample_recall": 0.34964574064920084,
+          "gesture_detection_rate": 1.0
+        }
+      },
+      "recordings": [
+        {
+          "csv": "juven_day1_chop_air_front_cw_standing_3.csv",
+          "positive_samples": 6811,
+          "retained_positive": 2048,
+          "background_samples": 23284,
+          "active_background": 4190
+        },
+        {
+          "csv": "juven_day1_circle_air_front_cw_standing_2.csv",
+          "positive_samples": 8695,
+          "retained_positive": 5077,
+          "background_samples": 9667,
+          "active_background": 758
+        },
+        {
+          "csv": "juven_day1_fireball_air_front_cw_standing.csv",
+          "positive_samples": 6622,
+          "retained_positive": 2176,
+          "background_samples": 11706,
+          "active_background": 2324
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_2.csv",
+          "positive_samples": 3121,
+          "retained_positive": 952,
+          "background_samples": 9925,
+          "active_background": 508
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_3.csv",
+          "positive_samples": 2948,
+          "retained_positive": 1170,
+          "background_samples": 5570,
+          "active_background": 905
+        },
+        {
+          "csv": "juven_day1_lightning_air_front_cw_standing.csv",
+          "positive_samples": 7770,
+          "retained_positive": 3427,
+          "background_samples": 14462,
+          "active_background": 1328
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing.csv",
+          "positive_samples": 1383,
+          "retained_positive": 865,
+          "background_samples": 2438,
+          "active_background": 450
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing_2.csv",
+          "positive_samples": 12079,
+          "retained_positive": 8233,
+          "background_samples": 9834,
+          "active_background": 717
+        },
+        {
+          "csv": "juven_day1_tank_air_front_cw_standing_2.csv",
+          "positive_samples": 8162,
+          "retained_positive": 2683,
+          "background_samples": 16983,
+          "active_background": 4614
+        }
+      ]
+    }
+  },
+  {
+    "kind": "forest",
+    "start": 0.4,
+    "stop": 0.2,
+    "report": {
+      "useful_sample_recall": 0.5928183223073049,
+      "background_active_fraction": 0.2488519192444329,
+      "false_starts_per_background_minute": 19.178003061548683,
+      "gesture_detection_rate": 0.9945652173913043,
+      "onset_delay_p95_ms_detected_only": 725.5,
+      "positive_samples": 57591,
+      "background_samples": 103869,
+      "per_class": {
+        "circle": {
+          "samples": 8695,
+          "retained": 6199,
+          "gestures": 52,
+          "detected": 52,
+          "covered_80_percent": 11,
+          "sample_recall": 0.7129384703852789,
+          "gesture_detection_rate": 1.0
+        },
+        "star": {
+          "samples": 13462,
+          "retained": 10456,
+          "gestures": 56,
+          "detected": 56,
+          "covered_80_percent": 30,
+          "sample_recall": 0.7767047986926162,
+          "gesture_detection_rate": 1.0
+        },
+        "lightning": {
+          "samples": 7770,
+          "retained": 5032,
+          "gestures": 53,
+          "detected": 52,
+          "covered_80_percent": 7,
+          "sample_recall": 0.6476190476190476,
+          "gesture_detection_rate": 0.9811320754716981
+        },
+        "fireball": {
+          "samples": 6622,
+          "retained": 3182,
+          "gestures": 53,
+          "detected": 52,
+          "covered_80_percent": 1,
+          "sample_recall": 0.4805194805194805,
+          "gesture_detection_rate": 0.9811320754716981
+        },
+        "tank": {
+          "samples": 8162,
+          "retained": 3168,
+          "gestures": 54,
+          "detected": 54,
+          "covered_80_percent": 0,
+          "sample_recall": 0.3881401617250674,
+          "gesture_detection_rate": 1.0
+        },
+        "chop": {
+          "samples": 6811,
+          "retained": 2670,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 0,
+          "sample_recall": 0.3920129202760241,
+          "gesture_detection_rate": 1.0
+        },
+        "jabs": {
+          "samples": 6069,
+          "retained": 3434,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 4,
+          "sample_recall": 0.5658263305322129,
+          "gesture_detection_rate": 1.0
+        }
+      },
+      "recordings": [
+        {
+          "csv": "juven_day1_chop_air_front_cw_standing_3.csv",
+          "positive_samples": 6811,
+          "retained_positive": 2670,
+          "background_samples": 23284,
+          "active_background": 6600
+        },
+        {
+          "csv": "juven_day1_circle_air_front_cw_standing_2.csv",
+          "positive_samples": 8695,
+          "retained_positive": 6199,
+          "background_samples": 9667,
+          "active_background": 1181
+        },
+        {
+          "csv": "juven_day1_fireball_air_front_cw_standing.csv",
+          "positive_samples": 6622,
+          "retained_positive": 3182,
+          "background_samples": 11706,
+          "active_background": 3628
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_2.csv",
+          "positive_samples": 3121,
+          "retained_positive": 1556,
+          "background_samples": 9925,
+          "active_background": 1089
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_3.csv",
+          "positive_samples": 2948,
+          "retained_positive": 1878,
+          "background_samples": 5570,
+          "active_background": 862
+        },
+        {
+          "csv": "juven_day1_lightning_air_front_cw_standing.csv",
+          "positive_samples": 7770,
+          "retained_positive": 5032,
+          "background_samples": 14462,
+          "active_background": 4818
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing.csv",
+          "positive_samples": 1383,
+          "retained_positive": 930,
+          "background_samples": 2438,
+          "active_background": 472
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing_2.csv",
+          "positive_samples": 12079,
+          "retained_positive": 9526,
+          "background_samples": 9834,
+          "active_background": 1269
+        },
+        {
+          "csv": "juven_day1_tank_air_front_cw_standing_2.csv",
+          "positive_samples": 8162,
+          "retained_positive": 3168,
+          "background_samples": 16983,
+          "active_background": 5929
+        }
+      ]
+    }
+  },
+  {
+    "kind": "forest",
+    "start": 0.4,
+    "stop": 0.3,
+    "report": {
+      "useful_sample_recall": 0.6043999930544703,
+      "background_active_fraction": 0.28266373990314725,
+      "false_starts_per_background_minute": 23.10602778499841,
+      "gesture_detection_rate": 0.9945652173913043,
+      "onset_delay_p95_ms_detected_only": 685.5,
+      "positive_samples": 57591,
+      "background_samples": 103869,
+      "per_class": {
+        "circle": {
+          "samples": 8695,
+          "retained": 6158,
+          "gestures": 52,
+          "detected": 52,
+          "covered_80_percent": 11,
+          "sample_recall": 0.708223116733755,
+          "gesture_detection_rate": 1.0
+        },
+        "star": {
+          "samples": 13462,
+          "retained": 10500,
+          "gestures": 56,
+          "detected": 56,
+          "covered_80_percent": 31,
+          "sample_recall": 0.7799732580597236,
+          "gesture_detection_rate": 1.0
+        },
+        "lightning": {
+          "samples": 7770,
+          "retained": 5079,
+          "gestures": 53,
+          "detected": 52,
+          "covered_80_percent": 6,
+          "sample_recall": 0.6536679536679537,
+          "gesture_detection_rate": 0.9811320754716981
+        },
+        "fireball": {
+          "samples": 6622,
+          "retained": 3282,
+          "gestures": 53,
+          "detected": 52,
+          "covered_80_percent": 1,
+          "sample_recall": 0.4956206584113561,
+          "gesture_detection_rate": 0.9811320754716981
+        },
+        "tank": {
+          "samples": 8162,
+          "retained": 3246,
+          "gestures": 54,
+          "detected": 54,
+          "covered_80_percent": 0,
+          "sample_recall": 0.39769664297966184,
+          "gesture_detection_rate": 1.0
+        },
+        "chop": {
+          "samples": 6811,
+          "retained": 3039,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 0,
+          "sample_recall": 0.44618998678608135,
+          "gesture_detection_rate": 1.0
+        },
+        "jabs": {
+          "samples": 6069,
+          "retained": 3504,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 4,
+          "sample_recall": 0.5773603559070687,
+          "gesture_detection_rate": 1.0
+        }
+      },
+      "recordings": [
+        {
+          "csv": "juven_day1_chop_air_front_cw_standing_3.csv",
+          "positive_samples": 6811,
+          "retained_positive": 3039,
+          "background_samples": 23284,
+          "active_background": 7599
+        },
+        {
+          "csv": "juven_day1_circle_air_front_cw_standing_2.csv",
+          "positive_samples": 8695,
+          "retained_positive": 6158,
+          "background_samples": 9667,
+          "active_background": 1102
+        },
+        {
+          "csv": "juven_day1_fireball_air_front_cw_standing.csv",
+          "positive_samples": 6622,
+          "retained_positive": 3282,
+          "background_samples": 11706,
+          "active_background": 5528
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_2.csv",
+          "positive_samples": 3121,
+          "retained_positive": 1581,
+          "background_samples": 9925,
+          "active_background": 1264
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_3.csv",
+          "positive_samples": 2948,
+          "retained_positive": 1923,
+          "background_samples": 5570,
+          "active_background": 1027
+        },
+        {
+          "csv": "juven_day1_lightning_air_front_cw_standing.csv",
+          "positive_samples": 7770,
+          "retained_positive": 5079,
+          "background_samples": 14462,
+          "active_background": 5141
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing.csv",
+          "positive_samples": 1383,
+          "retained_positive": 930,
+          "background_samples": 2438,
+          "active_background": 472
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing_2.csv",
+          "positive_samples": 12079,
+          "retained_positive": 9570,
+          "background_samples": 9834,
+          "active_background": 1130
+        },
+        {
+          "csv": "juven_day1_tank_air_front_cw_standing_2.csv",
+          "positive_samples": 8162,
+          "retained_positive": 3246,
+          "background_samples": 16983,
+          "active_background": 6097
+        }
+      ]
+    }
+  },
+  {
+    "kind": "forest",
+    "start": 0.5,
+    "stop": 0.1,
+    "report": {
+      "useful_sample_recall": 0.4703686339879495,
+      "background_active_fraction": 0.15592717750243096,
+      "false_starts_per_background_minute": 11.033128267336743,
+      "gesture_detection_rate": 0.9456521739130435,
+      "onset_delay_p95_ms_detected_only": 954.4999999999998,
+      "positive_samples": 57591,
+      "background_samples": 103869,
+      "per_class": {
+        "circle": {
+          "samples": 8695,
+          "retained": 5067,
+          "gestures": 52,
+          "detected": 50,
+          "covered_80_percent": 4,
+          "sample_recall": 0.5827487061529615,
+          "gesture_detection_rate": 0.9615384615384616
+        },
+        "star": {
+          "samples": 13462,
+          "retained": 9128,
+          "gestures": 56,
+          "detected": 55,
+          "covered_80_percent": 11,
+          "sample_recall": 0.6780567523399198,
+          "gesture_detection_rate": 0.9821428571428571
+        },
+        "lightning": {
+          "samples": 7770,
+          "retained": 3413,
+          "gestures": 53,
+          "detected": 45,
+          "covered_80_percent": 4,
+          "sample_recall": 0.43925353925353927,
+          "gesture_detection_rate": 0.8490566037735849
+        },
+        "fireball": {
+          "samples": 6622,
+          "retained": 2186,
+          "gestures": 53,
+          "detected": 45,
+          "covered_80_percent": 3,
+          "sample_recall": 0.33011174871639987,
+          "gesture_detection_rate": 0.8490566037735849
+        },
+        "tank": {
+          "samples": 8162,
+          "retained": 2563,
+          "gestures": 54,
+          "detected": 53,
+          "covered_80_percent": 0,
+          "sample_recall": 0.3140161725067385,
+          "gesture_detection_rate": 0.9814814814814815
+        },
+        "chop": {
+          "samples": 6811,
+          "retained": 2605,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 6,
+          "sample_recall": 0.3824695345764205,
+          "gesture_detection_rate": 1.0
+        },
+        "jabs": {
+          "samples": 6069,
+          "retained": 2127,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 0,
+          "sample_recall": 0.3504695996045477,
+          "gesture_detection_rate": 1.0
+        }
+      },
+      "recordings": [
+        {
+          "csv": "juven_day1_chop_air_front_cw_standing_3.csv",
+          "positive_samples": 6811,
+          "retained_positive": 2605,
+          "background_samples": 23284,
+          "active_background": 4198
+        },
+        {
+          "csv": "juven_day1_circle_air_front_cw_standing_2.csv",
+          "positive_samples": 8695,
+          "retained_positive": 5067,
+          "background_samples": 9667,
+          "active_background": 718
+        },
+        {
+          "csv": "juven_day1_fireball_air_front_cw_standing.csv",
+          "positive_samples": 6622,
+          "retained_positive": 2186,
+          "background_samples": 11706,
+          "active_background": 2254
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_2.csv",
+          "positive_samples": 3121,
+          "retained_positive": 962,
+          "background_samples": 9925,
+          "active_background": 708
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_3.csv",
+          "positive_samples": 2948,
+          "retained_positive": 1165,
+          "background_samples": 5570,
+          "active_background": 895
+        },
+        {
+          "csv": "juven_day1_lightning_air_front_cw_standing.csv",
+          "positive_samples": 7770,
+          "retained_positive": 3413,
+          "background_samples": 14462,
+          "active_background": 1397
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing.csv",
+          "positive_samples": 1383,
+          "retained_positive": 865,
+          "background_samples": 2438,
+          "active_background": 450
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing_2.csv",
+          "positive_samples": 12079,
+          "retained_positive": 8263,
+          "background_samples": 9834,
+          "active_background": 812
+        },
+        {
+          "csv": "juven_day1_tank_air_front_cw_standing_2.csv",
+          "positive_samples": 8162,
+          "retained_positive": 2563,
+          "background_samples": 16983,
+          "active_background": 4764
+        }
+      ]
+    }
+  },
+  {
+    "kind": "forest",
+    "start": 0.5,
+    "stop": 0.2,
+    "report": {
+      "useful_sample_recall": 0.5909951207653974,
+      "background_active_fraction": 0.23474761478400677,
+      "false_starts_per_background_minute": 18.48482222799873,
+      "gesture_detection_rate": 0.9945652173913043,
+      "onset_delay_p95_ms_detected_only": 738.0,
+      "positive_samples": 57591,
+      "background_samples": 103869,
+      "per_class": {
+        "circle": {
+          "samples": 8695,
+          "retained": 6144,
+          "gestures": 52,
+          "detected": 52,
+          "covered_80_percent": 10,
+          "sample_recall": 0.7066129959746981,
+          "gesture_detection_rate": 1.0
+        },
+        "star": {
+          "samples": 13462,
+          "retained": 10402,
+          "gestures": 56,
+          "detected": 56,
+          "covered_80_percent": 29,
+          "sample_recall": 0.7726935076511663,
+          "gesture_detection_rate": 1.0
+        },
+        "lightning": {
+          "samples": 7770,
+          "retained": 4942,
+          "gestures": 53,
+          "detected": 52,
+          "covered_80_percent": 7,
+          "sample_recall": 0.6360360360360361,
+          "gesture_detection_rate": 0.9811320754716981
+        },
+        "fireball": {
+          "samples": 6622,
+          "retained": 3117,
+          "gestures": 53,
+          "detected": 52,
+          "covered_80_percent": 1,
+          "sample_recall": 0.4707037148897614,
+          "gesture_detection_rate": 0.9811320754716981
+        },
+        "tank": {
+          "samples": 8162,
+          "retained": 3043,
+          "gestures": 54,
+          "detected": 54,
+          "covered_80_percent": 0,
+          "sample_recall": 0.37282528791962755,
+          "gesture_detection_rate": 1.0
+        },
+        "chop": {
+          "samples": 6811,
+          "retained": 3058,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 3,
+          "sample_recall": 0.4489795918367347,
+          "gesture_detection_rate": 1.0
+        },
+        "jabs": {
+          "samples": 6069,
+          "retained": 3330,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 3,
+          "sample_recall": 0.5486900642609985,
+          "gesture_detection_rate": 1.0
+        }
+      },
+      "recordings": [
+        {
+          "csv": "juven_day1_chop_air_front_cw_standing_3.csv",
+          "positive_samples": 6811,
+          "retained_positive": 3058,
+          "background_samples": 23284,
+          "active_background": 5697
+        },
+        {
+          "csv": "juven_day1_circle_air_front_cw_standing_2.csv",
+          "positive_samples": 8695,
+          "retained_positive": 6144,
+          "background_samples": 9667,
+          "active_background": 1086
+        },
+        {
+          "csv": "juven_day1_fireball_air_front_cw_standing.csv",
+          "positive_samples": 6622,
+          "retained_positive": 3117,
+          "background_samples": 11706,
+          "active_background": 3498
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_2.csv",
+          "positive_samples": 3121,
+          "retained_positive": 1511,
+          "background_samples": 9925,
+          "active_background": 1169
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_3.csv",
+          "positive_samples": 2948,
+          "retained_positive": 1819,
+          "background_samples": 5570,
+          "active_background": 731
+        },
+        {
+          "csv": "juven_day1_lightning_air_front_cw_standing.csv",
+          "positive_samples": 7770,
+          "retained_positive": 4942,
+          "background_samples": 14462,
+          "active_background": 4628
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing.csv",
+          "positive_samples": 1383,
+          "retained_positive": 930,
+          "background_samples": 2438,
+          "active_background": 472
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing_2.csv",
+          "positive_samples": 12079,
+          "retained_positive": 9472,
+          "background_samples": 9834,
+          "active_background": 1238
+        },
+        {
+          "csv": "juven_day1_tank_air_front_cw_standing_2.csv",
+          "positive_samples": 8162,
+          "retained_positive": 3043,
+          "background_samples": 16983,
+          "active_background": 5864
+        }
+      ]
+    }
+  },
+  {
+    "kind": "forest",
+    "start": 0.5,
+    "stop": 0.3,
+    "report": {
+      "useful_sample_recall": 0.5996075775728846,
+      "background_active_fraction": 0.2592977693055676,
+      "false_starts_per_background_minute": 21.430840770586027,
+      "gesture_detection_rate": 0.9945652173913043,
+      "onset_delay_p95_ms_detected_only": 688.0,
+      "positive_samples": 57591,
+      "background_samples": 103869,
+      "per_class": {
+        "circle": {
+          "samples": 8695,
+          "retained": 6103,
+          "gestures": 52,
+          "detected": 52,
+          "covered_80_percent": 10,
+          "sample_recall": 0.7018976423231742,
+          "gesture_detection_rate": 1.0
+        },
+        "star": {
+          "samples": 13462,
+          "retained": 10435,
+          "gestures": 56,
+          "detected": 56,
+          "covered_80_percent": 30,
+          "sample_recall": 0.7751448521764968,
+          "gesture_detection_rate": 1.0
+        },
+        "lightning": {
+          "samples": 7770,
+          "retained": 5018,
+          "gestures": 53,
+          "detected": 52,
+          "covered_80_percent": 6,
+          "sample_recall": 0.6458172458172459,
+          "gesture_detection_rate": 0.9811320754716981
+        },
+        "fireball": {
+          "samples": 6622,
+          "retained": 3207,
+          "gestures": 53,
+          "detected": 52,
+          "covered_80_percent": 1,
+          "sample_recall": 0.4842947749924494,
+          "gesture_detection_rate": 0.9811320754716981
+        },
+        "tank": {
+          "samples": 8162,
+          "retained": 3098,
+          "gestures": 54,
+          "detected": 54,
+          "covered_80_percent": 0,
+          "sample_recall": 0.3795638323940211,
+          "gesture_detection_rate": 1.0
+        },
+        "chop": {
+          "samples": 6811,
+          "retained": 3246,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 2,
+          "sample_recall": 0.47658199970635734,
+          "gesture_detection_rate": 1.0
+        },
+        "jabs": {
+          "samples": 6069,
+          "retained": 3425,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 4,
+          "sample_recall": 0.5643433844125886,
+          "gesture_detection_rate": 1.0
+        }
+      },
+      "recordings": [
+        {
+          "csv": "juven_day1_chop_air_front_cw_standing_3.csv",
+          "positive_samples": 6811,
+          "retained_positive": 3246,
+          "background_samples": 23284,
+          "active_background": 6419
+        },
+        {
+          "csv": "juven_day1_circle_air_front_cw_standing_2.csv",
+          "positive_samples": 8695,
+          "retained_positive": 6103,
+          "background_samples": 9667,
+          "active_background": 1022
+        },
+        {
+          "csv": "juven_day1_fireball_air_front_cw_standing.csv",
+          "positive_samples": 6622,
+          "retained_positive": 3207,
+          "background_samples": 11706,
+          "active_background": 5243
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_2.csv",
+          "positive_samples": 3121,
+          "retained_positive": 1536,
+          "background_samples": 9925,
+          "active_background": 1199
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_3.csv",
+          "positive_samples": 2948,
+          "retained_positive": 1889,
+          "background_samples": 5570,
+          "active_background": 921
+        },
+        {
+          "csv": "juven_day1_lightning_air_front_cw_standing.csv",
+          "positive_samples": 7770,
+          "retained_positive": 5018,
+          "background_samples": 14462,
+          "active_background": 4817
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing.csv",
+          "positive_samples": 1383,
+          "retained_positive": 930,
+          "background_samples": 2438,
+          "active_background": 472
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing_2.csv",
+          "positive_samples": 12079,
+          "retained_positive": 9505,
+          "background_samples": 9834,
+          "active_background": 1095
+        },
+        {
+          "csv": "juven_day1_tank_air_front_cw_standing_2.csv",
+          "positive_samples": 8162,
+          "retained_positive": 3098,
+          "background_samples": 16983,
+          "active_background": 5745
+        }
+      ]
+    }
+  },
+  {
+    "kind": "forest",
+    "start": 0.5,
+    "stop": 0.4,
+    "report": {
+      "useful_sample_recall": 0.601882238544217,
+      "background_active_fraction": 0.2599620676043863,
+      "false_starts_per_background_minute": 22.70167229876094,
+      "gesture_detection_rate": 0.9972826086956522,
+      "onset_delay_p95_ms_detected_only": 694.9999999999999,
+      "positive_samples": 57591,
+      "background_samples": 103869,
+      "per_class": {
+        "circle": {
+          "samples": 8695,
+          "retained": 6108,
+          "gestures": 52,
+          "detected": 52,
+          "covered_80_percent": 9,
+          "sample_recall": 0.7024726854514088,
+          "gesture_detection_rate": 1.0
+        },
+        "star": {
+          "samples": 13462,
+          "retained": 10415,
+          "gestures": 56,
+          "detected": 56,
+          "covered_80_percent": 30,
+          "sample_recall": 0.7736591888278116,
+          "gesture_detection_rate": 1.0
+        },
+        "lightning": {
+          "samples": 7770,
+          "retained": 5078,
+          "gestures": 53,
+          "detected": 53,
+          "covered_80_percent": 7,
+          "sample_recall": 0.6535392535392536,
+          "gesture_detection_rate": 1.0
+        },
+        "fireball": {
+          "samples": 6622,
+          "retained": 3264,
+          "gestures": 53,
+          "detected": 52,
+          "covered_80_percent": 1,
+          "sample_recall": 0.4929024463908185,
+          "gesture_detection_rate": 0.9811320754716981
+        },
+        "tank": {
+          "samples": 8162,
+          "retained": 3136,
+          "gestures": 54,
+          "detected": 54,
+          "covered_80_percent": 0,
+          "sample_recall": 0.38421955403087477,
+          "gesture_detection_rate": 1.0
+        },
+        "chop": {
+          "samples": 6811,
+          "retained": 3288,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 1,
+          "sample_recall": 0.4827484950814858,
+          "gesture_detection_rate": 1.0
+        },
+        "jabs": {
+          "samples": 6069,
+          "retained": 3374,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 3,
+          "sample_recall": 0.5559400230680508,
+          "gesture_detection_rate": 1.0
+        }
+      },
+      "recordings": [
+        {
+          "csv": "juven_day1_chop_air_front_cw_standing_3.csv",
+          "positive_samples": 6811,
+          "retained_positive": 3288,
+          "background_samples": 23284,
+          "active_background": 6492
+        },
+        {
+          "csv": "juven_day1_circle_air_front_cw_standing_2.csv",
+          "positive_samples": 8695,
+          "retained_positive": 6108,
+          "background_samples": 9667,
+          "active_background": 1012
+        },
+        {
+          "csv": "juven_day1_fireball_air_front_cw_standing.csv",
+          "positive_samples": 6622,
+          "retained_positive": 3264,
+          "background_samples": 11706,
+          "active_background": 5241
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_2.csv",
+          "positive_samples": 3121,
+          "retained_positive": 1536,
+          "background_samples": 9925,
+          "active_background": 1219
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_3.csv",
+          "positive_samples": 2948,
+          "retained_positive": 1838,
+          "background_samples": 5570,
+          "active_background": 852
+        },
+        {
+          "csv": "juven_day1_lightning_air_front_cw_standing.csv",
+          "positive_samples": 7770,
+          "retained_positive": 5078,
+          "background_samples": 14462,
+          "active_background": 4787
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing.csv",
+          "positive_samples": 1383,
+          "retained_positive": 930,
+          "background_samples": 2438,
+          "active_background": 472
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing_2.csv",
+          "positive_samples": 12079,
+          "retained_positive": 9485,
+          "background_samples": 9834,
+          "active_background": 1005
+        },
+        {
+          "csv": "juven_day1_tank_air_front_cw_standing_2.csv",
+          "positive_samples": 8162,
+          "retained_positive": 3136,
+          "background_samples": 16983,
+          "active_background": 5922
+        }
+      ]
+    }
+  },
+  {
+    "kind": "forest",
+    "start": 0.6,
+    "stop": 0.1,
+    "report": {
+      "useful_sample_recall": 0.4727474779045337,
+      "background_active_fraction": 0.15361657472393112,
+      "false_starts_per_background_minute": 10.686537850561765,
+      "gesture_detection_rate": 0.9483695652173914,
+      "onset_delay_p95_ms_detected_only": 983.9999999999997,
+      "positive_samples": 57591,
+      "background_samples": 103869,
+      "per_class": {
+        "circle": {
+          "samples": 8695,
+          "retained": 5052,
+          "gestures": 52,
+          "detected": 50,
+          "covered_80_percent": 4,
+          "sample_recall": 0.5810235767682577,
+          "gesture_detection_rate": 0.9615384615384616
+        },
+        "star": {
+          "samples": 13462,
+          "retained": 9103,
+          "gestures": 56,
+          "detected": 55,
+          "covered_80_percent": 11,
+          "sample_recall": 0.6761996731540633,
+          "gesture_detection_rate": 0.9821428571428571
+        },
+        "lightning": {
+          "samples": 7770,
+          "retained": 3359,
+          "gestures": 53,
+          "detected": 45,
+          "covered_80_percent": 3,
+          "sample_recall": 0.4323037323037323,
+          "gesture_detection_rate": 0.8490566037735849
+        },
+        "fireball": {
+          "samples": 6622,
+          "retained": 2204,
+          "gestures": 53,
+          "detected": 46,
+          "covered_80_percent": 3,
+          "sample_recall": 0.3328299607369375,
+          "gesture_detection_rate": 0.8679245283018868
+        },
+        "tank": {
+          "samples": 8162,
+          "retained": 2522,
+          "gestures": 54,
+          "detected": 53,
+          "covered_80_percent": 0,
+          "sample_recall": 0.3089928938985543,
+          "gesture_detection_rate": 0.9814814814814815
+        },
+        "chop": {
+          "samples": 6811,
+          "retained": 2864,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 9,
+          "sample_recall": 0.4204962560563794,
+          "gesture_detection_rate": 1.0
+        },
+        "jabs": {
+          "samples": 6069,
+          "retained": 2122,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 1,
+          "sample_recall": 0.34964574064920084,
+          "gesture_detection_rate": 1.0
+        }
+      },
+      "recordings": [
+        {
+          "csv": "juven_day1_chop_air_front_cw_standing_3.csv",
+          "positive_samples": 6811,
+          "retained_positive": 2864,
+          "background_samples": 23284,
+          "active_background": 3701
+        },
+        {
+          "csv": "juven_day1_circle_air_front_cw_standing_2.csv",
+          "positive_samples": 8695,
+          "retained_positive": 5052,
+          "background_samples": 9667,
+          "active_background": 688
+        },
+        {
+          "csv": "juven_day1_fireball_air_front_cw_standing.csv",
+          "positive_samples": 6622,
+          "retained_positive": 2204,
+          "background_samples": 11706,
+          "active_background": 2536
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_2.csv",
+          "positive_samples": 3121,
+          "retained_positive": 947,
+          "background_samples": 9925,
+          "active_background": 553
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_3.csv",
+          "positive_samples": 2948,
+          "retained_positive": 1175,
+          "background_samples": 5570,
+          "active_background": 985
+        },
+        {
+          "csv": "juven_day1_lightning_air_front_cw_standing.csv",
+          "positive_samples": 7770,
+          "retained_positive": 3359,
+          "background_samples": 14462,
+          "active_background": 1476
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing.csv",
+          "positive_samples": 1383,
+          "retained_positive": 865,
+          "background_samples": 2438,
+          "active_background": 450
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing_2.csv",
+          "positive_samples": 12079,
+          "retained_positive": 8238,
+          "background_samples": 9834,
+          "active_background": 812
+        },
+        {
+          "csv": "juven_day1_tank_air_front_cw_standing_2.csv",
+          "positive_samples": 8162,
+          "retained_positive": 2522,
+          "background_samples": 16983,
+          "active_background": 4755
+        }
+      ]
+    }
+  },
+  {
+    "kind": "forest",
+    "start": 0.6,
+    "stop": 0.2,
+    "report": {
+      "useful_sample_recall": 0.5826083936726224,
+      "background_active_fraction": 0.21348044171023114,
+      "false_starts_per_background_minute": 17.560581116598794,
+      "gesture_detection_rate": 0.9945652173913043,
+      "onset_delay_p95_ms_detected_only": 765.5,
+      "positive_samples": 57591,
+      "background_samples": 103869,
+      "per_class": {
+        "circle": {
+          "samples": 8695,
+          "retained": 5964,
+          "gestures": 52,
+          "detected": 52,
+          "covered_80_percent": 5,
+          "sample_recall": 0.6859114433582518,
+          "gesture_detection_rate": 1.0
+        },
+        "star": {
+          "samples": 13462,
+          "retained": 10367,
+          "gestures": 56,
+          "detected": 56,
+          "covered_80_percent": 28,
+          "sample_recall": 0.7700935967909671,
+          "gesture_detection_rate": 1.0
+        },
+        "lightning": {
+          "samples": 7770,
+          "retained": 4887,
+          "gestures": 53,
+          "detected": 52,
+          "covered_80_percent": 7,
+          "sample_recall": 0.628957528957529,
+          "gesture_detection_rate": 0.9811320754716981
+        },
+        "fireball": {
+          "samples": 6622,
+          "retained": 2923,
+          "gestures": 53,
+          "detected": 52,
+          "covered_80_percent": 1,
+          "sample_recall": 0.4414074297795228,
+          "gesture_detection_rate": 0.9811320754716981
+        },
+        "tank": {
+          "samples": 8162,
+          "retained": 2956,
+          "gestures": 54,
+          "detected": 54,
+          "covered_80_percent": 0,
+          "sample_recall": 0.3621661357510414,
+          "gesture_detection_rate": 1.0
+        },
+        "chop": {
+          "samples": 6811,
+          "retained": 3179,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 4,
+          "sample_recall": 0.4667449713698429,
+          "gesture_detection_rate": 1.0
+        },
+        "jabs": {
+          "samples": 6069,
+          "retained": 3277,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 2,
+          "sample_recall": 0.539957159334322,
+          "gesture_detection_rate": 1.0
+        }
+      },
+      "recordings": [
+        {
+          "csv": "juven_day1_chop_air_front_cw_standing_3.csv",
+          "positive_samples": 6811,
+          "retained_positive": 3179,
+          "background_samples": 23284,
+          "active_background": 4656
+        },
+        {
+          "csv": "juven_day1_circle_air_front_cw_standing_2.csv",
+          "positive_samples": 8695,
+          "retained_positive": 5964,
+          "background_samples": 9667,
+          "active_background": 971
+        },
+        {
+          "csv": "juven_day1_fireball_air_front_cw_standing.csv",
+          "positive_samples": 6622,
+          "retained_positive": 2923,
+          "background_samples": 11706,
+          "active_background": 3367
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_2.csv",
+          "positive_samples": 3121,
+          "retained_positive": 1490,
+          "background_samples": 9925,
+          "active_background": 875
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_3.csv",
+          "positive_samples": 2948,
+          "retained_positive": 1787,
+          "background_samples": 5570,
+          "active_background": 823
+        },
+        {
+          "csv": "juven_day1_lightning_air_front_cw_standing.csv",
+          "positive_samples": 7770,
+          "retained_positive": 4887,
+          "background_samples": 14462,
+          "active_background": 4428
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing.csv",
+          "positive_samples": 1383,
+          "retained_positive": 930,
+          "background_samples": 2438,
+          "active_background": 450
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing_2.csv",
+          "positive_samples": 12079,
+          "retained_positive": 9437,
+          "background_samples": 9834,
+          "active_background": 958
+        },
+        {
+          "csv": "juven_day1_tank_air_front_cw_standing_2.csv",
+          "positive_samples": 8162,
+          "retained_positive": 2956,
+          "background_samples": 16983,
+          "active_background": 5646
+        }
+      ]
+    }
+  },
+  {
+    "kind": "forest",
+    "start": 0.6,
+    "stop": 0.3,
+    "report": {
+      "useful_sample_recall": 0.5895365595318713,
+      "background_active_fraction": 0.23516159778182133,
+      "false_starts_per_background_minute": 20.448834589723592,
+      "gesture_detection_rate": 0.9945652173913043,
+      "onset_delay_p95_ms_detected_only": 723.0,
+      "positive_samples": 57591,
+      "background_samples": 103869,
+      "per_class": {
+        "circle": {
+          "samples": 8695,
+          "retained": 5953,
+          "gestures": 52,
+          "detected": 52,
+          "covered_80_percent": 5,
+          "sample_recall": 0.6846463484761357,
+          "gesture_detection_rate": 1.0
+        },
+        "star": {
+          "samples": 13462,
+          "retained": 10385,
+          "gestures": 56,
+          "detected": 56,
+          "covered_80_percent": 29,
+          "sample_recall": 0.7714306938047838,
+          "gesture_detection_rate": 1.0
+        },
+        "lightning": {
+          "samples": 7770,
+          "retained": 4933,
+          "gestures": 53,
+          "detected": 52,
+          "covered_80_percent": 5,
+          "sample_recall": 0.6348777348777349,
+          "gesture_detection_rate": 0.9811320754716981
+        },
+        "fireball": {
+          "samples": 6622,
+          "retained": 3001,
+          "gestures": 53,
+          "detected": 52,
+          "covered_80_percent": 0,
+          "sample_recall": 0.45318634853518575,
+          "gesture_detection_rate": 0.9811320754716981
+        },
+        "tank": {
+          "samples": 8162,
+          "retained": 2976,
+          "gestures": 54,
+          "detected": 54,
+          "covered_80_percent": 0,
+          "sample_recall": 0.3646165155599118,
+          "gesture_detection_rate": 1.0
+        },
+        "chop": {
+          "samples": 6811,
+          "retained": 3332,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 4,
+          "sample_recall": 0.4892086330935252,
+          "gesture_detection_rate": 1.0
+        },
+        "jabs": {
+          "samples": 6069,
+          "retained": 3372,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 3,
+          "sample_recall": 0.555610479485912,
+          "gesture_detection_rate": 1.0
+        }
+      },
+      "recordings": [
+        {
+          "csv": "juven_day1_chop_air_front_cw_standing_3.csv",
+          "positive_samples": 6811,
+          "retained_positive": 3332,
+          "background_samples": 23284,
+          "active_background": 5428
+        },
+        {
+          "csv": "juven_day1_circle_air_front_cw_standing_2.csv",
+          "positive_samples": 8695,
+          "retained_positive": 5953,
+          "background_samples": 9667,
+          "active_background": 907
+        },
+        {
+          "csv": "juven_day1_fireball_air_front_cw_standing.csv",
+          "positive_samples": 6622,
+          "retained_positive": 3001,
+          "background_samples": 11706,
+          "active_background": 4794
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_2.csv",
+          "positive_samples": 3121,
+          "retained_positive": 1515,
+          "background_samples": 9925,
+          "active_background": 1020
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_3.csv",
+          "positive_samples": 2948,
+          "retained_positive": 1857,
+          "background_samples": 5570,
+          "active_background": 853
+        },
+        {
+          "csv": "juven_day1_lightning_air_front_cw_standing.csv",
+          "positive_samples": 7770,
+          "retained_positive": 4933,
+          "background_samples": 14462,
+          "active_background": 4602
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing.csv",
+          "positive_samples": 1383,
+          "retained_positive": 930,
+          "background_samples": 2438,
+          "active_background": 450
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing_2.csv",
+          "positive_samples": 12079,
+          "retained_positive": 9455,
+          "background_samples": 9834,
+          "active_background": 885
+        },
+        {
+          "csv": "juven_day1_tank_air_front_cw_standing_2.csv",
+          "positive_samples": 8162,
+          "retained_positive": 2976,
+          "background_samples": 16983,
+          "active_background": 5487
+        }
+      ]
+    }
+  },
+  {
+    "kind": "forest",
+    "start": 0.6,
+    "stop": 0.4,
+    "report": {
+      "useful_sample_recall": 0.5898664721918355,
+      "background_active_fraction": 0.2358932886616796,
+      "false_starts_per_background_minute": 21.257545562198537,
+      "gesture_detection_rate": 0.9972826086956522,
+      "onset_delay_p95_ms_detected_only": 734.9999999999999,
+      "positive_samples": 57591,
+      "background_samples": 103869,
+      "per_class": {
+        "circle": {
+          "samples": 8695,
+          "retained": 5958,
+          "gestures": 52,
+          "detected": 52,
+          "covered_80_percent": 5,
+          "sample_recall": 0.6852213916043703,
+          "gesture_detection_rate": 1.0
+        },
+        "star": {
+          "samples": 13462,
+          "retained": 10390,
+          "gestures": 56,
+          "detected": 56,
+          "covered_80_percent": 30,
+          "sample_recall": 0.7718021096419552,
+          "gesture_detection_rate": 1.0
+        },
+        "lightning": {
+          "samples": 7770,
+          "retained": 4958,
+          "gestures": 53,
+          "detected": 53,
+          "covered_80_percent": 5,
+          "sample_recall": 0.638095238095238,
+          "gesture_detection_rate": 1.0
+        },
+        "fireball": {
+          "samples": 6622,
+          "retained": 3023,
+          "gestures": 53,
+          "detected": 52,
+          "covered_80_percent": 0,
+          "sample_recall": 0.4565086076713984,
+          "gesture_detection_rate": 0.9811320754716981
+        },
+        "tank": {
+          "samples": 8162,
+          "retained": 2989,
+          "gestures": 54,
+          "detected": 54,
+          "covered_80_percent": 0,
+          "sample_recall": 0.36620926243567753,
+          "gesture_detection_rate": 1.0
+        },
+        "chop": {
+          "samples": 6811,
+          "retained": 3332,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 3,
+          "sample_recall": 0.4892086330935252,
+          "gesture_detection_rate": 1.0
+        },
+        "jabs": {
+          "samples": 6069,
+          "retained": 3321,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 2,
+          "sample_recall": 0.5472071181413742,
+          "gesture_detection_rate": 1.0
+        }
+      },
+      "recordings": [
+        {
+          "csv": "juven_day1_chop_air_front_cw_standing_3.csv",
+          "positive_samples": 6811,
+          "retained_positive": 3332,
+          "background_samples": 23284,
+          "active_background": 5463
+        },
+        {
+          "csv": "juven_day1_circle_air_front_cw_standing_2.csv",
+          "positive_samples": 8695,
+          "retained_positive": 5958,
+          "background_samples": 9667,
+          "active_background": 897
+        },
+        {
+          "csv": "juven_day1_fireball_air_front_cw_standing.csv",
+          "positive_samples": 6622,
+          "retained_positive": 3023,
+          "background_samples": 11706,
+          "active_background": 4757
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_2.csv",
+          "positive_samples": 3121,
+          "retained_positive": 1515,
+          "background_samples": 9925,
+          "active_background": 1040
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_3.csv",
+          "positive_samples": 2948,
+          "retained_positive": 1806,
+          "background_samples": 5570,
+          "active_background": 784
+        },
+        {
+          "csv": "juven_day1_lightning_air_front_cw_standing.csv",
+          "positive_samples": 7770,
+          "retained_positive": 4958,
+          "background_samples": 14462,
+          "active_background": 4567
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing.csv",
+          "positive_samples": 1383,
+          "retained_positive": 930,
+          "background_samples": 2438,
+          "active_background": 450
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing_2.csv",
+          "positive_samples": 12079,
+          "retained_positive": 9460,
+          "background_samples": 9834,
+          "active_background": 870
+        },
+        {
+          "csv": "juven_day1_tank_air_front_cw_standing_2.csv",
+          "positive_samples": 8162,
+          "retained_positive": 2989,
+          "background_samples": 16983,
+          "active_background": 5674
+        }
+      ]
+    }
+  },
+  {
+    "kind": "forest",
+    "start": 0.6,
+    "stop": 0.5,
+    "report": {
+      "useful_sample_recall": 0.5930266881978087,
+      "background_active_fraction": 0.23948435047993144,
+      "false_starts_per_background_minute": 22.470612020910956,
+      "gesture_detection_rate": 1.0,
+      "onset_delay_p95_ms_detected_only": 738.0,
+      "positive_samples": 57591,
+      "background_samples": 103869,
+      "per_class": {
+        "circle": {
+          "samples": 8695,
+          "retained": 5958,
+          "gestures": 52,
+          "detected": 52,
+          "covered_80_percent": 5,
+          "sample_recall": 0.6852213916043703,
+          "gesture_detection_rate": 1.0
+        },
+        "star": {
+          "samples": 13462,
+          "retained": 10390,
+          "gestures": 56,
+          "detected": 56,
+          "covered_80_percent": 30,
+          "sample_recall": 0.7718021096419552,
+          "gesture_detection_rate": 1.0
+        },
+        "lightning": {
+          "samples": 7770,
+          "retained": 4980,
+          "gestures": 53,
+          "detected": 53,
+          "covered_80_percent": 6,
+          "sample_recall": 0.640926640926641,
+          "gesture_detection_rate": 1.0
+        },
+        "fireball": {
+          "samples": 6622,
+          "retained": 3074,
+          "gestures": 53,
+          "detected": 53,
+          "covered_80_percent": 0,
+          "sample_recall": 0.46421020839625493,
+          "gesture_detection_rate": 1.0
+        },
+        "tank": {
+          "samples": 8162,
+          "retained": 2984,
+          "gestures": 54,
+          "detected": 54,
+          "covered_80_percent": 0,
+          "sample_recall": 0.3655966674834599,
+          "gesture_detection_rate": 1.0
+        },
+        "chop": {
+          "samples": 6811,
+          "retained": 3462,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 4,
+          "sample_recall": 0.5082954044927324,
+          "gesture_detection_rate": 1.0
+        },
+        "jabs": {
+          "samples": 6069,
+          "retained": 3305,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 3,
+          "sample_recall": 0.5445707694842643,
+          "gesture_detection_rate": 1.0
+        }
+      },
+      "recordings": [
+        {
+          "csv": "juven_day1_chop_air_front_cw_standing_3.csv",
+          "positive_samples": 6811,
+          "retained_positive": 3462,
+          "background_samples": 23284,
+          "active_background": 5453
+        },
+        {
+          "csv": "juven_day1_circle_air_front_cw_standing_2.csv",
+          "positive_samples": 8695,
+          "retained_positive": 5958,
+          "background_samples": 9667,
+          "active_background": 932
+        },
+        {
+          "csv": "juven_day1_fireball_air_front_cw_standing.csv",
+          "positive_samples": 6622,
+          "retained_positive": 3074,
+          "background_samples": 11706,
+          "active_background": 4876
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_2.csv",
+          "positive_samples": 3121,
+          "retained_positive": 1505,
+          "background_samples": 9925,
+          "active_background": 1080
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_3.csv",
+          "positive_samples": 2948,
+          "retained_positive": 1800,
+          "background_samples": 5570,
+          "active_background": 820
+        },
+        {
+          "csv": "juven_day1_lightning_air_front_cw_standing.csv",
+          "positive_samples": 7770,
+          "retained_positive": 4980,
+          "background_samples": 14462,
+          "active_background": 4655
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing.csv",
+          "positive_samples": 1383,
+          "retained_positive": 930,
+          "background_samples": 2438,
+          "active_background": 450
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing_2.csv",
+          "positive_samples": 12079,
+          "retained_positive": 9460,
+          "background_samples": 9834,
+          "active_background": 865
+        },
+        {
+          "csv": "juven_day1_tank_air_front_cw_standing_2.csv",
+          "positive_samples": 8162,
+          "retained_positive": 2984,
+          "background_samples": 16983,
+          "active_background": 5744
+        }
+      ]
+    }
+  },
+  {
+    "kind": "forest",
+    "start": 0.7,
+    "stop": 0.1,
+    "report": {
+      "useful_sample_recall": 0.46840652185237275,
+      "background_active_fraction": 0.15792969991046416,
+      "false_starts_per_background_minute": 9.820061808624324,
+      "gesture_detection_rate": 0.9402173913043478,
+      "onset_delay_p95_ms_detected_only": 1045.5,
+      "positive_samples": 57591,
+      "background_samples": 103869,
+      "per_class": {
+        "circle": {
+          "samples": 8695,
+          "retained": 4978,
+          "gestures": 52,
+          "detected": 50,
+          "covered_80_percent": 2,
+          "sample_recall": 0.5725129384703853,
+          "gesture_detection_rate": 0.9615384615384616
+        },
+        "star": {
+          "samples": 13462,
+          "retained": 9128,
+          "gestures": 56,
+          "detected": 55,
+          "covered_80_percent": 11,
+          "sample_recall": 0.6780567523399198,
+          "gesture_detection_rate": 0.9821428571428571
+        },
+        "lightning": {
+          "samples": 7770,
+          "retained": 3249,
+          "gestures": 53,
+          "detected": 45,
+          "covered_80_percent": 2,
+          "sample_recall": 0.41814671814671817,
+          "gesture_detection_rate": 0.8490566037735849
+        },
+        "fireball": {
+          "samples": 6622,
+          "retained": 2194,
+          "gestures": 53,
+          "detected": 46,
+          "covered_80_percent": 2,
+          "sample_recall": 0.3313198429477499,
+          "gesture_detection_rate": 0.8679245283018868
+        },
+        "tank": {
+          "samples": 8162,
+          "retained": 2572,
+          "gestures": 54,
+          "detected": 52,
+          "covered_80_percent": 0,
+          "sample_recall": 0.3151188434207302,
+          "gesture_detection_rate": 0.9629629629629629
+        },
+        "chop": {
+          "samples": 6811,
+          "retained": 2675,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 6,
+          "sample_recall": 0.39274702686830126,
+          "gesture_detection_rate": 1.0
+        },
+        "jabs": {
+          "samples": 6069,
+          "retained": 2180,
+          "gestures": 50,
+          "detected": 48,
+          "covered_80_percent": 3,
+          "sample_recall": 0.35920250453122426,
+          "gesture_detection_rate": 0.96
+        }
+      },
+      "recordings": [
+        {
+          "csv": "juven_day1_chop_air_front_cw_standing_3.csv",
+          "positive_samples": 6811,
+          "retained_positive": 2675,
+          "background_samples": 23284,
+          "active_background": 2930
+        },
+        {
+          "csv": "juven_day1_circle_air_front_cw_standing_2.csv",
+          "positive_samples": 8695,
+          "retained_positive": 4978,
+          "background_samples": 9667,
+          "active_background": 682
+        },
+        {
+          "csv": "juven_day1_fireball_air_front_cw_standing.csv",
+          "positive_samples": 6622,
+          "retained_positive": 2194,
+          "background_samples": 11706,
+          "active_background": 2771
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_2.csv",
+          "positive_samples": 3121,
+          "retained_positive": 956,
+          "background_samples": 9925,
+          "active_background": 1249
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_3.csv",
+          "positive_samples": 2948,
+          "retained_positive": 1224,
+          "background_samples": 5570,
+          "active_background": 1321
+        },
+        {
+          "csv": "juven_day1_lightning_air_front_cw_standing.csv",
+          "positive_samples": 7770,
+          "retained_positive": 3249,
+          "background_samples": 14462,
+          "active_background": 1421
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing.csv",
+          "positive_samples": 1383,
+          "retained_positive": 865,
+          "background_samples": 2438,
+          "active_background": 450
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing_2.csv",
+          "positive_samples": 12079,
+          "retained_positive": 8263,
+          "background_samples": 9834,
+          "active_background": 787
+        },
+        {
+          "csv": "juven_day1_tank_air_front_cw_standing_2.csv",
+          "positive_samples": 8162,
+          "retained_positive": 2572,
+          "background_samples": 16983,
+          "active_background": 4793
+        }
+      ]
+    }
+  },
+  {
+    "kind": "forest",
+    "start": 0.7,
+    "stop": 0.2,
+    "report": {
+      "useful_sample_recall": 0.5635950061641576,
+      "background_active_fraction": 0.19605464575571152,
+      "false_starts_per_background_minute": 15.71209889379892,
+      "gesture_detection_rate": 0.9918478260869565,
+      "onset_delay_p95_ms_detected_only": 838.0,
+      "positive_samples": 57591,
+      "background_samples": 103869,
+      "per_class": {
+        "circle": {
+          "samples": 8695,
+          "retained": 5745,
+          "gestures": 52,
+          "detected": 52,
+          "covered_80_percent": 3,
+          "sample_recall": 0.6607245543415756,
+          "gesture_detection_rate": 1.0
+        },
+        "star": {
+          "samples": 13462,
+          "retained": 10270,
+          "gestures": 56,
+          "detected": 56,
+          "covered_80_percent": 28,
+          "sample_recall": 0.762888129549844,
+          "gesture_detection_rate": 1.0
+        },
+        "lightning": {
+          "samples": 7770,
+          "retained": 4753,
+          "gestures": 53,
+          "detected": 52,
+          "covered_80_percent": 6,
+          "sample_recall": 0.6117117117117117,
+          "gesture_detection_rate": 0.9811320754716981
+        },
+        "fireball": {
+          "samples": 6622,
+          "retained": 2721,
+          "gestures": 53,
+          "detected": 52,
+          "covered_80_percent": 1,
+          "sample_recall": 0.4109030504379342,
+          "gesture_detection_rate": 0.9811320754716981
+        },
+        "tank": {
+          "samples": 8162,
+          "retained": 2795,
+          "gestures": 54,
+          "detected": 53,
+          "covered_80_percent": 0,
+          "sample_recall": 0.34244057828963487,
+          "gesture_detection_rate": 0.9814814814814815
+        },
+        "chop": {
+          "samples": 6811,
+          "retained": 3027,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 4,
+          "sample_recall": 0.4444281309646161,
+          "gesture_detection_rate": 1.0
+        },
+        "jabs": {
+          "samples": 6069,
+          "retained": 3147,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 2,
+          "sample_recall": 0.518536826495304,
+          "gesture_detection_rate": 1.0
+        }
+      },
+      "recordings": [
+        {
+          "csv": "juven_day1_chop_air_front_cw_standing_3.csv",
+          "positive_samples": 6811,
+          "retained_positive": 3027,
+          "background_samples": 23284,
+          "active_background": 3853
+        },
+        {
+          "csv": "juven_day1_circle_air_front_cw_standing_2.csv",
+          "positive_samples": 8695,
+          "retained_positive": 5745,
+          "background_samples": 9667,
+          "active_background": 910
+        },
+        {
+          "csv": "juven_day1_fireball_air_front_cw_standing.csv",
+          "positive_samples": 6622,
+          "retained_positive": 2721,
+          "background_samples": 11706,
+          "active_background": 3514
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_2.csv",
+          "positive_samples": 3121,
+          "retained_positive": 1455,
+          "background_samples": 9925,
+          "active_background": 730
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_3.csv",
+          "positive_samples": 2948,
+          "retained_positive": 1692,
+          "background_samples": 5570,
+          "active_background": 738
+        },
+        {
+          "csv": "juven_day1_lightning_air_front_cw_standing.csv",
+          "positive_samples": 7770,
+          "retained_positive": 4753,
+          "background_samples": 14462,
+          "active_background": 3937
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing.csv",
+          "positive_samples": 1383,
+          "retained_positive": 925,
+          "background_samples": 2438,
+          "active_background": 450
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing_2.csv",
+          "positive_samples": 12079,
+          "retained_positive": 9345,
+          "background_samples": 9834,
+          "active_background": 745
+        },
+        {
+          "csv": "juven_day1_tank_air_front_cw_standing_2.csv",
+          "positive_samples": 8162,
+          "retained_positive": 2795,
+          "background_samples": 16983,
+          "active_background": 5487
+        }
+      ]
+    }
+  },
+  {
+    "kind": "forest",
+    "start": 0.7,
+    "stop": 0.3,
+    "report": {
+      "useful_sample_recall": 0.5699675296487299,
+      "background_active_fraction": 0.21000491003090432,
+      "false_starts_per_background_minute": 18.253761950148746,
+      "gesture_detection_rate": 0.9918478260869565,
+      "onset_delay_p95_ms_detected_only": 778.0,
+      "positive_samples": 57591,
+      "background_samples": 103869,
+      "per_class": {
+        "circle": {
+          "samples": 8695,
+          "retained": 5734,
+          "gestures": 52,
+          "detected": 52,
+          "covered_80_percent": 3,
+          "sample_recall": 0.6594594594594595,
+          "gesture_detection_rate": 1.0
+        },
+        "star": {
+          "samples": 13462,
+          "retained": 10318,
+          "gestures": 56,
+          "detected": 56,
+          "covered_80_percent": 29,
+          "sample_recall": 0.7664537215866885,
+          "gesture_detection_rate": 1.0
+        },
+        "lightning": {
+          "samples": 7770,
+          "retained": 4792,
+          "gestures": 53,
+          "detected": 52,
+          "covered_80_percent": 4,
+          "sample_recall": 0.6167310167310167,
+          "gesture_detection_rate": 0.9811320754716981
+        },
+        "fireball": {
+          "samples": 6622,
+          "retained": 2791,
+          "gestures": 53,
+          "detected": 52,
+          "covered_80_percent": 0,
+          "sample_recall": 0.42147387496224703,
+          "gesture_detection_rate": 0.9811320754716981
+        },
+        "tank": {
+          "samples": 8162,
+          "retained": 2810,
+          "gestures": 54,
+          "detected": 53,
+          "covered_80_percent": 0,
+          "sample_recall": 0.3442783631462877,
+          "gesture_detection_rate": 0.9814814814814815
+        },
+        "chop": {
+          "samples": 6811,
+          "retained": 3158,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 2,
+          "sample_recall": 0.46366172368227865,
+          "gesture_detection_rate": 1.0
+        },
+        "jabs": {
+          "samples": 6069,
+          "retained": 3222,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 3,
+          "sample_recall": 0.5308947108255067,
+          "gesture_detection_rate": 1.0
+        }
+      },
+      "recordings": [
+        {
+          "csv": "juven_day1_chop_air_front_cw_standing_3.csv",
+          "positive_samples": 6811,
+          "retained_positive": 3158,
+          "background_samples": 23284,
+          "active_background": 4457
+        },
+        {
+          "csv": "juven_day1_circle_air_front_cw_standing_2.csv",
+          "positive_samples": 8695,
+          "retained_positive": 5734,
+          "background_samples": 9667,
+          "active_background": 851
+        },
+        {
+          "csv": "juven_day1_fireball_air_front_cw_standing.csv",
+          "positive_samples": 6622,
+          "retained_positive": 2791,
+          "background_samples": 11706,
+          "active_background": 4469
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_2.csv",
+          "positive_samples": 3121,
+          "retained_positive": 1480,
+          "background_samples": 9925,
+          "active_background": 775
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_3.csv",
+          "positive_samples": 2948,
+          "retained_positive": 1742,
+          "background_samples": 5570,
+          "active_background": 718
+        },
+        {
+          "csv": "juven_day1_lightning_air_front_cw_standing.csv",
+          "positive_samples": 7770,
+          "retained_positive": 4792,
+          "background_samples": 14462,
+          "active_background": 4113
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing.csv",
+          "positive_samples": 1383,
+          "retained_positive": 925,
+          "background_samples": 2438,
+          "active_background": 450
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing_2.csv",
+          "positive_samples": 12079,
+          "retained_positive": 9393,
+          "background_samples": 9834,
+          "active_background": 722
+        },
+        {
+          "csv": "juven_day1_tank_air_front_cw_standing_2.csv",
+          "positive_samples": 8162,
+          "retained_positive": 2810,
+          "background_samples": 16983,
+          "active_background": 5258
+        }
+      ]
+    }
+  },
+  {
+    "kind": "forest",
+    "start": 0.7,
+    "stop": 0.4,
+    "report": {
+      "useful_sample_recall": 0.5689604278446285,
+      "background_active_fraction": 0.20916731652369813,
+      "false_starts_per_background_minute": 18.831412644773707,
+      "gesture_detection_rate": 0.9945652173913043,
+      "onset_delay_p95_ms_detected_only": 788.0,
+      "positive_samples": 57591,
+      "background_samples": 103869,
+      "per_class": {
+        "circle": {
+          "samples": 8695,
+          "retained": 5734,
+          "gestures": 52,
+          "detected": 52,
+          "covered_80_percent": 3,
+          "sample_recall": 0.6594594594594595,
+          "gesture_detection_rate": 1.0
+        },
+        "star": {
+          "samples": 13462,
+          "retained": 10328,
+          "gestures": 56,
+          "detected": 56,
+          "covered_80_percent": 30,
+          "sample_recall": 0.7671965532610311,
+          "gesture_detection_rate": 1.0
+        },
+        "lightning": {
+          "samples": 7770,
+          "retained": 4822,
+          "gestures": 53,
+          "detected": 53,
+          "covered_80_percent": 4,
+          "sample_recall": 0.6205920205920206,
+          "gesture_detection_rate": 1.0
+        },
+        "fireball": {
+          "samples": 6622,
+          "retained": 2781,
+          "gestures": 53,
+          "detected": 52,
+          "covered_80_percent": 0,
+          "sample_recall": 0.4199637571730595,
+          "gesture_detection_rate": 0.9811320754716981
+        },
+        "tank": {
+          "samples": 8162,
+          "retained": 2810,
+          "gestures": 54,
+          "detected": 53,
+          "covered_80_percent": 0,
+          "sample_recall": 0.3442783631462877,
+          "gesture_detection_rate": 0.9814814814814815
+        },
+        "chop": {
+          "samples": 6811,
+          "retained": 3121,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 1,
+          "sample_recall": 0.4582293348994274,
+          "gesture_detection_rate": 1.0
+        },
+        "jabs": {
+          "samples": 6069,
+          "retained": 3171,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 2,
+          "sample_recall": 0.5224913494809689,
+          "gesture_detection_rate": 1.0
+        }
+      },
+      "recordings": [
+        {
+          "csv": "juven_day1_chop_air_front_cw_standing_3.csv",
+          "positive_samples": 6811,
+          "retained_positive": 3121,
+          "background_samples": 23284,
+          "active_background": 4494
+        },
+        {
+          "csv": "juven_day1_circle_air_front_cw_standing_2.csv",
+          "positive_samples": 8695,
+          "retained_positive": 5734,
+          "background_samples": 9667,
+          "active_background": 841
+        },
+        {
+          "csv": "juven_day1_fireball_air_front_cw_standing.csv",
+          "positive_samples": 6622,
+          "retained_positive": 2781,
+          "background_samples": 11706,
+          "active_background": 4319
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_2.csv",
+          "positive_samples": 3121,
+          "retained_positive": 1480,
+          "background_samples": 9925,
+          "active_background": 785
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_3.csv",
+          "positive_samples": 2948,
+          "retained_positive": 1691,
+          "background_samples": 5570,
+          "active_background": 659
+        },
+        {
+          "csv": "juven_day1_lightning_air_front_cw_standing.csv",
+          "positive_samples": 7770,
+          "retained_positive": 4822,
+          "background_samples": 14462,
+          "active_background": 4098
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing.csv",
+          "positive_samples": 1383,
+          "retained_positive": 925,
+          "background_samples": 2438,
+          "active_background": 450
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing_2.csv",
+          "positive_samples": 12079,
+          "retained_positive": 9403,
+          "background_samples": 9834,
+          "active_background": 722
+        },
+        {
+          "csv": "juven_day1_tank_air_front_cw_standing_2.csv",
+          "positive_samples": 8162,
+          "retained_positive": 2810,
+          "background_samples": 16983,
+          "active_background": 5358
+        }
+      ]
+    }
+  },
+  {
+    "kind": "forest",
+    "start": 0.7,
+    "stop": 0.5,
+    "report": {
+      "useful_sample_recall": 0.5710093591012485,
+      "background_active_fraction": 0.20735734434720657,
+      "false_starts_per_background_minute": 19.75565375617364,
+      "gesture_detection_rate": 0.9972826086956522,
+      "onset_delay_p95_ms_detected_only": 788.0,
+      "positive_samples": 57591,
+      "background_samples": 103869,
+      "per_class": {
+        "circle": {
+          "samples": 8695,
+          "retained": 5734,
+          "gestures": 52,
+          "detected": 52,
+          "covered_80_percent": 3,
+          "sample_recall": 0.6594594594594595,
+          "gesture_detection_rate": 1.0
+        },
+        "star": {
+          "samples": 13462,
+          "retained": 10328,
+          "gestures": 56,
+          "detected": 56,
+          "covered_80_percent": 30,
+          "sample_recall": 0.7671965532610311,
+          "gesture_detection_rate": 1.0
+        },
+        "lightning": {
+          "samples": 7770,
+          "retained": 4834,
+          "gestures": 53,
+          "detected": 53,
+          "covered_80_percent": 5,
+          "sample_recall": 0.6221364221364222,
+          "gesture_detection_rate": 1.0
+        },
+        "fireball": {
+          "samples": 6622,
+          "retained": 2847,
+          "gestures": 53,
+          "detected": 53,
+          "covered_80_percent": 0,
+          "sample_recall": 0.4299305345816974,
+          "gesture_detection_rate": 1.0
+        },
+        "tank": {
+          "samples": 8162,
+          "retained": 2800,
+          "gestures": 54,
+          "detected": 53,
+          "covered_80_percent": 0,
+          "sample_recall": 0.34305317324185247,
+          "gesture_detection_rate": 0.9814814814814815
+        },
+        "chop": {
+          "samples": 6811,
+          "retained": 3193,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 2,
+          "sample_recall": 0.46880046982821905,
+          "gesture_detection_rate": 1.0
+        },
+        "jabs": {
+          "samples": 6069,
+          "retained": 3149,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 2,
+          "sample_recall": 0.5188663700774427,
+          "gesture_detection_rate": 1.0
+        }
+      },
+      "recordings": [
+        {
+          "csv": "juven_day1_chop_air_front_cw_standing_3.csv",
+          "positive_samples": 6811,
+          "retained_positive": 3193,
+          "background_samples": 23284,
+          "active_background": 4277
+        },
+        {
+          "csv": "juven_day1_circle_air_front_cw_standing_2.csv",
+          "positive_samples": 8695,
+          "retained_positive": 5734,
+          "background_samples": 9667,
+          "active_background": 836
+        },
+        {
+          "csv": "juven_day1_fireball_air_front_cw_standing.csv",
+          "positive_samples": 6622,
+          "retained_positive": 2847,
+          "background_samples": 11706,
+          "active_background": 4293
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_2.csv",
+          "positive_samples": 3121,
+          "retained_positive": 1470,
+          "background_samples": 9925,
+          "active_background": 815
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_3.csv",
+          "positive_samples": 2948,
+          "retained_positive": 1679,
+          "background_samples": 5570,
+          "active_background": 651
+        },
+        {
+          "csv": "juven_day1_lightning_air_front_cw_standing.csv",
+          "positive_samples": 7770,
+          "retained_positive": 4834,
+          "background_samples": 14462,
+          "active_background": 4136
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing.csv",
+          "positive_samples": 1383,
+          "retained_positive": 925,
+          "background_samples": 2438,
+          "active_background": 450
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing_2.csv",
+          "positive_samples": 12079,
+          "retained_positive": 9403,
+          "background_samples": 9834,
+          "active_background": 717
+        },
+        {
+          "csv": "juven_day1_tank_air_front_cw_standing_2.csv",
+          "positive_samples": 8162,
+          "retained_positive": 2800,
+          "background_samples": 16983,
+          "active_background": 5363
+        }
+      ]
+    }
+  },
+  {
+    "kind": "forest",
+    "start": 0.7,
+    "stop": 0.6,
+    "report": {
+      "useful_sample_recall": 0.5721206438506017,
+      "background_active_fraction": 0.210784738468648,
+      "false_starts_per_background_minute": 21.604135978973517,
+      "gesture_detection_rate": 0.9972826086956522,
+      "onset_delay_p95_ms_detected_only": 801.9999999999998,
+      "positive_samples": 57591,
+      "background_samples": 103869,
+      "per_class": {
+        "circle": {
+          "samples": 8695,
+          "retained": 5734,
+          "gestures": 52,
+          "detected": 52,
+          "covered_80_percent": 3,
+          "sample_recall": 0.6594594594594595,
+          "gesture_detection_rate": 1.0
+        },
+        "star": {
+          "samples": 13462,
+          "retained": 10298,
+          "gestures": 56,
+          "detected": 56,
+          "covered_80_percent": 29,
+          "sample_recall": 0.7649680582380033,
+          "gesture_detection_rate": 1.0
+        },
+        "lightning": {
+          "samples": 7770,
+          "retained": 4839,
+          "gestures": 53,
+          "detected": 53,
+          "covered_80_percent": 5,
+          "sample_recall": 0.6227799227799228,
+          "gesture_detection_rate": 1.0
+        },
+        "fireball": {
+          "samples": 6622,
+          "retained": 2831,
+          "gestures": 53,
+          "detected": 53,
+          "covered_80_percent": 0,
+          "sample_recall": 0.4275143461189973,
+          "gesture_detection_rate": 1.0
+        },
+        "tank": {
+          "samples": 8162,
+          "retained": 3039,
+          "gestures": 54,
+          "detected": 53,
+          "covered_80_percent": 0,
+          "sample_recall": 0.37233521195785346,
+          "gesture_detection_rate": 0.9814814814814815
+        },
+        "chop": {
+          "samples": 6811,
+          "retained": 3103,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 0,
+          "sample_recall": 0.45558655116722946,
+          "gesture_detection_rate": 1.0
+        },
+        "jabs": {
+          "samples": 6069,
+          "retained": 3105,
+          "gestures": 50,
+          "detected": 50,
+          "covered_80_percent": 1,
+          "sample_recall": 0.5116164112703905,
+          "gesture_detection_rate": 1.0
+        }
+      },
+      "recordings": [
+        {
+          "csv": "juven_day1_chop_air_front_cw_standing_3.csv",
+          "positive_samples": 6811,
+          "retained_positive": 3103,
+          "background_samples": 23284,
+          "active_background": 4202
+        },
+        {
+          "csv": "juven_day1_circle_air_front_cw_standing_2.csv",
+          "positive_samples": 8695,
+          "retained_positive": 5734,
+          "background_samples": 9667,
+          "active_background": 821
+        },
+        {
+          "csv": "juven_day1_fireball_air_front_cw_standing.csv",
+          "positive_samples": 6622,
+          "retained_positive": 2831,
+          "background_samples": 11706,
+          "active_background": 4259
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_2.csv",
+          "positive_samples": 3121,
+          "retained_positive": 1496,
+          "background_samples": 9925,
+          "active_background": 939
+        },
+        {
+          "csv": "juven_day1_jabs_air_front_cw_standing_3.csv",
+          "positive_samples": 2948,
+          "retained_positive": 1609,
+          "background_samples": 5570,
+          "active_background": 791
+        },
+        {
+          "csv": "juven_day1_lightning_air_front_cw_standing.csv",
+          "positive_samples": 7770,
+          "retained_positive": 4839,
+          "background_samples": 14462,
+          "active_background": 4276
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing.csv",
+          "positive_samples": 1383,
+          "retained_positive": 925,
+          "background_samples": 2438,
+          "active_background": 450
+        },
+        {
+          "csv": "juven_day1_star_air_front_cw_standing_2.csv",
+          "positive_samples": 12079,
+          "retained_positive": 9373,
+          "background_samples": 9834,
+          "active_background": 642
+        },
+        {
+          "csv": "juven_day1_tank_air_front_cw_standing_2.csv",
+          "positive_samples": 8162,
+          "retained_positive": 3039,
+          "background_samples": 16983,
+          "active_background": 5514
+        }
+      ]
+    }
+  }
+]

@@ -1,0 +1,8 @@
+{
+  "target": "esp32:esp32:firebeetle32",
+  "result": "passed",
+  "program_bytes": 633875,
+  "global_ram_bytes": 38400,
+  "uploaded": false,
+  "note": "Built a same-content sketch copy under training/build_sketch/firebeetle because Arduino requires the sketch folder and main .ino name to match."
+}

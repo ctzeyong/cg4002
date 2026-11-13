@@ -1,0 +1,9 @@
+{
+  "recordings": 33,
+  "samples": 657147,
+  "decisions": 127911,
+  "max_feature_error": 5.000001692678779e-06,
+  "max_score_error": 4.9761972320538916e-11,
+  "flag_mismatches": 0,
+  "event_mismatches": 0
+}

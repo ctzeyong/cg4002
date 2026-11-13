@@ -1,0 +1,125 @@
+{
+  "useful_sample_recall": 0.7893766137956474,
+  "background_active_fraction": 0.44084742671836225,
+  "false_starts_per_background_minute": 47.239599438643225,
+  "gesture_detection_rate": 0.9971428571428571,
+  "onset_delay_p95_ms_detected_only": 398.0,
+  "positive_samples": 37954,
+  "background_samples": 126123,
+  "per_class": {
+    "circle": {
+      "samples": 5907,
+      "retained": 5020,
+      "gestures": 50,
+      "detected": 50,
+      "covered_80_percent": 32,
+      "sample_recall": 0.8498391738615202,
+      "gesture_detection_rate": 1.0
+    },
+    "star": {
+      "samples": 9448,
+      "retained": 8306,
+      "gestures": 50,
+      "detected": 50,
+      "covered_80_percent": 43,
+      "sample_recall": 0.8791278577476714,
+      "gesture_detection_rate": 1.0
+    },
+    "lightning": {
+      "samples": 6044,
+      "retained": 5256,
+      "gestures": 50,
+      "detected": 50,
+      "covered_80_percent": 38,
+      "sample_recall": 0.8696227663798809,
+      "gesture_detection_rate": 1.0
+    },
+    "fireball": {
+      "samples": 4950,
+      "retained": 3287,
+      "gestures": 50,
+      "detected": 49,
+      "covered_80_percent": 17,
+      "sample_recall": 0.664040404040404,
+      "gesture_detection_rate": 0.98
+    },
+    "tank": {
+      "samples": 4093,
+      "retained": 2874,
+      "gestures": 50,
+      "detected": 50,
+      "covered_80_percent": 12,
+      "sample_recall": 0.7021744441729783,
+      "gesture_detection_rate": 1.0
+    },
+    "chop": {
+      "samples": 4035,
+      "retained": 2845,
+      "gestures": 50,
+      "detected": 50,
+      "covered_80_percent": 16,
+      "sample_recall": 0.7050805452292441,
+      "gesture_detection_rate": 1.0
+    },
+    "jabs": {
+      "samples": 3477,
+      "retained": 2372,
+      "gestures": 50,
+      "detected": 50,
+      "covered_80_percent": 14,
+      "sample_recall": 0.6821972965199885,
+      "gesture_detection_rate": 1.0
+    }
+  },
+  "recordings": [
+    {
+      "csv": "ty_day1_chop_air_front_cw_standing.csv",
+      "positive_samples": 4035,
+      "retained_positive": 2845,
+      "background_samples": 16206,
+      "active_background": 8951
+    },
+    {
+      "csv": "ty_day1_circle_air_front_cw_standing.csv",
+      "positive_samples": 5907,
+      "retained_positive": 5020,
+      "background_samples": 11026,
+      "active_background": 4633
+    },
+    {
+      "csv": "ty_day1_fireball_air_front_cw_standing_3.csv",
+      "positive_samples": 4950,
+      "retained_positive": 3287,
+      "background_samples": 30334,
+      "active_background": 13161
+    },
+    {
+      "csv": "ty_day1_jabs_air_front_cw_standing.csv",
+      "positive_samples": 3477,
+      "retained_positive": 2372,
+      "background_samples": 17943,
+      "active_background": 8001
+    },
+    {
+      "csv": "ty_day1_lightning_air_front_cw_standing.csv",
+      "positive_samples": 6044,
+      "retained_positive": 5256,
+      "background_samples": 18585,
+      "active_background": 7570
+    },
+    {
+      "csv": "ty_day1_star_air_front_cw_standing.csv",
+      "positive_samples": 9448,
+      "retained_positive": 8306,
+      "background_samples": 15435,
+      "active_background": 7340
+    },
+    {
+      "csv": "ty_day1_tank_air_front_cw_standing.csv",
+      "positive_samples": 4093,
+      "retained_positive": 2874,
+      "background_samples": 16594,
+      "active_background": 5945
+    }
+  ]
+}
