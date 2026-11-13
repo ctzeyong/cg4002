@@ -18,6 +18,10 @@ SESSION_ID = uuid.uuid4().hex[:8]
 PLAINTEXT_PORT = 1883
 LOOPBACK_HOST = "127.0.0.1"
 
+# The power monitor's latest readings, retained, for the dashboard (power_monitor.py).
+# Plain JSON, not an envelope: nothing in the game reads it.
+POWER_TOPIC = "status/power"
+
 # One retained topic for both gloves, so one last will covers both.
 GLOVES_TOPIC = "status/gloves"
 # Its own source, so its event_ids never collide with the AI events'.

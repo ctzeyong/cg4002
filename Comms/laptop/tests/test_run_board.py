@@ -725,3 +725,251 @@ def test_bitstream_from_args_reads_the_forwarded_flag():
     assert run_board.bitstream_from_args(["--gesture-flag", "--bitstream", "x.xsa"]) == "x.xsa"
     assert run_board.bitstream_from_args(["--bitstream=y.xsa"]) == "y.xsa"
     assert run_board.bitstream_from_args(["--gesture-flag"]) is None
+
+
+# --- the power monitor -------------------------------------------------------
+
+
+def power_matches(cmdline):
+    return re.search(run_board.POWER_PATTERN, cmdline) is not None
+
+
+def test_the_power_pattern_matches_the_monitor():
+    assert power_matches("/home/xilinx/comms-venv/bin/python /home/xilinx/comms/power_monitor.py")
+
+
+@pytest.mark.parametrize("cmdline", [
+    SHELL_CMDLINE + "; nohup ~/comms-venv/bin/python ~/comms/power_monitor.py",
+    "sudo -n env HOME=/home/xilinx /home/xilinx/comms-venv/bin/python "
+    "/home/xilinx/comms/power_monitor.py",
+    "tail -f /home/xilinx/comms/logs/2026-11-12/power_console_20261112T101500Z.log",
+])
+def test_the_power_pattern_does_not_match_our_shell_sudo_or_a_tail(cmdline):
+    """The same three traps as the client's pattern."""
+    assert not power_matches(cmdline)
+
+
+def test_without_power_nothing_about_power_is_started():
+    assert "power_monitor.py" not in run_board.remote_command(8888, [], restart=False)
+    assert run_board.parse_args([]).power is False
+
+
+def test_power_starts_the_monitor_as_root_into_the_day_folder():
+    command = run_board.remote_command(8888, [], restart=False, power=True)
+
+    assert ('nohup setsid sudo -n env HOME="$HOME" XILINX_XRT=/usr ~/comms-venv/bin/python '
+            '~/comms/power_monitor.py > "$pcap"') in command
+    assert command.index("mkdir -p ~/comms/logs/") < command.index("power_monitor.py >")
+    assert 'pcap=~/comms/logs/"$(date -u +%Y-%m-%d)"/power_console_' in command
+
+
+def test_a_rerun_with_the_same_settings_leaves_the_monitor_alone():
+    """Like the engine, so a rerun does not split one session's readings in two."""
+    command = run_board.remote_command(8888, [], restart=False, power=True,
+                                       monitor_args=" --cpu-mhz 300")
+
+    start = command[command.index(f'if pgrep -f "{run_board.POWER_PATTERN} --cpu'):]
+    assert start.startswith(f'if pgrep -f "{run_board.POWER_PATTERN} --cpu-mhz 300$" >/dev/null; '
+                            'then echo "POWER: already running"; else ')
+    # only a monitor with other settings is stopped, in the else, before the new one starts
+    assert (start.index("POWER: already running") < start.index("pkill -f")
+            < start.index("power_monitor.py --cpu-mhz 300 >"))
+
+
+@pytest.mark.parametrize("pattern_args, cmdline_args, same", [
+    ("", "", True),
+    (" --cpu-mhz 300 --cores 1", " --cpu-mhz 300 --cores 1", True),
+    ("", " --cpu-mhz 300", False),  # tuned, but this run wants the board as it is
+    (" --cpu-mhz 300", "", False),
+    (" --cpu-mhz 300", " --cpu-mhz 300 --cores 1", False),
+])
+def test_a_monitor_counts_as_running_only_with_the_same_settings(pattern_args, cmdline_args, same):
+    cmdline = "/home/xilinx/comms-venv/bin/python /home/xilinx/comms/power_monitor.py" + cmdline_args
+
+    assert (re.search(f"{run_board.POWER_PATTERN}{pattern_args}$", cmdline) is not None) == same
+
+
+def test_tuning_flags_go_to_the_monitor_and_the_client_and_imply_power():
+    args = run_board.parse_args(["--gesture-flag", "--cpu-mhz", "300", "--cores", "1",
+                                 "--pl-mhz", "25"])
+
+    assert args.power is True
+    assert args.monitor_args == " --cpu-mhz 300 --cores 1"
+    assert args.client_args == ["--gesture-flag", "--pl-mhz", "25"]
+    command = run_board.remote_command(8888, args.client_args, restart=True, power=args.power,
+                                       monitor_args=args.monitor_args)
+    assert "tcp_client_mqtt.py --host 127.0.0.1 --port 8888 --gesture-flag --pl-mhz 25 " in command
+    assert "~/comms/power_monitor.py --cpu-mhz 300 --cores 1 >" in command
+
+
+@pytest.mark.parametrize("argv", [["--pl-mhz", "50"], ["--cores", "2"]])
+def test_any_one_tuning_flag_also_records_the_power(argv):
+    assert run_board.parse_args(argv).power is True
+
+
+def test_without_tuning_the_monitor_gets_no_flags():
+    args = run_board.parse_args(["--power"])
+
+    assert args.monitor_args == "" and args.client_args == []
+
+
+@pytest.mark.parametrize("argv", [
+    ["--cpu-mhz", "500"], ["--cores", "0"], ["--cores", "5"], ["--pl-mhz", "150"],
+    ["--pl-mhz", "5"], ["--pl-mhz", "fast"],
+])
+def test_a_bad_tuning_value_fails_here_before_anything_reaches_the_board(argv, capsys):
+    with pytest.raises(SystemExit):
+        run_board.parse_args(argv)
+
+
+def test_attaching_to_a_running_client_says_the_pl_clock_was_not_set():
+    """The client sets it as it loads the overlay, so an attach without --sync can't change it."""
+    command = run_board.remote_command(8888, ["--pl-mhz", "25"], restart=False)
+    attach = command[command.index("ATTACH: client already running"):]
+
+    assert attach.index("--pl-mhz only applies as the client starts") < attach.index("else")
+    assert "only applies" not in run_board.remote_command(8888, [], restart=False)
+
+
+@pytest.mark.parametrize("power", [False, True])
+def test_sync_and_stop_always_stop_the_monitor(power):
+    """So a monitor from an earlier --power run never outlives the client, and writes its summary."""
+    for command in (run_board.remote_command(8888, [], restart=True, power=power),
+                    run_board.stop_command()):
+        assert f'sudo -n pkill -f "{run_board.POWER_PATTERN}"' in command
+
+
+def test_power_is_ours_and_not_forwarded_to_the_client():
+    args = run_board.parse_args(["--power", "--gesture-flag", "-v"])
+
+    assert args.power is True
+    assert args.client_args == ["--gesture-flag", "-v"]
+
+
+@pytest.mark.asyncio
+async def test_fetch_logs_also_brings_back_the_power_csvs(tmp_path, monkeypatch):
+    monkeypatch.setattr(run_board, "FETCHED_LOGS", tmp_path)
+    got = []
+
+    class Sftp:
+        async def isdir(self, path):
+            return True
+
+        async def listdir(self, path):
+            return ["tcp_client_mqtt_1Z.log", "power_101500Z.csv", "power_summary.csv", "core"]
+
+        async def get(self, paths, local):
+            got.extend(Path(p).name for p in paths)
+
+    class Opened:
+        async def __aenter__(self):
+            return Sftp()
+
+        async def __aexit__(self, *exc):
+            return False
+
+    conn = SimpleNamespace(start_sftp_client=lambda: Opened())
+    await run_board.fetch_logs(conn, "2026-11-12")
+
+    assert got == ["power_101500Z.csv", "power_summary.csv", "tcp_client_mqtt_1Z.log"]
+
+
+SUMMARY_HEADER = (
+    "start_utc,end_utc,readings_file,gestures,idle_s,idle_PSINT_FP,idle_INT,idle_PSDDR,idle_3V3,"
+    "idle_TOTAL,playing_s,playing_PSINT_FP,playing_INT,playing_PSDDR,playing_3V3,playing_TOTAL,"
+    "playing_minus_idle_W"
+)
+
+
+def report_output(row, path="/home/xilinx/comms/logs/2026-11-13/power_summary.csv"):
+    return f"{path}\n{SUMMARY_HEADER}\n{row}\n"
+
+
+ENDED = "2026-11-13T09:39:04.003Z"
+ENDED_EPOCH = 1794562744.0  # ENDED in seconds since 1970, UTC
+
+
+def test_the_power_report_reads_the_newest_summary_row():
+    out = report_output(f"2026-11-13T09:37:04.654Z,{ENDED},power_093704Z.csv,12,119.5,0.5,0.2,"
+                        "0.06,0.41,2.16756,300.2,0.6,0.22,0.06,0.41,2.30000,0.13244")
+
+    day, line = run_board.power_report(out, now=ENDED_EPOCH + 5)
+
+    assert day == "2026-11-13"
+    assert line == ("power this session: idle 2.168 W over 120 s, playing 2.300 W over 300 s, "
+                    "playing uses +0.132 W, 12 gesture(s)")
+
+
+def test_the_power_report_says_when_nothing_was_played():
+    out = report_output(f"2026-11-13T09:37:04.654Z,{ENDED},power_093704Z.csv,0,119.5,0.5,0.2,"
+                        "0.06,0.41,2.16756,0.0,,,,,,")
+
+    _, line = run_board.power_report(out, now=ENDED_EPOCH + 5)
+
+    assert line == "power this session: idle 2.168 W over 120 s, no playing readings, 0 gesture(s)"
+
+
+def test_the_power_report_flags_a_row_from_an_older_session():
+    """If this session's monitor died, the newest row is someone else's; say so, don't pass it off."""
+    out = report_output(f"2026-11-13T09:37:04.654Z,{ENDED},power_093704Z.csv,0,119.5,0.5,0.2,"
+                        "0.06,0.41,2.16756,0.0,,,,,,")
+
+    _, line = run_board.power_report(out, now=ENDED_EPOCH + 3600)
+
+    assert line.endswith(f"this is the newest summary, from {ENDED}, not this session's")
+
+
+def test_the_power_report_names_the_settings_the_session_ran_with():
+    header = SUMMARY_HEADER.replace("gestures,", "gestures,cpu_mhz,cores,pl_mhz,")
+    row = (f"2026-11-13T09:37:04.654Z,{ENDED},power_093704Z.csv,0,300,1,25.0,119.5,0.5,0.2,"
+           "0.06,0.41,2.05,0.0,,,,,,")
+    out = f"/home/xilinx/comms/logs/2026-11-13/power_summary.csv\n{header}\n{row}\n"
+
+    _, line = run_board.power_report(out, now=ENDED_EPOCH + 5)
+
+    assert line == ("power this session: idle 2.050 W over 120 s, no playing readings, "
+                    "0 gesture(s), at CPU 300 MHz, 1 core(s), PL 25 MHz")
+
+
+@pytest.mark.parametrize("output", ["", "/home/xilinx/comms/logs/2026-11-13/power_summary.csv\n"])
+def test_no_summary_on_the_board_is_none(output):
+    assert run_board.power_report(output) is None
+
+
+def test_the_report_waits_for_the_monitor_to_write_its_summary_first():
+    command = run_board.POWER_REPORT
+
+    assert command.index(f'pgrep -f "{run_board.POWER_PATTERN}"') < command.index("power_summary.csv")
+
+
+@pytest.mark.asyncio
+async def test_ctrl_c_says_so_and_a_tail_that_ends_does_not(captured_stop):
+    """run() shows the power totals only after a Ctrl-C, which is when the monitor was stopped."""
+    board = FakeBoard(["STARTED"], hang=True)
+    attached = asyncio.create_task(run_board.attach(board, "tail"))
+    await wait_until(lambda: captured_stop)
+    captured_stop[0].set()
+    assert await asyncio.wait_for(attached, DEADLINE_S) is True
+
+    assert await asyncio.wait_for(
+        run_board.attach(FakeBoard(["ERROR"], hang=False), "tail"), DEADLINE_S) is False
+
+
+@pytest.mark.asyncio
+async def test_report_power_shows_the_totals_then_copies_that_days_files(monkeypatch, caplog):
+    out = report_output(f"2026-11-13T09:37:04.654Z,{ENDED},power_093704Z.csv,3,119.5,0.5,0.2,"
+                        "0.06,0.41,2.16756,0.0,,,,,,")
+    board = FakeBoard([], hang=False)
+    board.run = lambda command, check=False: asyncio.sleep(0, SimpleNamespace(stdout=out, stderr=""))
+    fetched = []
+
+    async def fetch(conn, day):
+        fetched.append(day)
+
+    monkeypatch.setattr(run_board, "fetch_logs", fetch)
+    monkeypatch.setattr(run_board.time, "time", lambda: ENDED_EPOCH + 5)
+    with caplog.at_level(logging.INFO, logger="run_board"):
+        await run_board.report_power(board)
+
+    assert "power this session: idle 2.168 W over 120 s" in caplog.text
+    assert fetched == ["2026-11-13"]

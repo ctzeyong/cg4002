@@ -26,6 +26,7 @@ if str(SCRIPTS) not in sys.path:
 
 import dashboard.__main__ as app  # noqa: E402
 from dashboard import board_link, drawing, relay_log, stop_all  # noqa: E402
+import envelope  # noqa: E402  the board's, which the dashboard reads too
 from helpers import MOSQUITTO, Broker  # noqa: E402
 
 T0 = 1793700000.0  # a whole second, in UTC
@@ -1132,3 +1133,134 @@ def test_each_pane_waits_for_a_line_the_real_code_logs():
     # the board pane waits for the relay, and the dashboard pane for the board client
     assert re.search(r"Title Board[^\n]*\$waitForRelay", launcher, re.IGNORECASE)
     assert re.search(r"Title Dashboard[^\n]*\$waitForBoard", launcher, re.IGNORECASE)
+
+
+# --------------------------------------------------------------------------
+# The power monitor's readings
+# --------------------------------------------------------------------------
+
+
+DEFAULTS = {"cpu_mhz": 1200, "cores": 4, "pl_mhz": 100.0}
+TUNED = {"now": {"cpu_mhz": 300, "cores": 1, "pl_mhz": 25.0}, "was": DEFAULTS}
+
+
+def power_line(state="playing", idle=(2.16, 141), playing=(2.30, 300), gestures=12, now_w=2.312,
+               tuning=None):
+    """A status/power line built by the monitor's own live_payload, so the two never drift."""
+    import power_monitor as pm
+
+    def means(watts, seconds):
+        m = pm.Means()
+        if seconds:
+            m.add({"PSINT_FP": watts - 1.6, "INT": 0.219, "PSDDR": 0.062, "3V3": 0.41,
+                   "AUX": 0.909}, seconds)
+        return m
+
+    whole = {"idle": means(*idle), "playing": means(*playing)}
+    payload = pm.live_payload(state, "waiting", gestures, means(now_w, 5.0), whole, t=T0,
+                              tuning=tuning)
+    return f"{envelope.POWER_TOPIC} {json.dumps(payload)}"
+
+
+def test_tuning_shows_each_setting_and_what_it_was():
+    tuning = row(screen(board_state(power_line(tuning=TUNED)), T0, 100.0), "Tuning")
+
+    assert "CPU 300 MHz (was 1200)" in tuning
+    assert "1 core (was 4)" in tuning and "PL 25 MHz (was 100)" in tuning
+
+
+def test_an_untuned_board_says_so_and_a_partly_tuned_one_marks_only_what_changed():
+    plain = row(screen(board_state(power_line(tuning={"now": DEFAULTS, "was": DEFAULTS})),
+                       T0, 100.0), "Tuning")
+    assert "CPU 1200 MHz  4 cores  PL 100 MHz  board defaults" in plain
+
+    partly = {"now": {**DEFAULTS, "cores": 2}, "was": DEFAULTS}
+    text = row(screen(board_state(power_line(tuning=partly)), T0, 100.0), "Tuning")
+    assert "2 cores (was 4)" in text and "was 1200" not in text and "defaults" not in text
+
+
+def test_a_board_with_no_pl_reading_leaves_it_out():
+    no_pl = {"now": {"cpu_mhz": 1200, "cores": 4, "pl_mhz": None},
+             "was": {"cpu_mhz": 1200, "cores": 4, "pl_mhz": None}}
+    tuning = row(screen(board_state(power_line(tuning=no_pl)), T0, 100.0), "Tuning")
+
+    assert "PL" not in tuning and "CPU 1200 MHz" in tuning
+
+
+def test_a_stopped_monitor_shows_the_settings_as_the_sessions():
+    """By then the board has its own back, so they must not read as the board's now."""
+    tuning = row(screen(board_state(power_line(state="stopped", tuning=TUNED)), T0, 100.0),
+                 "Tuning")
+
+    assert "session used: CPU 300 MHz (was 1200)" in tuning
+
+
+def test_an_older_monitor_with_no_tuning_says_how_to_get_it():
+    assert "--sync" in row(screen(board_state(power_line()), T0, 100.0), "Tuning")
+
+
+def test_the_dashboard_subscribes_to_the_power_topic():
+    assert envelope.POWER_TOPIC in board_link.subscribe_args()
+
+
+def test_power_shows_the_latest_reading_and_the_session_so_far():
+    state = board_state(power_line(), now=97.0)
+    text = screen(state, T0, 100.0)
+
+    now = row(text, "Power")
+    assert "2.312 W now" in now and "playing" in now and "3s ago" in now
+    assert "CPU 0.712  FPGA 0.219  DDR 0.062  3V3 0.410" in now
+    session = row(text, "This session")
+    assert "idle 2.160 W over 100s" in session or "idle 2.160 W over 2m" in session
+    assert "playing 2.300 W over 5m" in session
+    assert "playing +0.140 W" in session and "12 gestures" in session
+
+
+def test_power_says_how_to_start_it_when_there_is_none():
+    assert "not recording (start with --power)" in row(screen(board_state(), T0, 100.0), "Power")
+
+
+def test_a_stalled_monitor_shows_its_age_in_yellow():
+    state = board_state(power_line(), now=50.0)
+    raw = "\n".join(drawing.render(state, T0, 100.0, width=160, height=80))
+
+    assert f"{drawing.YELLOW}50s ago" in raw
+
+
+def test_a_stopped_monitor_keeps_its_totals_on_screen():
+    text = screen(board_state(power_line(state="stopped")), T0, 100.0)
+
+    assert "monitor stopped" in row(text, "Power")
+    assert "playing +0.140 W" in row(text, "This session")
+
+
+def test_a_monitor_that_died_says_so_with_no_totals():
+    text = screen(board_state(f'{envelope.POWER_TOPIC} {{"state": "offline"}}'), T0, 100.0)
+
+    assert "monitor offline" in row(text, "Power")
+    assert "This session" not in text
+
+
+def test_a_session_with_no_play_yet_has_no_difference():
+    session = row(screen(board_state(power_line(playing=(0, 0))), T0, 100.0), "This session")
+
+    assert "playing - over 0s" in session and "+" not in session
+
+
+@pytest.mark.parametrize("payload", [
+    "not json", "[1]", '{"state": "napping"}', '{"state": "idle", "now_W": "2 W"}',
+    '{"state": "idle", "now_W": true}', '{"state": "idle", "now_rails": {"INT": "x"}}',
+    '{"state": "idle", "phase": 3}', '{"state": "idle", "tuning": 3}',
+    '{"state": "idle", "tuning": {"now": {}}}',
+    '{"state": "idle", "tuning": {"now": {"cores": "1"}, "was": {}}}',
+])
+def test_a_malformed_power_message_is_counted_and_shows_nothing(payload):
+    state = board_state(f"{envelope.POWER_TOPIC} {payload}")
+
+    assert state.board.bad_messages == 1 and state.board.power is None
+
+
+def test_a_new_subscription_forgets_the_power_reading_too():
+    state = board_state(power_line())
+    state.board.subscribed()
+    assert state.board.power is None

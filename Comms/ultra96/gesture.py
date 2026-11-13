@@ -278,7 +278,30 @@ class StubAI:
         pass
 
 
-def load_classifier(ai_h5=None, vocab=None, bitstream=None):
+def tune_pl(pl_mhz):
+    """Slow the FPGA clock to `pl_mhz` for this process's life (board_settings.py).
+
+    Called after the overlay loads, since loading resets the clock. The original is put back
+    at exit, or by board_settings' guardian if this process is killed. A value the board
+    refuses is logged and the clock left as it is: the game runs either way.
+    """
+    import atexit
+
+    import board_settings
+
+    settings = board_settings.Settings(state_file=board_settings.PL_STATE_FILE)
+    try:
+        settings.apply({"pl": pl_mhz})
+    except (ValueError, RuntimeError) as exc:
+        log.error("PL clock not changed: %s", exc)
+        return None
+    atexit.register(settings.restore)
+    log.info("PL clock now %.1f MHz (was %.1f); put back when the client stops",
+             settings.now().get("pl", pl_mhz), settings.load_state()["pl_mhz"])
+    return settings
+
+
+def load_classifier(ai_h5=None, vocab=None, bitstream=None, pl_mhz=None):
     """Return AI's model on the board, or a stub anywhere else.
 
     With `ai_h5`, run that Keras model on the laptop instead (AI/board/keras_stream.py).
@@ -286,15 +309,21 @@ def load_classifier(ai_h5=None, vocab=None, bitstream=None):
     + noise); None uses wk10_integration's default. `bitstream` is the overlay filename to
     load, resolved next to the model on the board; it is required on the FPGA path and must
     output `vocab`'s class count. The ai_h5 path ignores both (keras reads them from the model).
+    `pl_mhz` slows the FPGA clock once the overlay is loaded (tune_pl); only the FPGA path has one.
     """
-    if ai_h5:
-        import keras_stream  # AI/board is on sys.path, added at the top
-        return AI(keras_stream, keras_stream.GestureClassifier(ai_h5))
-    if not FPGA_MANAGER.exists():
+    if ai_h5 or not FPGA_MANAGER.exists():
+        if pl_mhz is not None:
+            log.warning("--pl-mhz ignored: no FPGA model here to slow down")
+        if ai_h5:
+            import keras_stream  # AI/board is on sys.path, added at the top
+            return AI(keras_stream, keras_stream.GestureClassifier(ai_h5))
         return StubAI()
     if not bitstream:
         raise ValueError("no bitstream given; pass --bitstream NAME for the FPGA gesture path")
     module = importlib.import_module(AI_MODULE)  # needs numpy, so only on the board
     bitstream_path = pathlib.Path(module.__file__).with_name(bitstream)
     config = module.vocab_config(vocab)
-    return AI(module, module.GestureClassifier(bitstream=str(bitstream_path), config=config))
+    ai = AI(module, module.GestureClassifier(bitstream=str(bitstream_path), config=config))
+    if pl_mhz is not None:
+        ai.pl_settings = tune_pl(pl_mhz)
+    return ai

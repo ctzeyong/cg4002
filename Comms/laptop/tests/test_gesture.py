@@ -661,6 +661,59 @@ def test_on_the_board_the_flag_path_loads_ais_model_with_its_bitstream(monkeypat
     assert built == [str(tmp_path / "baseline_improved.xsa")]
 
 
+def test_the_pl_clock_is_set_only_after_the_overlay_loads(monkeypatch, tmp_path):
+    """Loading an overlay resets fclk0, so setting it first would be undone at once."""
+    order = []
+    module = types.ModuleType(gesture.AI_MODULE)
+    module.__file__ = str(tmp_path / f"{gesture.AI_MODULE}.py")
+    module.GestureClassifier = lambda bitstream, config=None: order.append("overlay") or "model"
+    module.vocab_config = lambda vocab=None: "config"
+    monkeypatch.setitem(sys.modules, gesture.AI_MODULE, module)
+    monkeypatch.setattr(gesture, "FPGA_MANAGER", tmp_path)
+    monkeypatch.setattr(gesture, "tune_pl", lambda mhz: order.append(("pl", mhz)) or "settings")
+
+    ai = gesture.load_classifier(bitstream="x.xsa", pl_mhz=25.0)
+
+    assert order == ["overlay", ("pl", 25.0)] and ai.pl_settings == "settings"
+    order.clear()
+    gesture.load_classifier(bitstream="x.xsa")
+    assert order == ["overlay"]  # no --pl-mhz: the clock is left as the overlay set it
+
+
+def test_off_the_board_the_pl_clock_is_ignored_with_a_warning(monkeypatch, tmp_path, caplog):
+    monkeypatch.setattr(gesture, "FPGA_MANAGER", tmp_path / "absent")
+    monkeypatch.setattr(gesture, "tune_pl", lambda mhz: pytest.fail("no FPGA to slow down"))
+
+    assert isinstance(gesture.load_classifier(pl_mhz=25.0), gesture.StubAI)
+    assert "--pl-mhz ignored" in caplog.text
+
+
+def test_a_pl_clock_the_board_refuses_leaves_the_game_running(monkeypatch, caplog, tmp_path):
+    import board_settings
+
+    class Refusing:
+        def __init__(self, state_file):
+            pass
+
+        def apply(self, wanted):
+            raise ValueError("pl=150: keep it between 10 and the current 100.0 MHz")
+
+    monkeypatch.setattr(board_settings, "Settings", Refusing)
+    assert gesture.tune_pl(150.0) is None
+    assert "PL clock not changed: pl=150" in caplog.text
+
+
+def test_both_clients_take_pl_mhz():
+    import argparse
+
+    import tcp_client
+
+    parser = argparse.ArgumentParser()
+    tcp_client.add_gesture_flag(parser)
+    assert parser.parse_args(["--pl-mhz", "25"]).pl_mhz == 25.0
+    assert parser.parse_args([]).pl_mhz is None
+
+
 def test_on_the_board_a_model_that_will_not_import_is_an_error_not_the_stub(monkeypatch, tmp_path):
     monkeypatch.setattr(gesture, "FPGA_MANAGER", tmp_path)
     monkeypatch.setitem(sys.modules, gesture.AI_MODULE, None)  # importing it now raises ImportError
