@@ -2,6 +2,7 @@
 
 Repeats, late packets and samples with no IMU reading never reach AI, and AI is told when
 a node's stream broke. A gesture the glove rejected is never ended, so AI never classifies it.
+Soon after a shield, AI's next shield or warrior answer gives no event (SHIELD_COOLDOWN_SAMPLES).
 Every sample that passes goes to AI's wk10_integration.py, which buffers and classifies, so a
 new model changes nothing here.
 """
@@ -48,6 +49,15 @@ IMU_OK = 1
 FLAG_FIELD = 1
 IN_GESTURE = 1
 REJECTED = 2
+
+# Within this many of a node's samples (2.0 s at 100 Hz) after its shield, AI's NEXT answer in
+# SHIELD_FOLLOWERS gives no event; any after that do, so shields can still be spammed. The glove
+# often ends the raise and the lowering of one shield as two gestures, and the lowering came out
+# as a second shield or as warrior: that one answer is the one dropped. Every other gesture is
+# never held back. 0 turns the rule off.
+SHIELD_COOLDOWN_SAMPLES = 200
+SHIELD = "shield"
+SHIELD_FOLLOWERS = ("shield", "warrior")
 
 # AI's model module, imported on the board. The overlay it loads is passed in via --bitstream.
 AI_MODULE = "wk10_integration"
@@ -109,14 +119,19 @@ class Windows:
     A new one is made every TCP session.
     """
 
-    def __init__(self, ai):
+    def __init__(self, ai, shield_cooldown_samples=SHIELD_COOLDOWN_SAMPLES):
         self.ai = ai
+        self.shield_cooldown_samples = shield_cooldown_samples
         # AI's buffers live as long as the model, so a reconnect empties them here
         self.ai.reset()
         self._last_seq = {}
         self._without_imu = {}  # node -> packets in a row that carried no IMU reading
         self._last_time = {}  # node -> laptop receive time of its latest packet
         self._flagged = {}  # node -> (samples, packets lost) of its flagged gesture so far
+        # node -> samples since its last shield event; none yet means no cooldown
+        self._since_shield = {}
+        # nodes whose next shield or warrior within the cooldown is still to be dropped
+        self._drop_next = set()
 
     def _accept(self, msg):
         """Apply the transport rules to one SENSOR message.
@@ -177,8 +192,25 @@ class Windows:
             flagged = None
         # AI classifies on end_of_gesture, so it goes on the first sample after the flag drops
         ended = flagged is not None and flag != IN_GESTURE
+        since = self._since_shield.get(node)
+        if since is not None:
+            since += 1
+            self._since_shield[node] = since
         started = time.perf_counter()
         answer = self.ai.on_sample(node, to_record(sample, msg, ended))
+        dropped = (answer is not None and answer[0] in SHIELD_FOLLOWERS and node in self._drop_next
+                   and since is not None and since < self.shield_cooldown_samples)
+        if dropped:
+            # only this one: the next shield or warrior in the cooldown gives an event again
+            self._drop_next.discard(node)
+            log.info("no AI event: node %d's %s came %d samples after its shield (cooldown %d)",
+                     node, answer[0], since, self.shield_cooldown_samples)
+            return None
+        if answer is not None and answer[0] in SHIELD_FOLLOWERS:
+            self._drop_next.discard(node)  # it gave an event, so it wasn't the lowering
+        if answer is not None and answer[0] == SHIELD:
+            self._since_shield[node] = 0
+            self._drop_next.add(node)
         if answer is None:
             if ended:
                 # so a detector that only fires briefly still shows in the log
@@ -197,6 +229,8 @@ class Windows:
     def _restart(self, node):
         """Tell AI to forget a node's gesture in progress."""
         self._flagged.pop(node, None)
+        self._since_shield.pop(node, None)  # AI's buffer starts empty, so no old shield in it
+        self._drop_next.discard(node)
         self.ai.reset(node)
 
     def _forget(self, node):
