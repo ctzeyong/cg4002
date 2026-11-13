@@ -28,7 +28,7 @@
 static_assert(IMU_ACCEL_RANGE_G == 4 && IMU_GYRO_RANGE_DPS == 500,
               "IMU range changed in imu.h: this is a data contract change, agree it with Comms and AI first");
 
-#define PLAYER_ID 1 // change accordingly
+#define PLAYER_ID 2 // change accordingly
 
 #if PLAYER_ID == 1
 #define SERVICE_UUID     "b1160001-0000-4000-8000-000000000001"
@@ -88,9 +88,9 @@ struct MotorPattern {
     uint8_t duty;
     uint32_t onMs;
 };
-static constexpr MotorPattern BUZZ_RECOGNISED = {1, 190, 320};
-static constexpr MotorPattern BUZZ_GESTURE_START = {1, 210, 120};
-static constexpr MotorPattern BUZZ_GESTURE_REJECTED = {2, 190, 120};
+static constexpr MotorPattern BUZZ_RECOGNISED = {1, 200, 200};
+static constexpr MotorPattern BUZZ_GESTURE_START = {1, 150, 50};
+static constexpr MotorPattern BUZZ_GESTURE_REJECTED = {2, 160, 0};
 
 // Requested BLE connection parameters.
 // Intervals use 1.25 ms units: 12 × 1.25 ms = 15 ms.
