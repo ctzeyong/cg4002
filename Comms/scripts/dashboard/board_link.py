@@ -34,7 +34,13 @@ TOPICS = (
     "viz/ready/+",
     "viz/echo/+",
     CLIENTS_TOPIC,
+    envelope.POWER_TOPIC,
 )
+# status/power's fields that must be numbers or null, and those that must be strings
+POWER_NUMBERS = ("ts", "now_W", "idle_W", "idle_s", "playing_W", "playing_s", "gestures")
+POWER_STATES = ("idle", "playing", "stopped", "offline")
+# status/power's tuning: the board's settings "now" and "was" (before tuning), each of these
+TUNING_FIELDS = ("cpu_mhz", "cores", "pl_mhz")
 
 
 def subscribe_args(host=envelope.LOOPBACK_HOST, port=envelope.PLAINTEXT_PORT):
@@ -67,6 +73,8 @@ class Board:
         }
         self.ready_at = dict.fromkeys(envelope.PLAYERS)
         self.echo_at = dict.fromkeys(envelope.PLAYERS)
+        self.power = None  # the power monitor's latest status/power, or None if it never ran
+        self.power_at = None  # when it arrived
         self.bad_messages = 0
 
     def set_link(self, text, ok=False):
@@ -77,14 +85,15 @@ class Board:
         """Forget what the broker will send again on a new subscription."""
         self.gloves = None
         self.clients = None
+        self.power = None
         self.note = ""
 
     def apply(self, line, now):
         """Update from one mosquitto_sub -v line, which is the topic, a space and the payload."""
         topic, _, payload = line.partition(" ")
-        known = topic in (envelope.GLOVES_TOPIC, CLIENTS_TOPIC) or topic.startswith(
-            ("game/gesture/", "viz/ready/", "viz/echo/")
-        )
+        known = topic in (
+            envelope.GLOVES_TOPIC, CLIENTS_TOPIC, envelope.POWER_TOPIC
+        ) or topic.startswith(("game/gesture/", "viz/ready/", "viz/echo/"))
         if not known:
             self.note = clean(line)[:120]  # mosquitto_sub's own words, such as a connect error
             return
@@ -107,6 +116,10 @@ class Board:
                 raise TypeError(gloves)
             self.gloves = {player: clean(state) for player, state in gloves.items()}
             return
+        if topic == envelope.POWER_TOPIC:
+            self.power = read_power(payload)
+            self.power_at = now
+            return
         player = topic.rsplit("/", 1)[1]
         if not player.isdigit() or int(player) not in envelope.PLAYERS:
             return  # e.g. game/gesture/0, an event with no player
@@ -120,6 +133,47 @@ class Board:
             self.ready_at[player] = now
         else:
             self.echo_at[player] = now
+
+
+def read_power(payload):
+    """Check a status/power message and return its fields. Raises ValueError/TypeError if it's bad."""
+    power = json.loads(payload)
+    if not isinstance(power, dict) or power.get("state") not in POWER_STATES:
+        raise ValueError(payload)
+    for key in POWER_NUMBERS:
+        value = power.get(key)
+        if value is not None and (isinstance(value, bool) or not isinstance(value, (int, float))):
+            raise TypeError(key)
+    rails = power.get("now_rails") or {}
+    if not isinstance(rails, dict) or not all(
+            isinstance(w, (int, float)) and not isinstance(w, bool) for w in rails.values()):
+        raise TypeError("now_rails")
+    phase = power.get("phase")
+    if phase is not None and not isinstance(phase, str):
+        raise TypeError("phase")
+    return {**{key: power.get(key) for key in POWER_NUMBERS}, "state": power["state"],
+            "phase": None if phase is None else clean(phase),
+            "now_rails": {clean(str(name)): w for name, w in rails.items()},
+            "tuning": read_tuning(power.get("tuning"))}
+
+
+def read_tuning(tuning):
+    """status/power's tuning, checked: {'now': {...}, 'was': {...}}, or None if it has none."""
+    if tuning is None:
+        return None
+    if not isinstance(tuning, dict):
+        raise TypeError("tuning")
+    checked = {}
+    for when in ("now", "was"):
+        values = tuning.get(when)
+        if not isinstance(values, dict):
+            raise TypeError(f"tuning.{when}")
+        for name in TUNING_FIELDS:
+            value = values.get(name)
+            if value is not None and (isinstance(value, bool) or not isinstance(value, (int, float))):
+                raise TypeError(f"tuning.{when}.{name}")
+        checked[when] = {name: values.get(name) for name in TUNING_FIELDS}
+    return checked
 
 
 async def read_board(process, board):

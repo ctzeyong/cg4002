@@ -15,23 +15,14 @@ namespace BridgeRush.Networking
         [SerializeField] private MatchSetup matchSetup;
         [SerializeField] private MatchState matchState;
         [SerializeField] private MqttConnection mqttConnection;
-        [Tooltip("Wire EngineLink (and MatchState's Engine Link) to play VS PLAYER on the Ultra96 engine instead of the host phone.")]
+        [Tooltip("VS PLAYER always runs on the Ultra96 engine. Wire EngineLink here and in MatchState's Engine Link (left empty, it is found by type). Without one VS PLAYER does not start: a phone never hosts the game.")]
         [SerializeField] private EngineLink engineLink;
-        [SerializeField] private bool useBoardEngine;
 
-        private const string BoardEnginePref = "use_board_engine";
+        // VS PLAYER always uses the Ultra96 engine. There is no switch and no phone-hosted fallback.
+        private bool UseBoardEngine => engineLink != null && matchState.BoardEngineAvailable;
 
-        // Takes effect when the next match's role is assigned (after the mode and player are chosen). Saved on the phone.
-        public bool UseBoardEngine
-        {
-            get => useBoardEngine && engineLink != null && matchState.BoardEngineAvailable;
-            set
-            {
-                useBoardEngine = value;
-                PlayerPrefs.SetInt(BoardEnginePref, value ? 1 : 0);
-            }
-        }
-        public bool BoardEngineWired => engineLink != null && matchState != null && matchState.BoardEngineAvailable;
+        // VS PLAYER was chosen and this build has no EngineLink, so no role was assigned and the match cannot start.
+        public bool BoardMissing { get; private set; }
 
         private bool roleAssigned;
         private bool subscribed;
@@ -44,7 +35,7 @@ namespace BridgeRush.Networking
                 enabled = false;
                 return;
             }
-            if (PlayerPrefs.HasKey(BoardEnginePref)) useBoardEngine = PlayerPrefs.GetInt(BoardEnginePref) == 1;
+            if (engineLink == null) engineLink = FindAnyObjectByType<EngineLink>();
         }
 
         private void OnEnable()
@@ -68,16 +59,17 @@ namespace BridgeRush.Networking
             if (!matchSetup.HasChosenMode || matchSetup.Mode != MatchSetup.GameMode.VsPlayer) return;
             if (!matchSetup.HasSelected) return;
 
-            bool isPlayer1 = matchSetup.Selected == MatchSetup.SelectedPlayer.Player1;
-            if (UseBoardEngine)
+            // Never Host or Client: the phone does not run the game. Without the board's engine, VS PLAYER just waits.
+            if (!UseBoardEngine)
             {
-                matchState.SetNetworkRole(MatchState.NetworkRole.BoardClient);
-                engineLink.Activate();
+                if (!BoardMissing) Debug.LogError($"{nameof(MatchNetworkSync)}: VS PLAYER needs the board engine, but there is no EngineLink in the scene. Add one (integration_update.md section 6). The phone will not host the game.", this);
+                BoardMissing = true;
+                return;
             }
-            else
-            {
-                matchState.SetNetworkRole(isPlayer1 ? MatchState.NetworkRole.Host : MatchState.NetworkRole.Client);
-            }
+
+            BoardMissing = false;
+            matchState.SetNetworkRole(MatchState.NetworkRole.BoardClient);
+            engineLink.Activate();
             roleAssigned = true;
         }
 
@@ -85,6 +77,7 @@ namespace BridgeRush.Networking
         {
             roleAssigned = false;
             subscribed = false;
+            BoardMissing = false;
             if (engineLink != null) engineLink.Deactivate();
             matchState.SetNetworkRole(MatchState.NetworkRole.Local);
         }

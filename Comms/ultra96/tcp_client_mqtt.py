@@ -224,13 +224,16 @@ async def one_session(
 
 
 async def run_tcp(host, port, outbound, stats, event_every=0.0, gesture_flag=False, gloves=None,
-                  vocab=None, bitstream=None):
+                  vocab=None, bitstream=None, pl_mhz=None):
     """Keep the TCP connection up, reconnecting forever. Same as `tcp_client.run`."""
     # One source for the whole run: a new one would restart seq at 0, and the phone
     # would drop the repeated event_ids as duplicates.
     events = MqttEventSource(outbound, stats)
 
-    classifier = gesture.load_classifier(vocab=vocab, bitstream=bitstream) if gesture_flag else None
+    classifier = (gesture.load_classifier(vocab=vocab, bitstream=bitstream, pl_mhz=pl_mhz)
+                  if gesture_flag else None)
+    if pl_mhz is not None and not gesture_flag:
+        log.warning("--pl-mhz ignored: without --gesture-flag no overlay is loaded")
     if classifier is not None:
         log.info("classifier: %s", type(classifier).__name__)
     while True:
@@ -256,7 +259,7 @@ async def run_tcp(host, port, outbound, stats, event_every=0.0, gesture_flag=Fal
 
 
 async def run(host, port, broker_host, broker_port, event_every=0.0, gesture_flag=False,
-              vocab=None, bitstream=None):
+              vocab=None, bitstream=None, pl_mhz=None):
     """Run TCP, the MQTT publisher and the gloves' watcher.
 
     All three run continuously. Ctrl-C stops the publisher, and the relay stops once the
@@ -280,6 +283,7 @@ async def run(host, port, broker_host, broker_port, event_every=0.0, gesture_fla
                 gloves=gloves,
                 vocab=vocab,
                 bitstream=bitstream,
+                pl_mhz=pl_mhz,
             )
         ),
         asyncio.create_task(
@@ -334,6 +338,7 @@ def main():
                 gesture_flag=args.gesture_flag,
                 vocab=args.vocab,
                 bitstream=args.bitstream,
+                pl_mhz=args.pl_mhz,
             )
         )
     except KeyboardInterrupt:

@@ -18,8 +18,9 @@ namespace BridgeRush.Tutorial
     /// one handler per topic).
     ///
     /// What the player sees, with as little text as possible: a big looping animation of the motion, the unit's name, the
-    /// motion's name, a gold pointer on the matching card (the other cards dim), seven progress dots, a green "NICE!" when it
-    /// works and a shake when the wrong thing was done. After the last step the match is cleared and a normal VS CPU match
+    /// motion's name, a gold pointer on the matching card (the other cards dim), one progress dot per step, a green "NICE!"
+    /// when it works and a shake when the wrong thing was done. The lesson starts with two phone-shake steps (lock the tower, unlock
+    /// it), then capturing a bubble by holding the crosshair on it; every unit then has to be summoned twice. After the last step the match is cleared and a normal VS CPU match
     /// starts by itself.
     ///
     /// Builds itself at startup, like GloveGestureReceiver, so the scene needs no wiring.
@@ -28,15 +29,14 @@ namespace BridgeRush.Tutorial
     {
         public static TutorialCoach Instance { get; private set; }
 
-        // Sits under the HUD's top row (LOCK TOWER, timer, OPTIONS). The result banner goes below it.
-        private const float PanelTop = 250f;
-        private const float PanelWidth = 760f;
-        private const float PanelHeightUnits = 210f;
+        // Sits under the HUD's top row (tower-lock banner, timer, settings gear). The result banner goes below it.
+        private const float PanelTop = 310f; // below the gear / timer row, the HP bars and the lock banner
+        private const float PanelWidth = 1040f;
+        private const float PanelHeightUnits = 250f;
         private const float PipsHeight = 48f;
         private const float CelebrateSeconds = 1.2f;
         private const float WrongSeconds = 2.5f;
         private const float CompleteSeconds = 4f;
-        private const int Pips = 7;
 
         private static readonly Color Gold = new Color(1f, 0.85f, 0.4f);
         private static readonly Color Good = new Color(0.45f, 0.9f, 0.45f);
@@ -53,9 +53,13 @@ namespace BridgeRush.Tutorial
         private MatchHudUI hud;
         private MatchState subscribedMatch;
         private SpellCaster subscribedSpells;
+        private BubbleCaptureManager bubbles;
+        private BubbleCaptureManager subscribedBubbles;
 
         private float celebrateUntil;
         private int celebrateIndex = -1;
+        private bool celebrateAgain; // the "NICE!" is for the first of several, so it asks for one more
+        private bool lockSeen;        // the tower's lock state last frame, to notice a shake that locked or unlocked it
         private string celebrateName = "";
         private float wrongUntil;
         private float wrongStart = -10f;
@@ -107,6 +111,7 @@ namespace BridgeRush.Tutorial
             if (Instance == this) Instance = null;
             if (subscribedMatch != null) subscribedMatch.OwnUnitSummoned -= OnUnitSummoned;
             if (subscribedSpells != null) subscribedSpells.SpellCast -= OnSpellCast;
+            if (subscribedBubbles != null) subscribedBubbles.OnBubbleCaptured -= OnBubbleCaptured;
         }
 
         // --- the lesson ---------------------------------------------------------------------------------------------
@@ -120,6 +125,7 @@ namespace BridgeRush.Tutorial
             if (countdown == null) countdown = FindAnyObjectByType<MatchCountdown>();
             if (cards == null) cards = FindAnyObjectByType<CardHandUI>();
             if (hud == null) hud = FindAnyObjectByType<MatchHudUI>();
+            if (bubbles == null) bubbles = FindAnyObjectByType<BubbleCaptureManager>();
             if (setup == null || match == null || spells == null) return;
 
             Subscribe();
@@ -142,13 +148,16 @@ namespace BridgeRush.Tutorial
                 celebrateIndex = -1;
                 wrongUntil = 0f;
                 completeAt = -1f;
+                lockSeen = match.OwnTowerLocked;
                 Hide();
                 return;
             }
 
             // Nothing ends the match until the lesson hands over to the VS CPU match.
             match.EndlessMatch = true;
-            match.GodMode = true; // free summons and no damage while learning, even if it was switched off in OPTIONS
+            match.GodMode = true; // free summons and no damage while learning, even if it was switched off in the debug menu
+
+            WatchTowerLock();
 
             float now = Time.unscaledTime;
             if (flow.Finished)
@@ -178,6 +187,12 @@ namespace BridgeRush.Tutorial
                 spells.SpellCast += OnSpellCast;
                 subscribedSpells = spells;
             }
+            if (subscribedBubbles != bubbles)
+            {
+                if (subscribedBubbles != null) subscribedBubbles.OnBubbleCaptured -= OnBubbleCaptured;
+                if (bubbles != null) bubbles.OnBubbleCaptured += OnBubbleCaptured;
+                subscribedBubbles = bubbles;
+            }
         }
 
         // Only the current step's unit or spell may be performed, and nothing in the moment after a step is done, so wrong cards
@@ -199,7 +214,21 @@ namespace BridgeRush.Tutorial
             return refusal;
         }
 
+        // The lock and unlock steps are done by shaking the phone, which MatchHudUI turns into LockOwnTower / UnlockOwnTower.
+        // Here we only watch the result. A lock or unlock at any other time is not part of the lesson and is ignored.
+        private void WatchTowerLock()
+        {
+            bool locked = match.OwnTowerLocked;
+            if (locked == lockSeen) return;
+            lockSeen = locked;
+            if (flow.Finished) return;
+            var step = flow.Current;
+            if (step.IsShake && step.Action == (locked ? "lock" : "unlock")) Report(step.Action, step.Name.ToUpperInvariant());
+        }
+
         private void OnUnitSummoned(UnitType type) => Report(type.ToString(), type.ToString().ToUpperInvariant());
+
+        private void OnBubbleCaptured(int bubbleId) => Report("bubble", "BUBBLE CAPTURED");
 
         private void OnSpellCast(string spell) => Report(spell, spell == "lightning" ? "LIGHTNING" : "FIREBALL");
 
@@ -211,8 +240,10 @@ namespace BridgeRush.Tutorial
             int index = flow.Index;
             switch (flow.Report(action))
             {
+                case TutorialOutcome.Progressed:
                 case TutorialOutcome.Advanced:
                 case TutorialOutcome.Finished:
+                    celebrateAgain = flow.Index == index; // still on the same step: it needs another go
                     celebrateIndex = index;
                     celebrateName = name;
                     celebrateUntil = Time.unscaledTime + CelebrateSeconds;
@@ -233,8 +264,14 @@ namespace BridgeRush.Tutorial
         {
             if (!IsRunning) return;
             celebrateIndex = flow.Index;
+            celebrateAgain = false;
             celebrateName = flow.Current.Name.ToUpperInvariant();
+            var skipped = flow.Current;
             flow.Skip();
+            // Keep the tower in the state the lesson expects: the unlock step starts from a locked tower.
+            if (skipped.Action == "lock") match.LockOwnTower();
+            else if (skipped.Action == "unlock") match.UnlockOwnTower();
+            lockSeen = match.OwnTowerLocked;
             celebrateUntil = Time.unscaledTime + CelebrateSeconds;
         }
 
@@ -265,7 +302,7 @@ namespace BridgeRush.Tutorial
         }
 
         private static string MotionName(TutorialStep step) =>
-            step.IsSpell ? CardMotions.ForSpell(step.Action) : Enum.TryParse(step.Action, out UnitType type) ? CardMotions.For(type) : "tap";
+            step.IsShake ? "shake" : step.IsBubble ? "scan" : step.IsSpell ? CardMotions.ForSpell(step.Action) : Enum.TryParse(step.Action, out UnitType type) ? CardMotions.For(type) : "tap";
 
         // --- what is on screen --------------------------------------------------------------------------------------
 
@@ -299,7 +336,7 @@ namespace BridgeRush.Tutorial
             if (target != highlightedIndex && cards != null)
             {
                 highlightedIndex = target;
-                if (target < 0) cards.ClearTutorialHighlight();
+                if (target < 0 || TutorialFlow.Steps[target].IsShake || TutorialFlow.Steps[target].IsBubble) cards.ClearTutorialHighlight();
                 else
                 {
                     var step = TutorialFlow.Steps[target];
@@ -315,12 +352,12 @@ namespace BridgeRush.Tutorial
             {
                 case Stage.Celebrate:
                     title = "NICE!"; titleColor = Good;
-                    line = celebrateName; hint = "";
+                    line = celebrateName; hint = celebrateAgain ? "Now do it once more" : "";
                     glowColor = Good;
                     break;
                 case Stage.Wrong:
                     title = "NOT QUITE"; titleColor = Bad;
-                    line = $"That was {wrongName}"; hint = $"For {wrongStepName}, do the {wrongMotion.ToUpperInvariant()}";
+                    line = $"That was {wrongName}"; hint = $"For {wrongStepName}: {CardMotions.Instruction(wrongMotion)}";
                     glowColor = Bad;
                     break;
                 case Stage.Complete:
@@ -331,13 +368,17 @@ namespace BridgeRush.Tutorial
                     break;
                 default:
                     title = current.Name.ToUpperInvariant(); titleColor = HudPalette.Cream;
-                    line = MotionName(current).ToUpperInvariant();
-                    hint = current.IsSpell ? "Aim anywhere on the island" : "Aim at the ground on your side";
+                    line = CardMotions.DisplayName(MotionName(current)).ToUpperInvariant();
+                    hint = CardMotions.Instruction(MotionName(current));
+                    if (current.IsShake) hint += current.Action == "lock" ? " This locks your tower where you stand." : " This lets your tower follow you again.";
+                    else if (current.IsBubble) hint += " The crosshair turns yellow while it scans, then red as the ring fills. A full bubble gives you extra mana.";
+                    else if (current.IsSpell) hint += " Aim anywhere on the island.";
                     glowColor = Gold;
                     break;
             }
 
             stepText.text = stage == Stage.Complete ? "" : $"STEP {index + 1} OF {TutorialFlow.Steps.Count}";
+            if (stage == Stage.Step && current != null && current.Repeats > 1) stepText.text += $"   -   {flow.StepProgress + 1} OF {current.Repeats}";
             titleText.text = title;
             titleText.color = titleColor;
             motionText.text = line;
@@ -349,7 +390,7 @@ namespace BridgeRush.Tutorial
             panel.localScale = new Vector3(pop, pop, 1f);
             float shakeAge = now - wrongStart;
             float shake = stage == Stage.Wrong && shakeAge < 0.5f ? Mathf.Sin(shakeAge * 45f) * 14f * (1f - shakeAge / 0.5f) : 0f;
-            panel.anchoredPosition = new Vector2(shake, -PanelTop);
+            panel.anchoredPosition = new Vector2(shake, -(PanelTop + HudLayout.SafeTop(hud != null ? hud.HudCanvas : null)));
 
             float beat = 0.5f + 0.5f * Mathf.Sin(now * 4f);
             glow.color = new Color(glowColor.r, glowColor.g, glowColor.b, 0.25f + 0.3f * beat);
@@ -383,7 +424,7 @@ namespace BridgeRush.Tutorial
             panel.anchoredPosition = new Vector2(0f, -PanelTop);
             panel.sizeDelta = new Vector2(PanelWidth, PanelHeightUnits);
             var background = panelGo.AddComponent<Image>();
-            background.sprite = UITextureFactory.CreateRoundedPanel(72, 24, HudPalette.Wood, HudPalette.WoodDark, 4, HudPalette.Gold);
+            background.sprite = CardArt.Panel(CardArt.Unit);
             background.type = Image.Type.Sliced;
             background.raycastTarget = false;
 
@@ -424,10 +465,16 @@ namespace BridgeRush.Tutorial
                 motionViews[i] = iconGo;
             }
 
-            stepText = Label("Step", panel, 22f, FontStyles.Bold, Gold, 0.82f, 0.97f);
-            titleText = Label("Title", panel, 56f, FontStyles.Bold, HudPalette.Cream, 0.46f, 0.84f);
-            motionText = Label("Motion", panel, 36f, FontStyles.Bold, Gold, 0.27f, 0.47f);
-            hintText = Label("Hint", panel, 23f, FontStyles.Normal, new Color(0.95f, 0.9f, 0.78f), 0.05f, 0.27f);
+            stepText = Label("Step", panel, 27f, FontStyles.Bold, Gold, 0.79f, 0.91f);   // clear of the frame's top band
+            titleText = Label("Title", panel, 56f, FontStyles.Bold, HudPalette.Cream, 0.51f, 0.80f);
+            motionText = Label("Motion", panel, 38f, FontStyles.Bold, Gold, 0.36f, 0.52f);
+            // The instruction under the name: up to two lines, so it can say how to do the motion and where.
+            hintText = Label("Hint", panel, 29f, FontStyles.Normal, new Color(0.95f, 0.9f, 0.78f), 0.02f, 0.37f);
+            hintText.textWrappingMode = TextWrappingModes.Normal;
+            hintText.alignment = TextAlignmentOptions.TopLeft;
+            hintText.enableAutoSizing = true;
+            hintText.fontSizeMin = 21f;
+            hintText.fontSizeMax = 29f;
 
             // Progress dots under the card.
             var pipRow = UIFactory.CreateRect("Progress", panel);
@@ -435,13 +482,14 @@ namespace BridgeRush.Tutorial
             pipRowRect.anchorMin = new Vector2(0.5f, 0f);
             pipRowRect.anchorMax = new Vector2(0.5f, 0f);
             pipRowRect.anchoredPosition = new Vector2(0f, -28f);
-            pipRowRect.sizeDelta = new Vector2(Pips * 38f, 30f);
-            pips = new Image[Pips];
-            for (int i = 0; i < Pips; i++)
+            int pipCount = TutorialFlow.Steps.Count;
+            pipRowRect.sizeDelta = new Vector2(pipCount * 38f, 30f);
+            pips = new Image[pipCount];
+            for (int i = 0; i < pipCount; i++)
             {
                 var dot = UIFactory.CreateRect("Pip" + i, pipRow.transform);
                 var dotRect = dot.GetComponent<RectTransform>();
-                dotRect.anchoredPosition = new Vector2((i - (Pips - 1) * 0.5f) * 38f, 0f);
+                dotRect.anchoredPosition = new Vector2((i - (pipCount - 1) * 0.5f) * 38f, 0f);
                 dotRect.sizeDelta = new Vector2(22f, 22f);
                 pips[i] = dot.AddComponent<Image>();
                 pips[i].sprite = UITextureFactory.CreateGlowDot();
@@ -459,7 +507,7 @@ namespace BridgeRush.Tutorial
             text.gameObject.name = name;
             text.alignment = TextAlignmentOptions.MidlineLeft;
             var rect = text.rectTransform;
-            rect.anchorMin = new Vector2(0.315f, yMin);
+            rect.anchorMin = new Vector2(0.225f, yMin);
             rect.anchorMax = new Vector2(0.975f, yMax);
             rect.offsetMin = Vector2.zero;
             rect.offsetMax = Vector2.zero;

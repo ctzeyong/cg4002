@@ -51,9 +51,9 @@ class FakeAI:
         self.calls.append(("reset", player))
 
 
-def fed(answer=None, ai=None):
+def fed(answer=None, ai=None, **kwargs):
     ai = ai or FakeAI(answer)
-    w = gesture.Windows(ai)
+    w = gesture.Windows(ai, **kwargs)
     ai.calls.clear()  # the session's first reset has its own test
     return w
 
@@ -278,6 +278,108 @@ def test_the_board_reads_the_flag_values_the_firmware_sends():
     values = dict(re.findall(r"(GESTURE_\w+) = (\d+),", IMU_H.read_text()))
     assert gesture.IN_GESTURE == int(values["GESTURE_ACTIVE"])
     assert gesture.REJECTED == int(values["GESTURE_REJECTED"])
+
+
+def gesture_then_idle(w, start, flagged_n, idle_n, node=1):
+    """Feed flagged_n flagged samples then idle_n unflagged ones from seq `start`; the first
+    unflagged one ends the gesture. Returns (next seq, labels of the results it gave)."""
+    labels = []
+    for i in range(flagged_n + idle_n):
+        result = w.feed(packet(start + i, node, flag=int(i < flagged_n)))
+        if result is not None:
+            labels.append(result.label)
+    return start + flagged_n + idle_n, labels
+
+
+class Answers(FakeAI):
+    """Gives the next of `answers` at each gesture end (None = noise / unsure)."""
+
+    def __init__(self, *answers):
+        super().__init__()
+        self.answers = list(answers)
+
+    def on_sample(self, player, record):
+        super().on_sample(player, record)
+        if not record["end_of_gesture"]:
+            return None
+        label = self.answers.pop(0)
+        return None if label is None else (label, 0.9)
+
+
+def gestures(w, *spacing, node=1):
+    """One 3-sample gesture per entry, each followed by that many idle samples (>= 1, the first
+    of which ends it). Returns every result label, in order."""
+    seq, labels = 0, []
+    for idle in spacing:
+        seq, got = gesture_then_idle(w, seq, 3, idle, node)
+        labels += got
+    return labels
+
+
+def test_only_the_next_shield_or_warrior_soon_after_a_shield_gives_no_event(caplog):
+    w = fed(ai=Answers("shield", "warrior", "warrior"), shield_cooldown_samples=20)
+    with caplog.at_level(logging.INFO, logger="gesture"):
+        labels = gestures(w, 2, 2, 2)  # ends at 3, 8 and 13
+    assert labels == ["shield", "warrior"]  # the lowering's warrior at 8 is dropped, not 13's
+    assert ends_seen(w).count(True) == 3  # AI still classifies every end
+    assert no_result_lines(caplog) == [
+        "no AI event: node 1's warrior came 5 samples after its shield (cooldown 20)",
+    ]
+
+
+def test_shields_can_still_be_spammed():
+    # each real shield's lowering comes out as shield too: every other one is dropped
+    w = fed(ai=Answers(*["shield"] * 6), shield_cooldown_samples=20)
+    assert gestures(w, 1, 1, 1, 1, 1, 1) == ["shield"] * 3  # ends 4 samples apart
+
+
+def test_a_shield_that_gives_an_event_starts_its_own_cooldown():
+    w = fed(ai=Answers("shield", "shield", "shield", "shield"), shield_cooldown_samples=20)
+    # 3 event, 8 dropped, 13 event (within 3's cooldown), 18 dropped (5 after 13)
+    assert gestures(w, 2, 2, 2, 2) == ["shield", "shield"]
+
+
+def test_other_gestures_are_never_held_back_after_a_shield():
+    w = fed(ai=Answers("shield", "mage", "hero", "rogue"), shield_cooldown_samples=20)
+    assert gestures(w, 1, 1, 1, 1) == ["shield", "mage", "hero", "rogue"]
+
+
+def test_a_warrior_with_no_shield_before_it_is_not_held_back():
+    w = fed(ai=Answers("warrior", "warrior"), shield_cooldown_samples=20)
+    assert gestures(w, 1, 1) == ["warrior", "warrior"]
+
+
+def test_a_shield_or_warrior_after_the_cooldown_gives_an_event():
+    w = fed(ai=Answers("shield", "warrior"), shield_cooldown_samples=10)
+    assert gestures(w, 10, 1) == ["shield", "warrior"]  # ends at 3 and 14, 11 apart
+
+
+def test_a_noise_answer_is_not_the_one_dropped():
+    w = fed(ai=Answers("shield", None, "warrior", "warrior"), shield_cooldown_samples=20)
+    assert gestures(w, 2, 2, 2, 1) == ["shield", "warrior"]  # 13 dropped, 18 kept
+
+
+def test_each_node_has_its_own_shield_cooldown():
+    w = fed(ai=Answers("shield", "shield"), shield_cooldown_samples=20)
+    assert gestures(w, 1, node=1) == ["shield"]
+    assert gestures(w, 1, node=2) == ["shield"]  # node 2 never had a shield
+
+
+def test_after_a_reset_there_is_no_shield_cooldown():
+    w = fed(ai=Answers("shield", "shield"), shield_cooldown_samples=20)
+    results = []
+    for seq in range(4):
+        results.append(w.feed(packet(seq, flag=int(seq < 3), t=10.0 + seq * 0.01)))
+    results.append(w.feed(packet(4, flag=1, t=13.0)))  # after a reconnect AI starts again
+    results.append(w.feed(packet(5, t=13.01)))
+    assert [r.label for r in results if r] == ["shield", "shield"]
+
+
+def test_the_default_cooldown_is_2_s_at_100_hz_for_shield_and_warrior():
+    assert gesture.SHIELD_COOLDOWN_SAMPLES == 200
+    assert gesture.SHIELD_FOLLOWERS == ("shield", "warrior")
+    assert gesture.Windows(FakeAI()).shield_cooldown_samples == gesture.SHIELD_COOLDOWN_SAMPLES
+    assert set(gesture.SHIELD_FOLLOWERS) | {gesture.SHIELD} <= set(ai_events.GESTURES)
 
 
 def test_a_gesture_the_glove_rejected_never_ends_and_the_next_one_still_does():
@@ -557,6 +659,59 @@ def test_on_the_board_the_flag_path_loads_ais_model_with_its_bitstream(monkeypat
     ai = gesture.load_classifier(bitstream="baseline_improved.xsa")
     assert isinstance(ai, gesture.AI) and (ai.module, ai.model) == (module, "model")
     assert built == [str(tmp_path / "baseline_improved.xsa")]
+
+
+def test_the_pl_clock_is_set_only_after_the_overlay_loads(monkeypatch, tmp_path):
+    """Loading an overlay resets fclk0, so setting it first would be undone at once."""
+    order = []
+    module = types.ModuleType(gesture.AI_MODULE)
+    module.__file__ = str(tmp_path / f"{gesture.AI_MODULE}.py")
+    module.GestureClassifier = lambda bitstream, config=None: order.append("overlay") or "model"
+    module.vocab_config = lambda vocab=None: "config"
+    monkeypatch.setitem(sys.modules, gesture.AI_MODULE, module)
+    monkeypatch.setattr(gesture, "FPGA_MANAGER", tmp_path)
+    monkeypatch.setattr(gesture, "tune_pl", lambda mhz: order.append(("pl", mhz)) or "settings")
+
+    ai = gesture.load_classifier(bitstream="x.xsa", pl_mhz=25.0)
+
+    assert order == ["overlay", ("pl", 25.0)] and ai.pl_settings == "settings"
+    order.clear()
+    gesture.load_classifier(bitstream="x.xsa")
+    assert order == ["overlay"]  # no --pl-mhz: the clock is left as the overlay set it
+
+
+def test_off_the_board_the_pl_clock_is_ignored_with_a_warning(monkeypatch, tmp_path, caplog):
+    monkeypatch.setattr(gesture, "FPGA_MANAGER", tmp_path / "absent")
+    monkeypatch.setattr(gesture, "tune_pl", lambda mhz: pytest.fail("no FPGA to slow down"))
+
+    assert isinstance(gesture.load_classifier(pl_mhz=25.0), gesture.StubAI)
+    assert "--pl-mhz ignored" in caplog.text
+
+
+def test_a_pl_clock_the_board_refuses_leaves_the_game_running(monkeypatch, caplog, tmp_path):
+    import board_settings
+
+    class Refusing:
+        def __init__(self, state_file):
+            pass
+
+        def apply(self, wanted):
+            raise ValueError("pl=150: keep it between 10 and the current 100.0 MHz")
+
+    monkeypatch.setattr(board_settings, "Settings", Refusing)
+    assert gesture.tune_pl(150.0) is None
+    assert "PL clock not changed: pl=150" in caplog.text
+
+
+def test_both_clients_take_pl_mhz():
+    import argparse
+
+    import tcp_client
+
+    parser = argparse.ArgumentParser()
+    tcp_client.add_gesture_flag(parser)
+    assert parser.parse_args(["--pl-mhz", "25"]).pl_mhz == 25.0
+    assert parser.parse_args([]).pl_mhz is None
 
 
 def test_on_the_board_a_model_that_will_not_import_is_an_error_not_the_stub(monkeypatch, tmp_path):

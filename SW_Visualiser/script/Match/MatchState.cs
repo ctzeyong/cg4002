@@ -24,22 +24,41 @@ namespace BridgeRush.Match
         [Tooltip("How long a player may stand outside the arena before the tower starts losing HP. The count starts again on coming back inside. The board engine has the same setting (outOfBoundsGraceSeconds in rules.json).")]
         [SerializeField] private float outOfBoundsGraceSeconds = 3f;
 
-        [Header("Mana")]
-        [SerializeField] private float manaMax = 10f;
-        [SerializeField] private float manaStart = 5f;
-        [SerializeField] private float manaRegenPerSecond = 1f;
+        // Mana rules. VS PLAYER runs on the board, which reads engine/rules.json, so these Board* numbers are what the board uses
+        // (manaMax, manaStart, manaRegenPerSecond, doubleManaLastSeconds, doubleManaMultiplier); the engine test fails if they
+        // drift from rules.json. The Inspector fields below drive VS CPU, the tutorial and the host phone and default to the same
+        // numbers. They have NEW names on purpose: the saved scene still holds the old fields (manaRegenPerSecond 0.2), which
+        // would otherwise load and override these. If an Inspector value differs from the board's, a warning is logged on start.
+        private const float BoardManaMax = 10f;
+        private const float BoardManaStart = 5f;
+        private const float BoardManaRegenPerSecond = 0.33f;
+        private const float BoardDoubleManaLastSeconds = 60f;
+        private const float BoardDoubleManaMultiplier = 2f;
 
-        [Header("Double mana")]
-        [Tooltip("Mana regenerates faster for the last this many seconds of the match.")]
-        [SerializeField] private float doubleManaLastSeconds = 60f;
-        [SerializeField] private float doubleManaMultiplier = 2f;
+        [Header("Mana (VS CPU, tutorial, host phone; keep equal to engine/rules.json)")]
+        [Tooltip("Most mana you can hold. The board uses 10.")]
+        [SerializeField] private float maxMana = BoardManaMax;
+        [Tooltip("Mana at the start of a match. The board uses 5.")]
+        [SerializeField] private float startMana = BoardManaStart;
+        [Tooltip("Mana gained per second. The board uses 0.33, so keep it at 0.33 for every game mode to feel the same.")]
+        [SerializeField] private float manaPerSecond = BoardManaRegenPerSecond;
+        [Tooltip("Mana regenerates faster for the last this many seconds of the match. The board uses 60.")]
+        [SerializeField] private float doubleManaFinalSeconds = BoardDoubleManaLastSeconds;
+        [Tooltip("How many times faster mana regenerates in the final seconds. The board uses 2.")]
+        [SerializeField] private float doubleManaFactor = BoardDoubleManaMultiplier;
 
         [Header("Tick rate")]
         [SerializeField] private float mockTickRateHz = 10f;
 
         [Header("Tuning")]
         [SerializeField] private float globalSpeedMultiplier = 1f;
-        [SerializeField] private float towerClearanceMeters = 0.07f;
+        // How far past the tower's footprint a melee unit stops to attack, in metres at scale 1. The distance is 3D (a unit stands
+        // groundYOffsetMeters above the tower's base, 0.1 m), so on the floor it stops at sqrt((footprint + this)^2 - 0.1^2): with a
+        // footprint of 0.119 m and 0.08 here that is 0.172 m, on the edge of the tower's base ring (the red or blue circle, 1.4
+        // footprint radii = 0.166 m). The unit hits from the circle, in view, not from inside the tower. Ranged units (the Mage)
+        // are not affected: they stop at their attack range. Not a serialized field, so an old value saved in the scene cannot
+        // override it. Keep engine/rules.json MatchState.towerClearanceMeters equal.
+        private float towerClearanceMeters = 0.08f;
         [SerializeField] private float towerDisengageHysteresisMeters = 0.05f;
 
         [Header("Match timer")]
@@ -150,6 +169,39 @@ namespace BridgeRush.Match
         private Vector3 lockedOwnTowerPosition;
         public bool OwnTowerLocked => ownTowerLocked;
 
+        // The last second and a half of the own-device lane origin, so a lock can use where the phone was just before the shake that
+        // asked for it (a shake moves the phone, and blurs the camera so the lane can be lost at the moment it is recognised).
+        private const int OriginHistory = 120;
+        private readonly float[] originTimes = new float[OriginHistory];
+        private readonly Vector3[] originPositions = new Vector3[OriginHistory];
+        private int originCount;
+        private int originNext;
+
+        private void RecordLaneOrigin()
+        {
+            if (arenaFrame == null || !arenaFrame.HasLane) return;
+            originTimes[originNext] = Time.unscaledTime;
+            originPositions[originNext] = arenaFrame.Lane.Origin;
+            originNext = (originNext + 1) % OriginHistory;
+            if (originCount < OriginHistory) originCount++;
+        }
+
+        /// <summary>Lock the own tower where the phone was at `unscaledTime` (the newest recorded spot at or before it), falling
+        /// back to the oldest recorded one, then to the live lane. Does nothing without a lane ever having been seen.</summary>
+        public void LockOwnTowerAt(float unscaledTime)
+        {
+            if (originCount == 0) { LockOwnTower(); return; }
+            int best = -1;
+            for (int n = 0; n < originCount; n++)
+            {
+                int index = (originNext - 1 - n + 2 * OriginHistory) % OriginHistory; // newest first
+                best = index;
+                if (originTimes[index] <= unscaledTime) break;
+            }
+            lockedOwnTowerPosition = originPositions[best];
+            ownTowerLocked = true;
+        }
+
         public void LockOwnTower()
         {
             // Only lock if we have a valid lane to lock to
@@ -183,10 +235,10 @@ namespace BridgeRush.Match
 
         // The last minute of the match: mana comes back faster. Worked out from the time left, so the client sees it too.
         public bool DoubleManaActive =>
-            matchStarted && Result == MatchResult.None && matchTimeRemaining > 0f && matchTimeRemaining <= doubleManaLastSeconds;
-        public float ManaRegenMultiplier => DoubleManaActive ? Mathf.Max(1f, doubleManaMultiplier) : 1f;
-        public float DoubleManaMultiplier => Mathf.Max(1f, doubleManaMultiplier);
-        public float DoubleManaLastSeconds => doubleManaLastSeconds;
+            matchStarted && Result == MatchResult.None && matchTimeRemaining > 0f && matchTimeRemaining <= doubleManaFinalSeconds;
+        public float ManaRegenMultiplier => DoubleManaActive ? Mathf.Max(1f, doubleManaFactor) : 1f;
+        public float DoubleManaMultiplier => Mathf.Max(1f, doubleManaFactor);
+        public float DoubleManaLastSeconds => doubleManaFinalSeconds;
 
         // Test aid (Debug menu): jump the clock so the last minute starts now. Host and VS CPU only.
         public void DebugSetTimeRemaining(float seconds)
@@ -210,7 +262,7 @@ namespace BridgeRush.Match
         public Vector3 OpponentHomeAnchor => opponentHomeAnchor;
         public Vector3 OwnBridgeEdge => ownBridgeEdge;
         public Vector3 OpponentBridgeEdge => opponentBridgeEdge;
-        public bool TwoBridges { get => twoBridges; set => twoBridges = value; }
+        public bool TwoBridges => twoBridges; // fixed: the DEBUG menu switch for it was removed 2026-11-06
         public int BridgeCount => bridgeLateralOffsets.Length;
         public float BridgeWidthMeters => LaneWidthMeters * laneSpineFraction;
         public Vector3 BridgePositionOf(int index) => bridgePosition + BridgeLateralAxis * bridgeLateralOffsets[index];
@@ -233,7 +285,7 @@ namespace BridgeRush.Match
         }
         public void DamageOwnTower(float amount) => OwnTowerHP = Mathf.Max(0f, OwnTowerHP - amount);
         public float ManaCurrent { get; private set; }
-        public float ManaMax => manaMax;
+        public float ManaMax => maxMana;
 
         // Debug only: keeps your mana and your tower HP full and makes summons and spells free. Runs on the phone that
         // simulates the match (VS CPU or the host); a client's mana and HP come from the host's snapshots, so it does nothing there.
@@ -249,7 +301,7 @@ namespace BridgeRush.Match
 
         private void ApplyGodMode()
         {
-            ManaCurrent = manaMax;
+            ManaCurrent = maxMana;
             OwnTowerHP = ownTowerMaxHP;
         }
         public float TickIntervalSeconds => 1f / Mathf.Max(0.01f, Role == NetworkRole.BoardClient && boardTickHz > 0 ? boardTickHz : mockTickRateHz);
@@ -287,7 +339,19 @@ namespace BridgeRush.Match
 
         private void Awake()
         {
+            // VS PLAYER only runs on the board, so find EngineLink even if its slot was left empty in the Inspector.
+            if (engineLink == null) engineLink = FindAnyObjectByType<EngineLink>();
+            WarnIfManaDiffersFromBoard();
             ResetMatch();
+        }
+
+        private void WarnIfManaDiffersFromBoard()
+        {
+            if (Mathf.Approximately(maxMana, BoardManaMax) && Mathf.Approximately(startMana, BoardManaStart)
+                && Mathf.Approximately(manaPerSecond, BoardManaRegenPerSecond)
+                && Mathf.Approximately(doubleManaFinalSeconds, BoardDoubleManaLastSeconds)
+                && Mathf.Approximately(doubleManaFactor, BoardDoubleManaMultiplier)) return;
+            Debug.LogWarning($"[MatchState] The mana rules in the Inspector (max {maxMana}, start {startMana}, {manaPerSecond}/s, x{doubleManaFactor} for the last {doubleManaFinalSeconds}s) differ from the board's engine/rules.json (max {BoardManaMax}, start {BoardManaStart}, {BoardManaRegenPerSecond}/s, x{BoardDoubleManaMultiplier} for the last {BoardDoubleManaLastSeconds}s). VS CPU and the tutorial will not match VS PLAYER.");
         }
 
         public void ResetMatch()
@@ -301,8 +365,8 @@ namespace BridgeRush.Match
 
             OwnTowerHP = ownTowerMaxHP;
             OpponentTowerHP = opponentTowerMaxHP;
-            ManaCurrent = manaStart;
-            enemyManaCurrent = manaStart;
+            ManaCurrent = startMana;
+            enemyManaCurrent = startMana;
             timeUntilNextEnemyBotAttempt = UnityEngine.Random.Range(enemyBotSpawnIntervalMinSeconds, enemyBotSpawnIntervalMaxSeconds);
             matchTimeRemaining = matchDurationSeconds;
             timeSinceLastTick = 0f;
@@ -323,6 +387,7 @@ namespace BridgeRush.Match
 
         private void Update()
         {
+            RecordLaneOrigin();
             UpdateLiveArenaScale();
             if (Role == NetworkRole.BoardClient)
             {
@@ -344,9 +409,9 @@ namespace BridgeRush.Match
             if (HasEnded) return;
 
             if (GodMode) ApplyGodMode();
-            float manaRegen = manaRegenPerSecond * ManaRegenMultiplier * Time.deltaTime;
-            ManaCurrent = Mathf.Min(manaMax, ManaCurrent + manaRegen);
-            enemyManaCurrent = Mathf.Min(manaMax, enemyManaCurrent + manaRegen);
+            float manaRegen = manaPerSecond * ManaRegenMultiplier * Time.deltaTime;
+            ManaCurrent = Mathf.Min(maxMana, ManaCurrent + manaRegen);
+            enemyManaCurrent = Mathf.Min(maxMana, enemyManaCurrent + manaRegen);
             if (!EndlessMatch) matchTimeRemaining = Mathf.Max(0f, matchTimeRemaining - Time.deltaTime);
             //time.deltatime is used to esnure smoothness of the gamme
             ApplyOutOfBoundsDamage(Time.deltaTime);

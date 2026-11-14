@@ -143,6 +143,9 @@ static class Checks
         failures += TutorialChecks.Run();
         failures += PeerLaneChecks.Run();
         failures += GodModeChecks.Run();
+        failures += ShakeChecks.Run();
+        failures += FrameRateChecks.Run();
+        failures += SummonLatencyChecks.Run();
         return failures == 0 ? 0 : 1;
     }
 }

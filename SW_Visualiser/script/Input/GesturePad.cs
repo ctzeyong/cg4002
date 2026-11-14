@@ -18,12 +18,18 @@ namespace BridgeRush.Input
         [SerializeField] private Canvas canvas;
         [SerializeField] private Color acceptedColor = Color.green;
         [SerializeField] private Color rejectedColor = Color.red;
-        [Tooltip("How long the result stays on screen.")]
-        [SerializeField] private float resultDisplaySeconds = 2.2f;
 
-        private const float TopOffset = 250f;
+        private const float TopOffset = 310f; // the tutorial coach's top; the toast never sits higher than the coach's bottom edge
+        private const float ToastTop = 600f; // normal resting height, well below the HP bars and nearer the player's eye line (the canvas is 1170 x 2532, so the crosshair at screen centre is at about 1266)
+        private const float ToastWidth = 900f;
+        private const float ToastHeight = 110f;
+        private const float ToastHeightWithDetail = 156f;
         private const float PopSeconds = 0.15f;
         private const float FadeSeconds = 0.35f;
+        // The result banner stays fully visible for HoldSeconds, then fades out over FadeSeconds. A constant, not a serialized
+        // field, so an old value saved in the scene (it held 3) cannot override it.
+        private const float HoldSeconds = 1.5f;
+        private const float resultDisplaySeconds = HoldSeconds + FadeSeconds;
 
         private RectTransform toastRect;
         private CanvasGroup toastGroup;
@@ -70,7 +76,7 @@ namespace BridgeRush.Input
             toastRect.anchorMin = new Vector2(0.5f, 1f);
             toastRect.anchorMax = new Vector2(0.5f, 1f);
             toastRect.pivot = new Vector2(0.5f, 1f);
-            toastRect.sizeDelta = new Vector2(720f, 84f);
+            toastRect.sizeDelta = new Vector2(ToastWidth, ToastHeight);
 
             toastGroup = go.AddComponent<CanvasGroup>();
             toastGroup.alpha = 0f;
@@ -78,12 +84,12 @@ namespace BridgeRush.Input
             toastGroup.interactable = false;
 
             toastBackground = go.AddComponent<Image>();
-            toastBackground.sprite = UITextureFactory.CreateRoundedPanel(72, 22, HudPalette.Wood, HudPalette.WoodDark, 4, HudPalette.Gold);
+            toastBackground.sprite = CardArt.Panel(CardArt.Unit);
             toastBackground.type = Image.Type.Sliced;
             toastBackground.raycastTarget = false;
 
-            toastTitle = UIFactory.CreateText(go.transform, string.Empty, 42f, FontStyles.Bold, HudPalette.Cream);
-            toastDetail = UIFactory.CreateText(go.transform, string.Empty, 25f, FontStyles.Normal, HudPalette.Cream);
+            toastTitle = UIFactory.CreateText(go.transform, string.Empty, 56f, FontStyles.Bold, HudPalette.Cream);
+            toastDetail = UIFactory.CreateText(go.transform, string.Empty, 38f, FontStyles.Normal, HudPalette.Cream);
         }
 
         private void OnUnitSummoned(UnitType type) => ShowFeedback($"{type.ToString().ToUpperInvariant()} SUMMONED", string.Empty, true);
@@ -92,17 +98,17 @@ namespace BridgeRush.Input
 
         private void OnSpellCast(string key) => ShowFeedback($"{SpellName(key)} CAST", string.Empty, true);
 
-        private void OnSpellRejected(string key, string reason) => ShowFeedback(Title(reason), Hint(reason), false);
+        private void OnSpellRejected(string key, string reason) => ShowFeedback(Title(reason), Hint(reason, spell: true), false);
 
         private static string SpellName(string key) => key == "lightning" ? "LIGHTNING" : "FIREBALL";
 
         private static string Title(string reason) => string.IsNullOrEmpty(reason) ? "FAILED" : reason.ToUpperInvariant();
 
         // One line on how to fix the usual refusals. Empty when there is nothing useful to add.
-        private static string Hint(string reason)
+        private static string Hint(string reason, bool spell = false)
         {
             string r = (reason ?? string.Empty).ToUpperInvariant();
-            if (r.Contains("AIM")) return "Point the crosshair at the ground in the arena";
+            if (r.Contains("AIM")) return spell ? "Point the crosshair at the ground on the island" : "Point the crosshair at the ground on your own platform";
             if (r.Contains("ARENA")) return "Walk back into the arena";
             if (r.Contains("MANA")) return "Wait for your mana to refill";
             if (r.Contains("OPPONENT")) return "Look for the other player's tag";
@@ -114,9 +120,10 @@ namespace BridgeRush.Input
 
         private void Update()
         {
-            // Under the top bar, or under the tutorial coach while it is showing.
+            // Low in the player's view, or just under the tutorial coach while it is showing (whichever is lower).
             var coach = TutorialCoach.Instance;
-            toastRect.anchoredPosition = new Vector2(0f, -(TopOffset + (coach != null ? coach.PanelHeight : 0f)));
+            float coachBottom = TopOffset + (coach != null ? coach.PanelHeight : 0f);
+            toastRect.anchoredPosition = new Vector2(0f, -(Mathf.Max(ToastTop, coachBottom) + HudLayout.SafeTop(canvas)));
 
             float age = Time.unscaledTime - shownAt;
             if (age >= resultDisplaySeconds)
@@ -157,7 +164,7 @@ namespace BridgeRush.Input
             toastTitle.color = accepted ? new Color(0.78f, 1f, 0.78f) : new Color(1f, 0.72f, 0.66f);
             toastDetail.text = detail;
 
-            toastRect.sizeDelta = new Vector2(720f, hasDetail ? 118f : 84f);
+            toastRect.sizeDelta = new Vector2(ToastWidth, hasDetail ? ToastHeightWithDetail : ToastHeight);
             var titleRect = toastTitle.rectTransform;
             titleRect.anchorMin = new Vector2(0f, hasDetail ? 0.42f : 0f);
             titleRect.anchorMax = Vector2.one;

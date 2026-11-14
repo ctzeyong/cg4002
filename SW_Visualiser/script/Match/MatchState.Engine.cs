@@ -153,6 +153,9 @@ namespace BridgeRush.Match
             engineLink.MatchChanged -= OnBoardMatchChanged;
         }
 
+        // How long a summon takes to show: the board's accepted event to the first snapshot with the unit (debug menu).
+        public readonly SummonLatencyTracker SummonLatency = new SummonLatencyTracker();
+
         // The board's answer to one of this player's actions, from a card tap or a glove gesture alike.
         private void OnBoardActionResult(EngineEvent e)
         {
@@ -169,7 +172,11 @@ namespace BridgeRush.Match
             bool known = Enum.TryParse(e.What, out UnitType type);
             if (e.Ok)
             {
-                if (known) OwnUnitSummoned?.Invoke(type);
+                if (known)
+                {
+                    OwnUnitSummoned?.Invoke(type);
+                    SummonLatency.NoteAccepted(e.UnitId, Time.realtimeSinceStartup);
+                }
                 return;
             }
             BoardRefusalText = ReasonText(e.Reason);
@@ -217,6 +224,7 @@ namespace BridgeRush.Match
             lastBoardTick = -1;
             boardResultSet = false;
             BoardRefusalText = "";
+            SummonLatency.NewMatch();
         }
 
         private void UpdateBoardClient()
@@ -269,6 +277,8 @@ namespace BridgeRush.Match
             lastBoardTick = s.Tick;
             // A repeated tick (paused, or an extra snapshot between ticks) adds units and strikes and nothing else, so the
             // units already on screen keep gliding instead of jumping.
+            float seenAt = Time.realtimeSinceStartup;
+            foreach (var unit in s.Units) SummonLatency.NoteSeen(unit.id, seenAt);
             ApplyUnitSnapshots(s.Units, LocalOwnerName, newTick, newTick);
             ApplyStrikeSnapshots(s.Strikes);
         }

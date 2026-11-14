@@ -12,5 +12,8 @@
     <Compile Include="../../script/Networking/NetworkMessages.cs" />
     <Compile Include="../../script/Networking/Engine/EngineLinkCore.cs" />
     <Compile Include="../../script/Tutorial/TutorialFlow.cs" />
+    <Compile Include="../../script/Input/ShakeDetector.cs" />
+    <Compile Include="../../script/UI/FrameRateMeter.cs" />
+    <Compile Include="../../script/Match/SummonLatencyTracker.cs" />
   </ItemGroup>
 </Project>

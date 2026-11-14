@@ -34,7 +34,7 @@ namespace BridgeRush.UI
         private Image startGateImage;
         private TextMeshProUGUI startGateLabel;
 
-        private enum StartGateState { Hidden, Searching, ReadyToLockIn, WaitingForPeer, ReadyToStart }
+        private enum StartGateState { Hidden, NoBoard, Searching, ReadyToLockIn, WaitingForPeer, ReadyToStart }
 
         private class CardEntry
         {
@@ -42,6 +42,7 @@ namespace BridgeRush.UI
             public System.Action Cast;
             public Image Glow;
             public Image Panel;
+            public List<Image> Dimmable;
             public TextMeshProUGUI CostText;
             public UnitType? Unit;
             public string SpellKey;
@@ -253,6 +254,13 @@ namespace BridgeRush.UI
             SetAlpha(card.SummonText, t < 0.7f ? 1f : (1f - t) / 0.3f);
         }
 
+        // Dims or restores everything on the card that carries its colour (the panel, the picture frame and the name plate).
+        private static void TintCard(CardEntry card, Color color)
+        {
+            card.Panel.color = color;
+            foreach (var image in card.Dimmable) image.color = color;
+        }
+
         private static void SetAlpha(Graphic graphic, float alpha)
         {
             var color = graphic.color;
@@ -269,6 +277,7 @@ namespace BridgeRush.UI
             bool started = matchState.MatchStarted;
             handRoot.gameObject.SetActive(started);
             if (!started) return;
+            handRoot.anchoredPosition = new Vector2(0f, HudLayout.HandBottom(canvas)); // clear of a phone's home bar
 
             foreach (var card in cards)
             {
@@ -284,7 +293,7 @@ namespace BridgeRush.UI
                     float beat = 0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * 5f);
                     card.Glow.color = target ? new Color(PointerGold.r, PointerGold.g, PointerGold.b, 0.55f + 0.45f * beat) : new Color(1f, 1f, 1f, 0f);
                     card.Glow.rectTransform.localScale = Vector3.one * (target ? 1.05f + 0.07f * beat : 1f);
-                    card.Panel.color = target ? Color.white : new Color(0.5f, 0.5f, 0.5f, 1f);
+                    TintCard(card, target ? Color.white : new Color(0.5f, 0.5f, 0.5f, 1f));
                     card.Pointer.gameObject.SetActive(target);
                     if (target) card.Pointer.anchoredPosition = new Vector2(0f, 14f + 12f * beat);
                     continue;
@@ -299,14 +308,14 @@ namespace BridgeRush.UI
                     var glowColor = card.Glow.color;
                     glowColor.a = pulse;
                     card.Glow.color = glowColor;
-                    card.Panel.color = Color.white;
+                    TintCard(card, Color.white);
                 }
                 else
                 {
                     var glowColor = card.Glow.color;
                     glowColor.a = 0f;
                     card.Glow.color = glowColor;
-                    card.Panel.color = new Color(0.55f, 0.55f, 0.55f, 1f);
+                    TintCard(card, new Color(0.55f, 0.55f, 0.55f, 1f));
                 }
             }
         }
@@ -318,7 +327,7 @@ namespace BridgeRush.UI
             handRoot.anchorMin = new Vector2(0.5f, 0f);
             handRoot.anchorMax = new Vector2(0.5f, 0f);
             handRoot.pivot = new Vector2(0.5f, 0f);
-            handRoot.anchoredPosition = new Vector2(0f, HandBottomMargin);
+            handRoot.anchoredPosition = new Vector2(0f, HudLayout.HandBottom(canvas));
 
             var layout = handGo.AddComponent<HorizontalLayoutGroup>();
             layout.spacing = CardSpacing;
@@ -335,11 +344,9 @@ namespace BridgeRush.UI
             AddUnitCard(handRoot, CardMotions.For(UnitType.Tank), "Tank", UnitType.Tank);
             AddUnitCard(handRoot, CardMotions.For(UnitType.Hero), "Hero", UnitType.Hero);
 
-            AddSpellCard(handRoot, CardMotions.ForSpell("lightning"), "Lightning",
-                $"{spellCaster.LightningStrikeDamage:0} dmg AOE", "lightning",
+            AddSpellCard(handRoot, CardMotions.ForSpell("lightning"), "Lightning", "lightning",
                 () => spellCaster.LightningStrikeManaCost, () => spellCaster.CastLightningStrike());
-            AddSpellCard(handRoot, CardMotions.ForSpell("fireball"), "Fireball",
-                $"{spellCaster.FireballUnitDamage:0} dmg + burn", "fireball",
+            AddSpellCard(handRoot, CardMotions.ForSpell("fireball"), "Fireball", "fireball",
                 () => spellCaster.FireballManaCost, () => spellCaster.CastFireball());
         }
 
@@ -347,29 +354,25 @@ namespace BridgeRush.UI
         {
             System.Func<float> getCost = () =>
                 unitStatsTable.TryGetEntry(type, out var e) ? e.ManaCost : 0f;
-            System.Func<string> getStats = () =>
-                unitStatsTable.TryGetEntry(type, out var e2)
-                    ? $"HP {e2.MaxHP:0}  DPS {e2.AttackDps:0}"
-                    : string.Empty;
 
-            var entry = BuildCard(parent, gesture, name, getStats, isSpell: false);
+            var entry = BuildCard(parent, gesture, name, CardArt.Unit, isSpell: false, winged: type == UnitType.Hero);
             entry.GetCost = getCost;
             entry.Unit = type;
             entry.Cast = () => matchState.SpawnUnit(type);
             cards.Add(entry);
         }
 
-        private void AddSpellCard(Transform parent, string gesture, string name, string statsLine, string spellKey,
+        private void AddSpellCard(Transform parent, string gesture, string name, string spellKey,
             System.Func<float> getCost, System.Action cast)
         {
-            var entry = BuildCard(parent, gesture, name, () => statsLine, isSpell: true);
+            var entry = BuildCard(parent, gesture, name, CardArt.ForSpell(spellKey), isSpell: true, winged: false);
             entry.GetCost = getCost;
             entry.SpellKey = spellKey;
             entry.Cast = cast;
             cards.Add(entry);
         }
 
-        private CardEntry BuildCard(Transform parent, string gesture, string name, System.Func<string> getStats, bool isSpell)
+        private CardEntry BuildCard(Transform parent, string gesture, string name, CardArt.Theme theme, bool isSpell, bool winged)
         {
             Color accent = isSpell ? HudPalette.Spell : HudPalette.Gold;
             Color accentDeep = isSpell ? HudPalette.SpellDeep : HudPalette.GoldDark;
@@ -411,8 +414,7 @@ namespace BridgeRush.UI
             panelRect.offsetMin = Vector2.zero;
             panelRect.offsetMax = Vector2.zero;
             var panelImage = panelGo.AddComponent<Image>();
-            panelImage.sprite = UITextureFactory.CreateRoundedPanel(96, 14,
-                Color.Lerp(HudPalette.Wood, accentDeep, 0.12f), HudPalette.WoodDark, 3, accent);
+            panelImage.sprite = CardArt.Frame(theme);
             panelImage.type = Image.Type.Sliced;
 
             var button = cardGo.AddComponent<Button>();
@@ -428,45 +430,126 @@ namespace BridgeRush.UI
             flashImage.color = new Color(1f, 1f, 1f, 0f);
             flashImage.raycastTarget = false;
 
+            // The picture window: a dark recess inside the frame's coloured band. The gesture animation plays in it.
+            var dimmable = new List<Image>();
+            var frameGo = UIFactory.CreateRect("PictureFrame", cardRect);
+            var frameRect = frameGo.GetComponent<RectTransform>();
+            frameRect.anchorMin = new Vector2(0.105f, 0.39f);
+            frameRect.anchorMax = new Vector2(0.895f, 0.935f);
+            frameRect.offsetMin = frameRect.offsetMax = Vector2.zero;
+            var frameImage = frameGo.AddComponent<Image>();
+            frameImage.sprite = CardArt.Window(theme);
+            frameImage.type = Image.Type.Sliced;
+            frameImage.raycastTarget = false;
+            dimmable.Add(frameImage);
+
+            // A faint light behind the gesture and a drop shadow under it, so the cream lines lift off the dark window.
+            var haloGo = UIFactory.CreateRect("Halo", cardRect);
+            var haloRect = haloGo.GetComponent<RectTransform>();
+            haloRect.anchorMin = haloRect.anchorMax = new Vector2(0.5f, 0.665f);
+            haloRect.sizeDelta = new Vector2(120f, 120f);
+            var haloImage = haloGo.AddComponent<Image>();
+            haloImage.sprite = UITextureFactory.CreateGlowDot();
+            haloImage.color = new Color(1f, 0.86f, 0.55f, 0.10f);
+            haloImage.raycastTarget = false;
+
+            var iconSprite = UITextureFactory.CreateMotionIcon(gesture);
+            var shadowGo = UIFactory.CreateRect("GestureShadow", cardRect);
+            var shadowRect = shadowGo.GetComponent<RectTransform>();
+            shadowRect.anchorMin = new Vector2(0.5f, 0.39f);
+            shadowRect.anchorMax = new Vector2(0.5f, 0.935f);
+            shadowRect.sizeDelta = new Vector2(110f, -18f);
+            shadowRect.anchoredPosition = new Vector2(3f, -3f);
+            var shadowImage = shadowGo.AddComponent<Image>();
+            shadowImage.sprite = iconSprite;
+            shadowImage.preserveAspect = true;
+            shadowImage.color = new Color(0f, 0f, 0f, 0.5f);
+            shadowImage.raycastTarget = false;
+
+            var iconGo = UIFactory.CreateRect("GestureIcon", cardRect);
+            var iconRect = iconGo.GetComponent<RectTransform>();
+            iconRect.anchorMin = new Vector2(0.5f, 0.39f);
+            iconRect.anchorMax = new Vector2(0.5f, 0.935f);
+            iconRect.sizeDelta = new Vector2(110f, -18f);   // as wide as the window allows: the gesture is the point of the card
+            iconRect.anchoredPosition = Vector2.zero;
+            var iconImage = iconGo.AddComponent<Image>();
+            iconImage.sprite = iconSprite;
+            iconImage.preserveAspect = true;
+            iconImage.color = HudPalette.Cream;
+            iconImage.raycastTarget = false;
+            MotionTracer.Attach(iconRect, gesture, accent, 2f);
+
+            // The name plank: dark boards in the card's colour with the name on it.
+            var plateGo = UIFactory.CreateRect("NamePlate", cardRect);
+            var plateRect = plateGo.GetComponent<RectTransform>();
+            plateRect.anchorMin = new Vector2(0.045f, 0.262f);
+            plateRect.anchorMax = new Vector2(0.955f, 0.382f);
+            plateRect.offsetMin = plateRect.offsetMax = Vector2.zero;
+            var plateImage = plateGo.AddComponent<Image>();
+            plateImage.sprite = CardArt.Plank(theme);
+            plateImage.raycastTarget = false;
+            dimmable.Add(plateImage);
+
+            // The Hero's gold wings: one each side of the plank, reaching a little past the card's edge.
+            if (winged)
+            {
+                dimmable.Add(AddWing(cardRect, "WingLeft", -1f));
+                dimmable.Add(AddWing(cardRect, "WingRight", 1f));
+            }
+
+            var nameText = UIFactory.CreateText(cardRect, name, 24, FontStyles.Normal, new Color(1f, 0.96f, 0.85f));
+            UIFactory.ApplyOutline(nameText, 0.2f, new Color32(8, 6, 14, 255));
+            var nameRect = nameText.rectTransform;
+            nameRect.anchorMin = new Vector2(0.045f, 0.262f);
+            nameRect.anchorMax = new Vector2(0.955f, 0.382f);
+            nameRect.offsetMin = new Vector2(18f, 0f);
+            nameRect.offsetMax = new Vector2(-18f, 0f);
+            nameText.enableAutoSizing = true; // "Lightning" must stay on one line in a 150-wide card
+            nameText.fontSizeMin = 14f;
+            nameText.fontSizeMax = 24f;
+            nameText.textWrappingMode = TextWrappingModes.NoWrap;
+
+            // What to do with the glove, in small muted letters under the plank.
+            var motionText = UIFactory.CreateText(cardRect, CardMotions.DisplayName(gesture).ToLowerInvariant(), 18f, FontStyles.Normal, new Color(0.82f, 0.72f, 0.54f));
+            var motionRect = motionText.rectTransform;
+            motionRect.anchorMin = new Vector2(0.07f, 0.075f);
+            motionRect.anchorMax = new Vector2(0.93f, 0.235f);
+            motionRect.offsetMin = motionRect.offsetMax = Vector2.zero;
+            motionText.enableAutoSizing = true;
+            motionText.fontSizeMin = 11f;
+            motionText.fontSizeMax = 18f;
+            motionText.textWrappingMode = TextWrappingModes.NoWrap;
+
+            // The small diamond on the top edge.
+            var topGo = UIFactory.CreateRect("TopOrnament", cardRect);
+            var topRect = topGo.GetComponent<RectTransform>();
+            topRect.anchorMin = topRect.anchorMax = new Vector2(0.5f, 1f);
+            topRect.pivot = new Vector2(0.5f, 0.5f);
+            topRect.anchoredPosition = new Vector2(0f, 1f);
+            topRect.sizeDelta = new Vector2(72f, 43f);
+            var topImage = topGo.AddComponent<Image>();
+            topImage.sprite = CardArt.TopOrnament(theme);
+            topImage.raycastTarget = false;
+            dimmable.Add(topImage);
+
+            // The mana cost: a faceted gem on the top-left corner. It is built last among the card's parts so nothing is drawn over it.
             var costGo = UIFactory.CreateRect("Cost", cardRect);
             var costRect = costGo.GetComponent<RectTransform>();
             costRect.anchorMin = new Vector2(0f, 1f);
             costRect.anchorMax = new Vector2(0f, 1f);
             costRect.pivot = new Vector2(0.5f, 0.5f);
-            costRect.anchoredPosition = new Vector2(0f, 0f);
-            costRect.sizeDelta = new Vector2(48f, 48f);
+            costRect.anchoredPosition = new Vector2(17f, -1f);
+            costRect.sizeDelta = new Vector2(62f, 62f);
             var costImage = costGo.AddComponent<Image>();
-            costImage.sprite = UITextureFactory.CreateRoundedPanel(48, 24, HudPalette.Mana, HudPalette.ManaDeep, 2, Color.white);
-            costImage.type = Image.Type.Sliced;
-            var costText = UIFactory.CreateText(costGo.transform, "0", 25, FontStyles.Bold, new Color(0.02f, 0.2f, 0.24f));
-            UIFactory.StretchFull(costText.rectTransform);
-
-            var iconGo = UIFactory.CreateRect("GestureIcon", cardRect);
-            var iconRect = iconGo.GetComponent<RectTransform>();
-            iconRect.anchorMin = new Vector2(0.5f, 0.5f);
-            iconRect.anchorMax = new Vector2(0.5f, 1f);
-            iconRect.sizeDelta = new Vector2(104f, 0f);
-            iconRect.anchoredPosition = Vector2.zero;
-            var iconImage = iconGo.AddComponent<Image>();
-            iconImage.sprite = UITextureFactory.CreateMotionIcon(gesture);
-            iconImage.preserveAspect = true;
-            iconImage.color = HudPalette.Cream;
-            iconImage.raycastTarget = false;
-            MotionTracer.Attach(iconRect, gesture, accent, 1.5f);
-
-            var nameText = UIFactory.CreateText(cardRect, name, 19, FontStyles.Bold, HudPalette.Cream);
-            var nameRect = nameText.rectTransform;
-            nameRect.anchorMin = new Vector2(0f, 0.28f);
-            nameRect.anchorMax = new Vector2(1f, 0.48f);
-            nameRect.offsetMin = new Vector2(2f, 0f);
-            nameRect.offsetMax = new Vector2(-2f, 0f);
-
-            var statsText = UIFactory.CreateText(cardRect, getStats(), 14f, FontStyles.Normal, new Color(0.9f, 0.85f, 0.7f));
-            var statsRect = statsText.rectTransform;
-            statsRect.anchorMin = new Vector2(0f, 0f);
-            statsRect.anchorMax = new Vector2(1f, 0.26f);
-            statsRect.offsetMin = new Vector2(2f, 2f);
-            statsRect.offsetMax = new Vector2(-2f, 0f);
+            costImage.sprite = CardArt.Gem(theme);
+            costImage.raycastTarget = false;
+            dimmable.Add(costImage);   // goes grey with the card when it cannot be afforded
+            var costText = UIFactory.CreateText(costGo.transform, "0", 34, FontStyles.Bold, Color.white);
+            UIFactory.ApplyOutline(costText, 0.22f, new Color32(8, 20, 70, 255));
+            var costTextRect = costText.rectTransform;
+            costTextRect.anchorMin = Vector2.zero;
+            costTextRect.anchorMax = Vector2.one;
+            costTextRect.offsetMin = costTextRect.offsetMax = Vector2.zero;
 
             var rejectGo = UIFactory.CreateRect("Reject", cardRect);
             var rejectRect = rejectGo.GetComponent<RectTransform>();
@@ -506,6 +589,7 @@ namespace BridgeRush.UI
                 Pointer = pointerRect,
                 Glow = glowImage,
                 Panel = panelImage,
+                Dimmable = dimmable,
                 CostText = costText,
                 Root = cardRect,
                 Burst = burstImage,
@@ -520,6 +604,22 @@ namespace BridgeRush.UI
             return entry;
         }
 
+        // One gold wing for the Hero card, fanning out from the end of the name plank. `side` is -1 for the left and 1 for the right.
+        private static Image AddWing(RectTransform card, string name, float side)
+        {
+            var go = UIFactory.CreateRect(name, card);
+            var rect = go.GetComponent<RectTransform>();
+            rect.anchorMin = rect.anchorMax = new Vector2(side < 0f ? 0f : 1f, 0.322f);
+            rect.pivot = new Vector2(0.92f, 0.22f);   // the wing's root: flipping for the right side mirrors around it
+            rect.anchoredPosition = new Vector2(side < 0f ? 32f : -32f, 0f);
+            rect.sizeDelta = new Vector2(46f, 35f);
+            rect.localScale = new Vector3(side < 0f ? 1f : -1f, 1f, 1f);
+            var image = go.AddComponent<Image>();
+            image.sprite = CardArt.Wing();
+            image.raycastTarget = false;
+            return image;
+        }
+
         private void BuildStartGate()
         {
             startGateRoot = UIFactory.CreateRect("StartGate", canvas.transform);
@@ -527,20 +627,43 @@ namespace BridgeRush.UI
             rect.anchorMin = new Vector2(0.5f, 0.38f);
             rect.anchorMax = new Vector2(0.5f, 0.38f);
             rect.pivot = new Vector2(0.5f, 0.5f);
-            rect.sizeDelta = new Vector2(420f, 110f);
+            rect.sizeDelta = new Vector2(760f, 124f);
 
             startGateImage = startGateRoot.AddComponent<Image>();
-            startGateImage.sprite = UITextureFactory.CreateRoundedPanel(96, 18,
-                new Color(0.22f, 0.58f, 0.3f), new Color(0.09f, 0.35f, 0.16f), 3, new Color(0.85f, 0.98f, 0.88f));
+            startGateImage.sprite = TitleArt.CreatePlank();   // the same wooden sign as the menu buttons
             startGateImage.type = Image.Type.Sliced;
 
+            UIFactory.AddPressFeedback(startGateRoot);
             startGateButton = startGateRoot.AddComponent<Button>();
             startGateButton.targetGraphic = startGateImage;
             startGateButton.transition = Selectable.Transition.None;
             startGateButton.onClick.AddListener(OnStartGateClicked);
 
-            startGateLabel = UIFactory.CreateText(startGateRoot.transform, "START GAME", 30, FontStyles.Bold, new Color(0.03f, 0.16f, 0.06f));
+            startGateLabel = UIFactory.CreateText(startGateRoot.transform, "START GAME", 44, FontStyles.Bold, HudPalette.ButtonGold);
+            UIFactory.ApplyOutline(startGateLabel, 0.3f, new Color32(30, 14, 4, 255));
             UIFactory.StretchFull(startGateLabel.rectTransform);
+            startGateLabel.enableAutoSizing = true; // "SEARCHING FOR OPPONENT..." must fit on one line
+            startGateLabel.fontSizeMin = 24f;
+            startGateLabel.fontSizeMax = 44f;
+            startGateLabel.textWrappingMode = TextWrappingModes.NoWrap;
+            startGateLabel.margin = new Vector4(20f, 0f, 20f, 0f);
+
+            // BACK: under the sign, goes to the player screen. It hides with the sign.
+            var backGo = UIFactory.CreateRect("BackButton", startGateRoot.transform);
+            var backRect = backGo.GetComponent<RectTransform>();
+            backRect.anchoredPosition = new Vector2(0f, -(124f * 0.5f + 28f + 46f));
+            backRect.sizeDelta = new Vector2(300f, 92f);
+            var backImage = backGo.AddComponent<Image>();
+            backImage.sprite = TitleArt.CreatePlank();
+            backImage.type = Image.Type.Sliced;
+            var backButton = backGo.AddComponent<Button>();
+            backButton.targetGraphic = backImage;
+            backButton.transition = Selectable.Transition.None;
+            backButton.onClick.AddListener(OnBackClicked);
+            UIFactory.AddPressFeedback(backGo);
+            var backLabel = UIFactory.CreateText(backGo.transform, "< BACK", 46, FontStyles.Bold, HudPalette.Cream);
+            UIFactory.ApplyOutline(backLabel, 0.3f, new Color32(30, 14, 4, 255));
+            UIFactory.StretchFull(backLabel.rectTransform);
         }
 
         private StartGateState ComputeStartGateState()
@@ -548,6 +671,9 @@ namespace BridgeRush.UI
             if (matchState.MatchStarted) return StartGateState.Hidden;
             if (matchCountdown != null && matchCountdown.HasRequestedStart) return StartGateState.Hidden;
             if (matchSetup != null && !matchSetup.IsSetupComplete) return StartGateState.Hidden;
+
+            // VS PLAYER is played on the board. Until this phone has the board role there is nothing to start.
+            if (matchSetup != null && matchSetup.Mode == MatchSetup.GameMode.VsPlayer && !matchState.IsBoardClient) return StartGateState.NoBoard;
 
             bool opponentFound = arenaFrame == null || arenaFrame.HasLane;
             if (!opponentFound) return StartGateState.Searching;
@@ -568,11 +694,25 @@ namespace BridgeRush.UI
             startGateImage.color = interactable ? Color.white : new Color(0.6f, 0.6f, 0.6f, 1f);
             startGateLabel.text = state switch
             {
+                StartGateState.NoBoard => "WAITING FOR THE BOARD...",
                 StartGateState.Searching => "SEARCHING FOR OPPONENT...",
                 StartGateState.ReadyToLockIn => "READY",
                 StartGateState.WaitingForPeer => "WAITING FOR OPPONENT...",
                 _ => "START GAME",
             };
+        }
+
+        // Back from the start screen (searching, waiting, ready) to the player screen: the same reset as quitting to the main
+        // menu, except that the chosen mode stays. Picking a player again re-activates the CPU opponent or the board link.
+        private void OnBackClicked()
+        {
+            matchState.ResetMatch();
+            if (arenaFrame != null) arenaFrame.DebugForgetOpponent();
+            if (matchSetup != null) matchSetup.BackToPlayerSelect();
+            if (matchCountdown != null) matchCountdown.ResetCountdownGate();
+            var networkSync = FindAnyObjectByType<MatchNetworkSync>();
+            if (networkSync != null) networkSync.DebugReset();
+            if (peerReadySync != null) peerReadySync.DebugReset();
         }
 
         private void OnStartGateClicked()

@@ -7,6 +7,7 @@ namespace BridgeRush.Gameplay
     public class CaptureBubble : MonoBehaviour
     {
         private const int RingSegments = 40;
+        private const float MinOrbAlpha = 0.55f;
 
         private Camera viewCamera;
         private float radius;
@@ -50,6 +51,9 @@ namespace BridgeRush.Gameplay
             orbMaterial = new Material(Shader.Find("Sprites/Default"));
             orbRenderer.material = orbMaterial;
 
+            // Real-world objects never hide a bubble: a depth-clear disc (see ArDepthClear) a little wider than the progress ring.
+            ArDepthClear.AddSphere(transform, radiusMeters * 3.1f, gameObject.layer);
+
             track = BuildRing("Track", 0.012f, RingSegments + 1);
             fill = BuildRing("Fill", 0.03f, RingSegments + 1);
             SetActive(false);
@@ -88,7 +92,7 @@ namespace BridgeRush.Gameplay
 
             float pulse = IsLocking ? 0.85f + 0.15f * Mathf.Sin(Time.time * 12f) : 1f;
             Color orbColor = IsLocking ? Color.Lerp(lockingColor, fullColor, Progress) : idleColor;
-            orbColor.a *= pulse;
+            orbColor.a = Mathf.Max(orbColor.a, MinOrbAlpha) * pulse;   // never so faint it is lost against the room
             orbMaterial.color = orbColor;
 
             // Ring faces the camera: points are laid out on the camera's right/up plane around the bubble.
@@ -97,7 +101,7 @@ namespace BridgeRush.Gameplay
             float ringRadius = radius * 1.35f;
             int filled = Mathf.Clamp(Mathf.RoundToInt(Progress * RingSegments), 0, RingSegments);
 
-            track.startColor = track.endColor = new Color(1f, 1f, 1f, 0.25f);
+            track.startColor = track.endColor = new Color(1f, 1f, 1f, 0.5f);
             fill.startColor = fill.endColor = Color.Lerp(lockingColor, fullColor, Progress);
             fill.enabled = filled > 0;
             fill.positionCount = Mathf.Max(filled + 1, 2);

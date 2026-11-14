@@ -13,9 +13,6 @@ namespace BridgeRush.Tracking
         [Tooltip("True = rotate the CPU image 90 deg clockwise to match a Portrait-locked device.")]
         [SerializeField] private bool rotateClockwise = true;
 
-        [Tooltip("Flip if a tracked tag's position reads mirrored.")]
-        [SerializeField] private bool mirrorY = true;
-
         [Tooltip("Size the detector needs for correct distances. Calibrated on a device: a printed tag measuring 0.185 m reads true distances at 0.119.")]
         [SerializeField] private float tagSizeMeters = 0.119f;
 
@@ -39,7 +36,26 @@ namespace BridgeRush.Tracking
         }
 
         public bool RotateClockwise { get => rotateClockwise; set => rotateClockwise = value; }
-        public bool MirrorY { get => mirrorY; set => mirrorY = value; }
+
+        private const string TagFrameTurnPref = "apriltag_frame_quarter_turns";
+        private int tagFrameQuarterTurns = -1;
+
+        // A quarter-turn (0 to 3) applied to the detected tag's position about the camera's forward axis, chosen from the debug menu
+        // and remembered per device. For a device where the tag's frame and the camera's frame are turned against each other (seen on
+        // an iPad Air 5 on iPadOS 27: a centred tag lines up, a tag off-centre lands a quarter turn away). 0 changes nothing.
+        public int TagFrameQuarterTurns
+        {
+            get
+            {
+                if (tagFrameQuarterTurns < 0) tagFrameQuarterTurns = ((PlayerPrefs.GetInt(TagFrameTurnPref, 0) % 4) + 4) % 4;
+                return tagFrameQuarterTurns;
+            }
+            set
+            {
+                tagFrameQuarterTurns = ((value % 4) + 4) % 4;
+                PlayerPrefs.SetInt(TagFrameTurnPref, tagFrameQuarterTurns);
+            }
+        }
 
         // What the detector is fed, for checking the camera intrinsics against the CPU image.
         public string DebugInfo => $"img {lastImageWidth}x{lastImageHeight}  intr {lastIntrinsicsWidth}x{lastIntrinsicsHeight}  f(scaled) {lastFocalX:0}";
@@ -120,7 +136,9 @@ namespace BridgeRush.Tracking
                     inputRect = new RectInt(0, 0, image.width, image.height),
                     outputDimensions = new Vector2Int(image.width, image.height),
                     outputFormat = TextureFormat.RGBA32,
-                    transformation = mirrorY ? XRCpuImage.Transformation.MirrorY : XRCpuImage.Transformation.None
+                    // Always flipped: the camera frame comes with its rows in the opposite order to what the detector reads, so without
+                    // this the tag looks mirrored. Tested on the phones; it was a debug toggle, now fixed (not serialized, so no scene value overrides it).
+                    transformation = XRCpuImage.Transformation.MirrorY
                 };
 
                 int dataSize = image.GetConvertedDataSize(conversionParams);
@@ -148,9 +166,12 @@ namespace BridgeRush.Tracking
             {
                 if (!tagIdToMarkerIdLookup.TryGetValue(tag.ID, out int markerId)) continue;
 
+                // The tag's position is in the detector's frame; this turns it into the camera's frame before it is placed in the world.
+                // 0 on a device where they already agree (the iPhones).
+                var turn = Quaternion.AngleAxis(TagFrameQuarterTurns * 90f, Vector3.forward);
                 var pose = new Pose(
-                    cameraTransform.TransformPoint(tag.Position),
-                    cameraTransform.rotation * tag.Rotation);
+                    cameraTransform.TransformPoint(turn * tag.Position),
+                    cameraTransform.rotation * turn * tag.Rotation);
 
                 trackedMarkerIds.Add(markerId);
                 markerIdsSeenThisFrame.Add(markerId);
