@@ -15,6 +15,9 @@ describe each integration boundary; this page shows how they work together.
 > - Both iPhones have received hand-made events on the board's broker and spawned units.
 >
 > The first run with real gloves and the phones together is still to come.
+>
+> **12 Nov 2026, on `packet-20b`:** the SENSOR packet shrinks from 26 to 20 bytes by dropping the
+> three unused reserved fields. Compiled, not yet flashed. Every run above used 26 bytes.
 
 ## What is connected
 
@@ -29,7 +32,7 @@ FireBeetle firmware
   every 10 ms: the newest reading, IMU status in reserved[0],
   gesture flag in reserved[1], sequence number and CRC
        |
-       | encrypted BLE, 26-byte SENSOR packets
+       | encrypted BLE, 20-byte SENSOR packets
        v
 Laptop Comms relay
   validates and decodes packets, identifies the player,

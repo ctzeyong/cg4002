@@ -401,7 +401,7 @@ async def test_truncated_packet_counted_not_raised():
     stats = NodeStats()
     handler = make_notify_handler(NODES[0], queue, stats)
 
-    handler(None, make_packet(TYPE_SENSOR, 1)[:20])
+    handler(None, make_packet(TYPE_SENSOR, 1)[:18])
 
     assert stats.bad_len == 1
     assert stats.received == 0
@@ -867,7 +867,7 @@ async def test_backoff_escalates_immediately_after_a_link_has_existed(monkeypatc
 
 def with_status(packet_type, seq, status):
     """A packet with plausible IMU values and `status` in reserved[0]."""
-    return make_packet(packet_type, seq, [120, -45, 8192, 3, -2, 1, status, 0, 0, 0, 0])
+    return make_packet(packet_type, seq, [120, -45, 8192, 3, -2, 1, status, 0])
 
 
 def feed(handler, statuses, first_seq=0):

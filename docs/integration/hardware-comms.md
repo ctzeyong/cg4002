@@ -5,13 +5,17 @@ Comms firmware, the C++ interface shared by both sides, and what must change whe
 changes its implementation.
 
 > **Current status (16 Oct 2026):** branch `hardware-comms` reads one MPU6050 per FireBeetle,
-> reports sensor faults, and keeps the existing 26-byte SENSOR packet. A board with no IMU
+> reports sensor faults, and keeps the existing SENSOR packet layout. A board with no IMU
 > attached has been flashed and checked (see [Verification](#verification-and-current-evidence)).
 > Real IMU readings and a two-player run are still to be tested.
 >
 > **20 Oct 2026, on `mvp-full-pipeline`:** Hardware's gesture detector runs in the firmware,
 > reading every sample from the MPU6050's FIFO at 500 Hz. Compiled and checked in a host
 > simulation, not yet flashed.
+>
+> **12 Nov 2026, on `packet-20b`:** the SENSOR packet shrinks from 26 to 20 bytes. The three
+> unused reserved fields are gone. The IMU status and gesture flag keep their bytes, and the CRC
+> moves to bytes 18–19. Compiled, not yet flashed.
 
 ## Architecture overview
 
@@ -29,7 +33,7 @@ Hardware-facing adapter: imu.cpp
 Comms firmware: firebeetle.ino
   schedules reads and adds player sequence, status, and CRC
        |
-       | encrypted BLE: one 26-byte SENSOR packet, target 100 Hz
+       | encrypted BLE: one 20-byte SENSOR packet, target 100 Hz
        v
 Comms laptop client
   validates, decodes, reports faults, and forwards a structured message
@@ -188,7 +192,7 @@ public ranges, sample meaning, status behaviour, and timing remain equivalent.
 
 ## Message sent to the rest of Comms
 
-`firebeetle.ino` places one Hardware sample into the existing 26-byte SENSOR packet:
+`firebeetle.ino` places one Hardware sample into the existing 20-byte SENSOR packet:
 
 | Bytes | Field | Meaning |
 |---|---|---|
@@ -197,8 +201,7 @@ public ranges, sample meaning, status behaviour, and timing remain equivalent.
 | `2–13` | Six `int16` fields | `ax, ay, az, gx, gy, gz`, little-endian |
 | `14–15` | `reserved[0]` | `ImuStatus`, little-endian signed `int16` |
 | `16–17` | `reserved[1]` | Gesture flag: `1` while Hardware's detector says the hand may be making a gesture, `2` once on the packet after a gesture it threw away, else `0` |
-| `18–23` | `reserved[2..4]` | Zero; reserved for later use |
-| `24–25` | CRC | CRC-16/CCITT-FALSE over bytes `0–23`, little-endian |
+| `18–19` | CRC | CRC-16/CCITT-FALSE over bytes `0–17`, little-endian |
 
 Player identity is not stored in the packet. It comes from the player-specific BLE connection.
 The laptop validates the packet before forwarding this decoded message:
@@ -209,9 +212,9 @@ The laptop validates the packet before forwarding this decoded message:
   "node": 1,
   "seq": 42,
   "timestamp": 12345.678,
-  "fields": [120, -4, 8190, 7, -2, 1, 1, 0, 0, 0, 0],
+  "fields": [120, -4, 8190, 7, -2, 1, 1, 0],
   "imu": {"ax": 120, "ay": -4, "az": 8190, "gx": 7, "gy": -2, "gz": 1},
-  "reserved": [1, 0, 0, 0, 0],
+  "reserved": [1, 0],
   "crc": 12345
 }
 ```

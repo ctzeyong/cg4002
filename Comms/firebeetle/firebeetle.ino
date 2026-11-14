@@ -3,8 +3,8 @@
 //   SENSOR (READ | NOTIFY) — uplink. Streams SENSOR packets and returns CMD/file data.
 //   CMD    (WRITE)         — downlink. Accepts CMD packets and streamed file chunks.
 //
-// Every packet starts with type and sequence. SENSOR, CMD and ECHO packets then carry 11
-// int16 fields (six IMU readings, five reserved) and a CRC, 26 bytes in all; file packets
+// Every packet starts with type and sequence. SENSOR, CMD and ECHO packets then carry 8
+// int16 fields (six IMU readings, two reserved) and a CRC, 20 bytes in all; file packets
 // carry a uint64 size/offset followed by raw bytes, and no CRC. In a SENSOR packet the
 // first reserved field carries the IMU status and the second the gesture flag (imu.h).
 //
@@ -53,7 +53,7 @@ static constexpr uint8_t TYPE_FILE_END   = 0x12;
 
 static constexpr size_t HEADER_LEN = 2;
 static constexpr size_t IMU_FIELD_COUNT = 6;
-static constexpr size_t RESERVED_FIELD_COUNT = 5;
+static constexpr size_t RESERVED_FIELD_COUNT = 2;
 static constexpr size_t IMU_STATUS_FIELD = IMU_FIELD_COUNT;  // reserved[0] of a SENSOR packet
 static constexpr size_t GESTURE_FLAG_FIELD = IMU_STATUS_FIELD + 1;
 static constexpr size_t DATA_FIELD_COUNT = IMU_FIELD_COUNT + RESERVED_FIELD_COUNT;
@@ -61,7 +61,7 @@ static constexpr size_t FIELD_LEN = 2;
 static constexpr size_t CRC_LEN = 2;
 static constexpr size_t CRC_OFFSET = HEADER_LEN + DATA_FIELD_COUNT * FIELD_LEN;
 static constexpr size_t PACKET_LEN = CRC_OFFSET + CRC_LEN;
-static_assert(PACKET_LEN == 26, "fixed BLE packet must remain 26 bytes");
+static_assert(PACKET_LEN == 20, "fixed BLE packet must remain 20 bytes");
 static constexpr uint16_t PREFERRED_MTU = 128;
 static constexpr size_t FILE_HEADER_LEN = 10;  // type + seq + uint64 size/offset
 static constexpr size_t FILE_MAX_PACKET_LEN = PREFERRED_MTU - 3;
@@ -80,7 +80,7 @@ static constexpr uint8_t MOTOR_PIN = 2;
 static constexpr uint8_t MOTOR_PWM_CHANNEL = 0;  // ESP32 core 2.x only
 static constexpr uint32_t MOTOR_PWM_FREQUENCY_HZ = 20000;
 static constexpr uint8_t MOTOR_PWM_RESOLUTION_BITS = 8;
-static constexpr uint32_t MOTOR_GAP_MS = 500;  // between the pulses of a pattern
+static constexpr uint32_t MOTOR_GAP_MS = 300;  // between pulses, including across patterns
 
 // pulses at one duty (0-255), with hardware's start and reject patterns
 struct MotorPattern {
@@ -88,9 +88,9 @@ struct MotorPattern {
     uint8_t duty;
     uint32_t onMs;
 };
-static constexpr MotorPattern BUZZ_RECOGNISED = {1, 128, 200};
-static constexpr MotorPattern BUZZ_GESTURE_START = {1, 180, 150};
-static constexpr MotorPattern BUZZ_GESTURE_REJECTED = {2, 180, 150};
+static constexpr MotorPattern BUZZ_RECOGNISED = {1, 200, 200};
+static constexpr MotorPattern BUZZ_GESTURE_START = {1, 150, 50};
+static constexpr MotorPattern BUZZ_GESTURE_REJECTED = {2, 160, 0};
 
 // Requested BLE connection parameters.
 // Intervals use 1.25 ms units: 12 × 1.25 ms = 15 ms.
@@ -119,7 +119,12 @@ static uint32_t g_slowestGestureFlagUs = 0;
 static uint32_t g_imuTimingReportedAt = 0;
 
 static MotorPattern g_motorPattern = {};  // its pulses count down as they play
+static constexpr size_t MOTOR_QUEUE_CAPACITY = 8;
+static MotorPattern g_motorQueue[MOTOR_QUEUE_CAPACITY];
+static size_t g_motorQueueHead = 0;
+static size_t g_motorQueueCount = 0;
 static bool g_motorOn = false;
+static bool g_motorWaiting = false;  // enforce the gap even after a pattern's last pulse
 static uint32_t g_motorNextAt = 0;  // when the motor next turns on or off
 static int16_t g_lastGestureFlag = GESTURE_NONE;  // in the last packet with a reading
 
@@ -211,14 +216,24 @@ static void configureMotor() {
 /** Turns the motor on or off once it is due. Called every pass of loop(), so nothing blocks. */
 static void updateMotor() {
     const uint32_t now = millis();
-    if (static_cast<int32_t>(now - g_motorNextAt) < 0) {
+    if ((g_motorOn || g_motorWaiting) &&
+        static_cast<int32_t>(now - g_motorNextAt) < 0) {
         return;
     }
     if (g_motorOn) {
         writeMotorDuty(0);
         g_motorOn = false;
+        g_motorWaiting = true;
         g_motorNextAt = now + MOTOR_GAP_MS;
-    } else if (g_motorPattern.pulses > 0) {
+        return;
+    }
+    g_motorWaiting = false;
+    if (g_motorPattern.pulses == 0 && g_motorQueueCount > 0) {
+        g_motorPattern = g_motorQueue[g_motorQueueHead];
+        g_motorQueueHead = (g_motorQueueHead + 1) % MOTOR_QUEUE_CAPACITY;
+        g_motorQueueCount--;
+    }
+    if (g_motorPattern.pulses > 0) {
         writeMotorDuty(g_motorPattern.duty);
         g_motorOn = true;
         g_motorPattern.pulses--;
@@ -226,11 +241,18 @@ static void updateMotor() {
     }
 }
 
-/** Starts a pattern straight away, cutting off any pattern still playing. */
+/** Queues a pattern without interrupting a pulse or its following gap. */
 static void playMotorPattern(const MotorPattern &pattern) {
-    g_motorPattern = pattern;
-    g_motorOn = false;
-    g_motorNextAt = millis();
+    if (pattern.pulses == 0) {
+        return;
+    }
+    if (g_motorQueueCount == MOTOR_QUEUE_CAPACITY) {
+        Serial.println("[MOTOR] queue full: new pattern dropped");
+        return;
+    }
+    const size_t tail = (g_motorQueueHead + g_motorQueueCount) % MOTOR_QUEUE_CAPACITY;
+    g_motorQueue[tail] = pattern;
+    g_motorQueueCount++;
     updateMotor();
 }
 
@@ -470,9 +492,9 @@ void loop() {
 
     const uint32_t now = millis();
 
-    // a notification carries at most MTU-3 bytes, so while the link is still on the
-    // 23-byte default our PACKET_LEN packet goes out truncated and the client throws
-    // it away. poll until the exchange lifts us clear, then stop looking — MTU only
+    // a notification carries at most MTU-3 bytes, so wait until a whole PACKET_LEN
+    // packet fits. a 20-byte packet already fits the 23-byte default and passes at once.
+    // stop checking once it passes, since MTU only
     // grows within a connection. polling rather than keying off onMTUChange: if that
     // callback never arrives we want to wait, not to go silent forever.
     if (g_connected && !g_mtuReady) {

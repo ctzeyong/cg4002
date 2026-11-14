@@ -24,7 +24,7 @@ from mqtt_config import UNATTRIBUTED_PLAYER, BrokerConfig
 import plumbing
 from plumbing import RateWindow, put_drop_oldest
 
-FIELDS = [1, -2, 3, -4, 5, -6, 0, 0, 0, 0, 0]
+FIELDS = [1, -2, 3, -4, 5, -6, 0, 0]
 
 
 # --- helpers ---------------------------------------------------------------
@@ -95,7 +95,7 @@ async def test_uplink_forwards_a_ble_packet_to_the_ultra96():
         "timestamp": 1234.5,
         "fields": FIELDS,
         "imu": {"ax": 1, "ay": -2, "az": 3, "gx": -4, "gy": 5, "gz": -6},
-        "reserved": [0, 0, 0, 0, 0],
+        "reserved": [0, 0],
         "crc": int.from_bytes(
             ble_packet.build_fixed_packet(ble_packet.TYPE_ECHO, 42, FIELDS)[
                 ble_packet.CRC_OFFSET :

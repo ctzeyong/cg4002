@@ -26,7 +26,7 @@ def packet(seq, node=1, imu=(0, 0, 0, 0, 0, 0), status=gesture.IMU_OK, t=None, f
         "node": node,
         "seq": seq & 0xFF,
         "imu": dict(zip(gesture.CHANNELS, imu)),
-        "reserved": [status, flag, 0, 0, 0],
+        "reserved": [status, flag],
     }
     if t is not None:
         msg["timestamp"] = t
@@ -169,13 +169,13 @@ def test_the_board_reads_the_status_the_laptop_and_firmware_use():
 
 
 NO_READING = [
-    {"reserved": [0, 0, 0, 0, 0]},  # old firmware's dummy ramp
-    {"reserved": [2, 0, 0, 0, 0]},  # IMU missing, zeros
-    {"reserved": [3, 0, 0, 0, 0]},  # IMU recovering, zeros
-    {"reserved": [7, 0, 0, 0, 0]},  # unknown
+    {"reserved": [0, 0]},  # old firmware's dummy ramp
+    {"reserved": [2, 0]},  # IMU missing, zeros
+    {"reserved": [3, 0]},  # IMU recovering, zeros
+    {"reserved": [7, 0]},  # unknown
     {"reserved": None},
     {"reserved": []},
-    {"reserved": [True, 0, 0, 0, 0]},
+    {"reserved": [True, 0]},
 ]
 
 
@@ -223,7 +223,7 @@ def test_ai_gets_only_the_six_imu_channels():
     w = fed()
     msg = packet(0, imu=(1, 2, 3, 4, 5, 6), t=1.0)
     msg["imu"]["temp"] = 99  # an extra value, if the firmware ever sends one
-    msg.update(fields=[1, 2, 3, 4, 5, 6, 1, 0, 0, 0, 0], crc=0)
+    msg.update(fields=[1, 2, 3, 4, 5, 6, 1, 0], crc=0)
     w.feed(msg)
     record = w.ai.calls[0][2]
     assert {k: record[k] for k in gesture.CHANNELS} == dict(zip(gesture.CHANNELS, (1, 2, 3, 4, 5, 6)))
@@ -259,12 +259,12 @@ def test_each_node_ends_its_own_gesture():
 @pytest.mark.parametrize(
     "reserved, ends",
     [
-        ([1, 1, 0, 0, 0], True),
-        ([1, 0, 0, 0, 0], False),
+        ([1, 1], True),
+        ([1, 0], False),
         ([1], False),  # no flag field at all
-        ([1, None, 0, 0, 0], False),
-        ([1, True, 0, 0, 0], False),
-        ([1, 3, 0, 0, 0], False),  # an unknown flag is not a gesture
+        ([1, None], False),
+        ([1, True], False),
+        ([1, 3], False),  # an unknown flag is not a gesture
     ],
 )
 def test_the_flag_is_read_from_reserved_1(reserved, ends):
