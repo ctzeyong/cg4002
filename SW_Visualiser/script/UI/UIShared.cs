@@ -1,10 +1,38 @@
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using BridgeRush.Match;
 
 namespace BridgeRush.UI
 {
+    // Squashes a UI element a little while a finger is on it and springs it back, so every button feels pressed.
+    // Add it only to elements nothing else scales (UIFactory.AddPressFeedback).
+    public class PressFeedback : MonoBehaviour, IPointerDownHandler, IPointerUpHandler, IPointerExitHandler
+    {
+        private const float PressedScale = 0.93f;
+        private float target = 1f;
+        private float current = 1f;
+
+        public void OnPointerDown(PointerEventData eventData) => target = PressedScale;
+        public void OnPointerUp(PointerEventData eventData) => target = 1f;
+        public void OnPointerExit(PointerEventData eventData) => target = 1f;
+
+        private void OnDisable()
+        {
+            target = current = 1f;
+            transform.localScale = Vector3.one;
+        }
+
+        private void Update()
+        {
+            if (Mathf.Approximately(current, target)) return;
+            current = Mathf.Lerp(current, target, 1f - Mathf.Exp(-22f * Time.unscaledDeltaTime));
+            if (Mathf.Abs(current - target) < 0.001f) current = target;
+            transform.localScale = new Vector3(current, current, 1f);
+        }
+    }
+
     // Which motion each card shows. The glove bindings are in GestureBindings and match these pictures.
     public static class CardMotions
     {
@@ -18,6 +46,37 @@ namespace BridgeRush.UI
             _ => "tap"
         };
 
+        // What the player reads for a motion (the tutorial and the how-to-play page). The keys above stay as they are because they
+        // pick the picture and its timing; only the words change: "chop" and "jab" are called by what they look like in play.
+        public static string DisplayName(string motion) => motion switch
+        {
+            "chop" => "Forward chop",
+            "jab" => "Forward backstab",
+            "circle" => "Draw a circle",
+            "shield" => "Raise a shield",
+            "star" => "Draw a star",
+            "lightning" => "Draw a zigzag",
+            "punch" => "Forward punch",
+            "shake" => "Shake side to side",
+            "scan" => "Hold your aim on it",
+            _ => motion ?? string.Empty
+        };
+
+        // The full sentence for the tutorial: every gesture is done IN FRONT of you with the glove hand, so each one says so.
+        public static string Instruction(string motion) => motion switch
+        {
+            "chop" => "Swing your hand down and forward, in front of you, like a chop.",
+            "jab" => "Thrust your hand straight forward, in front of you, like a backstab.",
+            "circle" => "Draw a circle in the air, in front of you.",
+            "shield" => "Raise your hand up in front of you, like lifting a shield.",
+            "star" => "Draw a star in the air, in front of you.",
+            "lightning" => "Draw a zigzag bolt downward in the air, in front of you.",
+            "punch" => "Punch straight forward, in front of you.",
+            "shake" => "Move the phone left and right, a few quick times.",
+            "scan" => "Point the crosshair at the bubble on the enemy tower and hold it there until the ring fills.",
+            _ => "Do the motion shown, in front of you."
+        };
+
         public static string ForSpell(string spellKey) => spellKey switch
         {
             "lightning" => "lightning",
@@ -26,8 +85,63 @@ namespace BridgeRush.UI
         };
     }
 
+    // Applies a text outline once the text object is active and TextMeshPro has its material (see UIFactory.ApplyOutline).
+    public class DeferredOutline : MonoBehaviour
+    {
+        public float Width;
+        public Color32 Color;
+
+        private void Start()
+        {
+            var tmp = GetComponent<TextMeshProUGUI>();
+            if (tmp != null && tmp.fontSharedMaterial != null)
+            {
+                tmp.outlineWidth = Width;
+                tmp.outlineColor = Color;
+            }
+            Destroy(this);
+        }
+    }
+
     public static class UIFactory
     {
+        // A crown emblem, tinted. The sprite has its own dark outline, so it reads on any background.
+        public static RectTransform CreateCrown(Transform parent, string name, float size, Color color)
+        {
+            var go = CreateRect(name, parent);
+            var rect = go.GetComponent<RectTransform>();
+            rect.sizeDelta = new Vector2(size, size);
+            var image = go.AddComponent<UnityEngine.UI.Image>();
+            image.sprite = UITextureFactory.CreateCrownIcon();
+            image.color = color;
+            image.raycastTarget = false;
+            return rect;
+        }
+
+        // Sets a text's outline. TextMeshPro has not loaded its font material yet for text created under an INACTIVE parent, and
+        // setting the outline then throws (it killed the HUD's startup once), so that case waits until the text is active.
+        public static void ApplyOutline(TextMeshProUGUI tmp, float width, Color32 color)
+        {
+            if (tmp == null) return;
+            // Only once the text is active: a text under an inactive parent has the font's material but no instance of it yet, and
+            // setting the outline then throws (which disables the component that built the UI).
+            if (tmp.isActiveAndEnabled && tmp.fontSharedMaterial != null)
+            {
+                tmp.outlineWidth = width;
+                tmp.outlineColor = color;
+                return;
+            }
+            var deferred = tmp.gameObject.GetComponent<DeferredOutline>();
+            if (deferred == null) deferred = tmp.gameObject.AddComponent<DeferredOutline>();
+            deferred.Width = width;
+            deferred.Color = color;
+        }
+
+        public static void AddPressFeedback(GameObject go)
+        {
+            if (go != null && go.GetComponent<PressFeedback>() == null) go.AddComponent<PressFeedback>();
+        }
+
         public static GameObject CreateRect(string name, Transform parent)
         {
             var go = new GameObject(name, typeof(RectTransform));
@@ -41,10 +155,59 @@ namespace BridgeRush.UI
             return go;
         }
 
+        private const string GameFontResource = "Fonts/LilitaOne-Regular";
+        private static TMP_FontAsset gameFont;
+        private static bool gameFontTried;
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetGameFont()
+        {
+            gameFont = null;
+            gameFontTried = false;
+        }
+
+        // The game's chunky card-game font (Lilita One, SIL OFL). Built once from the TTF in Resources/Fonts, so no
+        // Font Asset Creator step is needed. Null if the file is missing or the build fails: text then keeps TMP's default font.
+        public static TMP_FontAsset GameFont
+        {
+            get
+            {
+                if (gameFont != null || gameFontTried) return gameFont;
+                gameFontTried = true;
+                try
+                {
+                    var source = Resources.Load<Font>(GameFontResource);
+                    if (source == null) return null;
+                    var asset = TMP_FontAsset.CreateFontAsset(source, 90, 9, UnityEngine.TextCore.LowLevel.GlyphRenderMode.SDFAA,
+                        1024, 1024, AtlasPopulationMode.Dynamic, true);
+                    if (asset == null) return null;
+                    asset.name = "LilitaOne SDF (runtime)";
+                    if (TMP_Settings.defaultFontAsset != null)
+                    {
+                        asset.fallbackFontAssetTable ??= new List<TMP_FontAsset>();
+                        asset.fallbackFontAssetTable.Add(TMP_Settings.defaultFontAsset);
+                    }
+                    gameFont = asset;
+                }
+                catch (System.Exception e)
+                {
+                    Debug.LogWarning("[Font] Could not build the game font, using the default: " + e.Message);
+                }
+                return gameFont;
+            }
+        }
+
         public static TextMeshProUGUI CreateText(Transform parent, string text, float fontSize, FontStyles style, Color color)
         {
             var go = CreateRect("Text", parent);
             var tmp = go.AddComponent<TextMeshProUGUI>();
+            bool headline = fontSize >= 28f && (style & FontStyles.Bold) != 0;
+            var font = GameFont;
+            if (font != null)
+            {
+                tmp.font = font;
+                style &= ~FontStyles.Bold;
+            }
             tmp.text = text;
             tmp.fontSize = fontSize;
             tmp.fontStyle = style;
@@ -52,6 +215,8 @@ namespace BridgeRush.UI
             tmp.alignment = TextAlignmentOptions.Center;
             tmp.textWrappingMode = TextWrappingModes.NoWrap;
             tmp.raycastTarget = false;
+            // Headline-sized bold text gets a thick dark outline, the way mobile card games do it, so it pops on any background.
+            if (headline) ApplyOutline(tmp, 0.17f, new Color32(30, 14, 4, 255));
             return tmp;
         }
 
@@ -154,10 +319,200 @@ namespace BridgeRush.UI
                 case "punch": cycleSeconds = 2.4f; travelSeconds = 1f; ease = MotionEase.Drive; break;
                 case "chop": cycleSeconds = 2.2f; travelSeconds = 0.8f; ease = MotionEase.Drive; break;
                 case "shield": cycleSeconds = 2.4f; travelSeconds = 1.1f; ease = MotionEase.Smooth; break;
+                case "shake": cycleSeconds = 2f; travelSeconds = 0.9f; ease = MotionEase.Smooth; break;
+                case "scan": cycleSeconds = 3.2f; travelSeconds = 2.5f; ease = MotionEase.Smooth; break;
                 case "lightning": cycleSeconds = 2.2f; travelSeconds = 0.9f; ease = MotionEase.Snap; break;
                 case "circle": cycleSeconds = 2.8f; travelSeconds = 1.8f; ease = MotionEase.Smooth; break;
                 default: cycleSeconds = 3.4f; travelSeconds = 2.6f; ease = MotionEase.Smooth; break;
             }
+        }
+
+        private static Sprite gearIcon;
+
+        /// <summary>A white filled gear (eight teeth, round hole) on a transparent square, to be tinted by Image.color.</summary>
+        public static Sprite CreateGearIcon(int size = 128)
+        {
+            if (gearIcon != null) return gearIcon;
+            const int teeth = 8;
+            float edge = 1.5f / size; // anti-aliasing band, in fractions of the icon
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false) { filterMode = FilterMode.Bilinear, wrapMode = TextureWrapMode.Clamp };
+            var pixels = new Color[size * size];
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    float dx = (x + 0.5f) / size - 0.5f, dy = (y + 0.5f) / size - 0.5f;
+                    float r = Mathf.Sqrt(dx * dx + dy * dy);
+                    float angle = Mathf.Atan2(dy, dx);
+                    // Square-ish teeth: the outer radius rises and falls quickly as the angle turns.
+                    float tooth = Mathf.Clamp01((Mathf.Cos(angle * teeth) + 0.1f) * 5f);
+                    float outer = 0.31f + 0.12f * tooth;
+                    float body = Mathf.Clamp01((outer - r) / edge + 0.5f);
+                    float hole = Mathf.Clamp01((r - 0.14f) / edge + 0.5f);
+                    pixels[y * size + x] = new Color(1f, 1f, 1f, body * hole);
+                }
+            }
+            tex.SetPixels(pixels);
+            tex.Apply();
+            gearIcon = Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), size);
+            return gearIcon;
+        }
+
+        /// <summary>
+        /// A glossy "game button" panel: a solid dark outline, a vertical gradient with a lighter shine across the top half,
+        /// a thin bright line just inside the outline at the top, and a darker lip along the bottom.
+        /// </summary>
+        public static Sprite CreateChunkyPanel(int size, int cornerRadius, Color topColor, Color bottomColor, Color outlineColor, int outline = 5)
+        {
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false) { filterMode = FilterMode.Bilinear, wrapMode = TextureWrapMode.Clamp };
+            var half = new Vector2(size * 0.5f, size * 0.5f);
+            var pixels = new Color[size * size];
+            for (int y = 0; y < size; y++)
+            {
+                float v = y / (float)(size - 1);
+                for (int x = 0; x < size; x++)
+                {
+                    var p = new Vector2(x + 0.5f - half.x, y + 0.5f - half.y);
+                    float dist = RoundedBoxSDF(p, half, cornerRadius);
+                    float coverage = Mathf.Clamp01(0.5f - dist / 1.5f);
+                    if (coverage <= 0f) { pixels[y * size + x] = Color.clear; continue; }
+
+                    Color fill = Color.Lerp(bottomColor, topColor, v);
+                    if (v > 0.5f) fill = Color.Lerp(fill, Color.white, 0.16f * (v - 0.5f) * 2f);          // shine on the top half
+                    if (v < 0.14f) fill = Color.Lerp(fill, Color.black, 0.22f * (1f - v / 0.14f));        // darker lip at the bottom
+                    float inside = -dist;                                                                  // distance in from the edge
+                    if (inside < outline) fill = Color.Lerp(outlineColor, fill, Mathf.Clamp01(inside - outline + 1.5f)); // solid outline
+                    else if (inside < outline + 3f && v > 0.55f) fill = Color.Lerp(fill, Color.white, 0.32f); // inner highlight
+
+                    fill.a = coverage;
+                    pixels[y * size + x] = fill;
+                }
+            }
+            tex.SetPixels(pixels);
+            tex.Apply();
+            float border = Mathf.Min(cornerRadius + outline + 3f, size * 0.5f - 1f);
+            return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect, new Vector4(border, border, border, border));
+        }
+
+        private static Sprite crownIcon;
+
+        /// <summary>A royal crown (three peaks with round jewels on a band): white inside, dark outline, so Image.color tints it.</summary>
+        public static Sprite CreateCrownIcon(int size = 128)
+        {
+            if (crownIcon != null) return crownIcon;
+            // Shapes in a 0..1 box, y up.
+            var body = new[] { new Vector2(0.10f, 0.30f), new Vector2(0.05f, 0.80f), new Vector2(0.30f, 0.56f), new Vector2(0.50f, 0.90f),
+                               new Vector2(0.70f, 0.56f), new Vector2(0.95f, 0.80f), new Vector2(0.90f, 0.30f) };
+            var band = new[] { new Vector2(0.10f, 0.12f), new Vector2(0.90f, 0.12f), new Vector2(0.90f, 0.32f), new Vector2(0.10f, 0.32f) };
+            var jewels = new[] { new Vector3(0.05f, 0.86f, 0.065f), new Vector3(0.50f, 0.95f, 0.07f), new Vector3(0.95f, 0.86f, 0.065f) };
+
+            const float pad = 0.12f;            // room around the shape for the outline
+            float scale = 1f - 2f * pad;
+            float outlinePx = size * 0.045f;
+            float aa = 1.4f;
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false) { filterMode = FilterMode.Bilinear, wrapMode = TextureWrapMode.Clamp };
+            var pixels = new Color[size * size];
+            var dark = new Color(0.13f, 0.08f, 0.05f);
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    var p = new Vector2(((x + 0.5f) / size - pad) / scale, ((y + 0.5f) / size - pad) / scale);
+                    float sd = Mathf.Min(PolygonDistance(p, body), PolygonDistance(p, band));
+                    foreach (var j in jewels) sd = Mathf.Min(sd, Vector2.Distance(p, new Vector2(j.x, j.y)) - j.z);
+                    sd *= size * scale; // to pixels
+                    float fillCoverage = Mathf.Clamp01(0.5f - sd / aa);
+                    float outlineCoverage = Mathf.Clamp01(0.5f - (sd - outlinePx) / aa);
+                    var c = Color.Lerp(dark, Color.white, fillCoverage);
+                    // a lighter band and a fold line so it is not a flat blob
+                    if (fillCoverage > 0.5f && p.y < 0.32f) c = Color.Lerp(c, new Color(0.85f, 0.85f, 0.85f), 0.5f);
+                    c.a = outlineCoverage;
+                    pixels[y * size + x] = c;
+                }
+            }
+            tex.SetPixels(pixels);
+            tex.Apply();
+            crownIcon = Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), size);
+            return crownIcon;
+        }
+
+        private static Sprite dropIcon;
+
+        /// <summary>A mana droplet (round body, pointed top) with a baked dark outline, a soft shade toward the bottom and a
+        /// highlight, to be tinted by Image.color (use the mana blue).</summary>
+        public static Sprite CreateDropIcon(int size = 128)
+        {
+            if (dropIcon != null) return dropIcon;
+            var tip = new[] { new Vector2(0.5f, 0.97f), new Vector2(0.5f - 0.265f, 0.5f), new Vector2(0.5f + 0.265f, 0.5f) };
+            var bodyCenter = new Vector2(0.5f, 0.36f);
+            const float bodyRadius = 0.3f;
+            var shine = new Vector2(0.39f, 0.46f);
+
+            const float pad = 0.1f;
+            float scale = 1f - 2f * pad;
+            float outlinePx = size * 0.05f;
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false) { filterMode = FilterMode.Bilinear, wrapMode = TextureWrapMode.Clamp };
+            var pixels = new Color[size * size];
+            var dark = new Color(0.1f, 0.08f, 0.1f);
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    var p = new Vector2(((x + 0.5f) / size - pad) / scale, ((y + 0.5f) / size - pad) / scale);
+                    float sd = Mathf.Min(PolygonDistance(p, tip), Vector2.Distance(p, bodyCenter) - bodyRadius) * size * scale;
+                    float fillCoverage = Mathf.Clamp01(0.5f - sd / 1.4f);
+                    float outlineCoverage = Mathf.Clamp01(0.5f - (sd - outlinePx) / 1.4f);
+                    float shade = Mathf.Lerp(0.72f, 0.98f, Mathf.Clamp01((p.y - 0.06f) / 0.8f));          // darker toward the bottom
+                    float gloss = Mathf.Clamp01(1f - Vector2.Distance(p, shine) / 0.085f);                 // small bright highlight
+                    float value = Mathf.Clamp01(shade + gloss * 0.35f);
+                    var c = Color.Lerp(dark, new Color(value, value, value), fillCoverage);
+                    c.a = outlineCoverage;
+                    pixels[y * size + x] = c;
+                }
+            }
+            tex.SetPixels(pixels);
+            tex.Apply();
+            dropIcon = Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), size);
+            return dropIcon;
+        }
+
+        // Signed distance to a closed polygon: negative inside, positive outside.
+        private static float PolygonDistance(Vector2 p, Vector2[] poly)
+        {
+            float best = float.MaxValue;
+            bool inside = false;
+            for (int i = 0, j = poly.Length - 1; i < poly.Length; j = i++)
+            {
+                best = Mathf.Min(best, DistanceToSegment(p, poly[j], poly[i]));
+                if ((poly[i].y > p.y) != (poly[j].y > p.y) &&
+                    p.x < (poly[j].x - poly[i].x) * (p.y - poly[i].y) / (poly[j].y - poly[i].y) + poly[i].x) inside = !inside;
+            }
+            return inside ? -best : best;
+        }
+
+        private static Sprite vignette;
+
+        /// <summary>A black radial fade, clear in the middle and darker toward the edges and corners, stretched over the screen
+        /// to frame the camera view and make the HUD read better against it.</summary>
+        public static Sprite CreateVignette(int size = 128)
+        {
+            if (vignette != null) return vignette;
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false) { filterMode = FilterMode.Bilinear, wrapMode = TextureWrapMode.Clamp };
+            var pixels = new Color[size * size];
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    float dx = ((x + 0.5f) / size - 0.5f) * 2f, dy = ((y + 0.5f) / size - 0.5f) * 2f;
+                    float r = Mathf.Sqrt(dx * dx + dy * dy); // 1 at the middle of an edge, about 1.41 in a corner
+                    float a = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.65f, 1.42f, r)) * 0.55f;
+                    pixels[y * size + x] = new Color(0f, 0f, 0f, a);
+                }
+            }
+            tex.SetPixels(pixels);
+            tex.Apply();
+            vignette = Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), size);
+            return vignette;
         }
 
         public static Sprite CreateGlowDot(int size = 32)
@@ -194,6 +549,33 @@ namespace BridgeRush.UI
         {
             switch (motion)
             {
+                case "shake":
+                {
+                    // A phone outline with an arrow out to each side; the dot swings left and right across it.
+                    var phone = new[]
+                    {
+                        new Vector2(0.4f, 0.26f), new Vector2(0.6f, 0.26f), new Vector2(0.6f, 0.74f), new Vector2(0.4f, 0.74f), new Vector2(0.4f, 0.26f)
+                    };
+                    var speaker = new[] { new Vector2(0.46f, 0.68f), new Vector2(0.54f, 0.68f) };
+                    var left = new[] { new Vector2(0.33f, 0.5f), new Vector2(0.1f, 0.5f) };
+                    var right = new[] { new Vector2(0.67f, 0.5f), new Vector2(0.9f, 0.5f) };
+                    var swing = new[] { new Vector2(0.2f, 0.5f), new Vector2(0.8f, 0.5f), new Vector2(0.2f, 0.5f), new Vector2(0.8f, 0.5f), new Vector2(0.2f, 0.5f) };
+                    return new Motion { Drawn = new[] { phone, speaker }, Directed = new[] { left, right }, Trace = new[] { swing } };
+                }
+                case "scan":
+                {
+                    // The bubble with a crosshair's four ticks around it; the dot runs round the progress ring, clockwise from the top.
+                    var bubble = Arc(new Vector2(0.5f, 0.5f), 0.16f, 0f, 360f, 32);
+                    var ticks = new[]
+                    {
+                        new[] { new Vector2(0.5f, 0.98f), new Vector2(0.5f, 0.86f) },
+                        new[] { new Vector2(0.5f, 0.02f), new Vector2(0.5f, 0.14f) },
+                        new[] { new Vector2(0.02f, 0.5f), new Vector2(0.14f, 0.5f) },
+                        new[] { new Vector2(0.98f, 0.5f), new Vector2(0.86f, 0.5f) }
+                    };
+                    var ring = Arc(new Vector2(0.5f, 0.5f), 0.34f, 90f, -358f, 48);
+                    return new Motion { Drawn = new[] { bubble, ticks[0], ticks[1], ticks[2], ticks[3] }, Directed = NoPaths, Trace = new[] { ring } };
+                }
                 case "lightning":
                 {
                     var path = new[] { new Vector2(0.68f, 0.9f), new Vector2(0.32f, 0.56f), new Vector2(0.68f, 0.44f), new Vector2(0.32f, 0.1f) };
@@ -467,17 +849,49 @@ namespace BridgeRush.UI
         public static readonly Color Mana = new(0.31f, 0.816f, 0.91f);
         public static readonly Color ManaDeep = new(0.102f, 0.486f, 0.561f);
 
+        public static readonly Color Navy = new(0.13f, 0.18f, 0.40f);
+        public static readonly Color NavyDeep = new(0.06f, 0.08f, 0.2f);
+        public static readonly Color Outline = new(0.12f, 0.06f, 0.02f);
+        public static readonly Color ButtonBlue = new(0.25f, 0.55f, 0.95f);
+        public static readonly Color ButtonBlueDeep = new(0.12f, 0.3f, 0.7f);
+        public static readonly Color ButtonGreen = new(0.36f, 0.78f, 0.34f);
+        public static readonly Color ButtonGreenDeep = new(0.16f, 0.5f, 0.18f);
+        public static readonly Color ButtonGold = new(1f, 0.82f, 0.25f);
+        public static readonly Color ButtonGoldDeep = new(0.9f, 0.5f, 0.08f);
+        public static readonly Color ButtonRed = new(0.95f, 0.35f, 0.3f);
+        public static readonly Color ButtonRedDeep = new(0.65f, 0.14f, 0.12f);
+
         public static readonly Color Spell = new(0.69f, 0.42f, 0.878f);
         public static readonly Color SpellDeep = new(0.416f, 0.18f, 0.58f);
     }
 
     public static class HudLayout
     {
+        public const float ReferenceWidth = 1170f; // the canvas reference width (portrait phone, 1170 x 2532)
         public const float CardWidth = 150f;
-        public const float CardHeight = 214f;
+        public const float CardHeight = 276f; // taller cards: a bigger gesture picture, smaller text under it
         public const float CardSpacing = 10f;
         public const float HandBottomMargin = 36f;
 
         public const float HandTotalHeight = CardHeight + HandBottomMargin;
+
+        // The canvas is a portrait phone (1170 x 2532 reference). On a phone with a notch or a home bar the top and bottom of
+        // the screen are not usable; these are those strips in canvas units (0 in the editor and on phones without them).
+        public static float SafeTop(Canvas canvas) =>
+            canvas == null ? 0f : Mathf.Max(0f, Screen.height - Screen.safeArea.yMax) / Mathf.Max(0.01f, canvas.scaleFactor);
+
+        public static float SafeBottom(Canvas canvas) =>
+            canvas == null ? 0f : Mathf.Max(0f, Screen.safeArea.yMin) / Mathf.Max(0.01f, canvas.scaleFactor);
+
+        // Where the card hand's bottom edge sits above the bottom of the canvas.
+        public static float HandBottom(Canvas canvas) => HandBottomMargin + SafeBottom(canvas);
+
+        // Where the mana bar sits: just above the cards and their pop-up text.
+        public const float ManaBarHeight = 68f;
+        public static float ManaBarBottom(Canvas canvas) => HandBottom(canvas) + CardHeight + 114f;
+
+        // Where the two tower-HP bars sit: right above the mana bar.
+        public const float HpBarHeight = 58f;
+        public static float HpBarsBottom(Canvas canvas) => ManaBarBottom(canvas) + ManaBarHeight + 14f;
     }
 }

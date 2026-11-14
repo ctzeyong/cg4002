@@ -25,25 +25,51 @@ namespace BridgeRush.Gameplay
         [Tooltip("Makes both towers taller without changing their width. 1 = unchanged, 1.3 = 30% taller.")]
         [SerializeField] private float towerHeightStretch = 1.3f;
 
-        [Tooltip("How far in front of the player the own tower stands, in tower footprint radii. 0 = under the player.")]
-        [SerializeField] private float ownTowerForwardOffsetInRadii = 1.5f;
+        // How far in front of the player the own tower stands, in tower footprint radii. 0 = on the tag itself (under the phone).
+        // Deliberately NOT a serialized field: the saved scene held 1.5 and kept overriding the code, which put the drawn tower
+        // 1.5 radii ahead of where the engine fights over it, so enemy units stopped inside it. Keep engine/rules.json
+        // TowerController.ownTowerForwardOffsetInRadii equal. Change it here, in code.
+        private float ownTowerForwardOffsetInRadii = 0f;
 
-        [Tooltip("Your own tower is hidden from your own screen (it blocks your view) until you press LOCK TOWER. The other player still sees it. Untick to always show it.")]
+        [Tooltip("Draw the towers over real-world objects instead of letting AR occlusion hide them behind chairs, walls or people. Units, bubbles and the arena are still occluded.")]
+        [SerializeField] private bool towerIgnoresArOcclusion = true;
+
+        [Tooltip("Your own tower is hidden from your own screen (it blocks your view): you only see its ring on the floor until you lock it with a shake, then it appears in a puff of smoke. The other player always sees it. Untick to always show it.")]
         [SerializeField] private bool hideOwnTowerUntilLocked = true;
 
+        [Tooltip("The tallest a tower may stand in the real world, in metres, after the arena scaling. The scaling shrinks nothing here: a small room keeps its small towers, a big one stops growing at this height.")]
+        [SerializeField] private float maxTowerHeightMeters = 1.4f;
+
         // Larger of the two footprints, so units stand off from either tower without overlapping it.
-        public float TowerRadius => Mathf.Max(ownFootprintRadius, opponentFootprintRadius) * ArenaScale;
+        public float TowerRadius => Mathf.Max(ownFootprintRadius, opponentFootprintRadius) * TowerScale;
         // How far in front of the player the own tower is drawn, in metres. Being out of the arena is judged where the tower
         // stands (MatchState.OwnTowerBodyPosition), so a tower is only "out" once its centre is past the edge: more than half
         // of it outside.
-        public float OwnTowerForwardOffsetMeters => ownFootprintRadius * ArenaScale * ownTowerForwardOffsetInRadii;
-        public float OpponentTowerHeightMeters => towerHeight * towerHeightStretch * ArenaScale;
+        public float OwnTowerForwardOffsetMeters => ownFootprintRadius * TowerScale * ownTowerForwardOffsetInRadii;
+        public float OpponentTowerHeightMeters => towerHeight * towerHeightStretch * TowerScale;
         private float ArenaScale => matchState != null ? matchState.ArenaScale : 1f;
+        // The scale the towers are drawn at: the arena scale, but never so large that a tower is taller than maxTowerHeightMeters.
+        // The footprint, the bubbles and the spawn offsets use it too, so everything stays in proportion to the drawn tower.
+        private float TowerScale
+        {
+            get
+            {
+                float baseHeight = Mathf.Max(0.0001f, towerHeight * towerHeightStretch);
+                float cap = maxTowerHeightMeters > 0f ? maxTowerHeightMeters / baseHeight : float.MaxValue;
+                return Mathf.Min(ArenaScale, cap);
+            }
+        }
         public float TagToGroundOffsetMeters => tagToGroundOffsetMeters;
         // Follows the opponent's tag. The opponent tower and the capture bubbles are children of it. Null until Start.
         public Transform TagAnchor => tagAnchor;
 
         private Transform ownTower;
+        // The own tower's model (everything but its ring), so it can be hidden while the ring stays; scaled for the grow-in.
+        private Transform ownTowerModel;
+        private ParticleSystem ownSmoke;
+        private bool ownShown = true;
+        private float ownShownAt = -10f;
+        private const float AppearSeconds = 0.55f;
         private Transform opponentTower;
         private Transform tagAnchor;
         private float ownFootprintRadius;
@@ -58,6 +84,14 @@ namespace BridgeRush.Gameplay
         {
             ownTower = CreateTower("OwnTower", ownTowerColor, ownTowerPrefabOverride,
                 towerHeight * towerHeightStretch, towerWidthMultiplier / towerHeightStretch, out ownFootprintRadius);
+
+            // Put the model under a pivot at the tower's base, so it can grow in from the floor without moving.
+            ownTowerModel = new GameObject("OwnTowerModel").transform;
+            ownTowerModel.SetParent(ownTower, false);
+            ownTower.GetChild(0).SetParent(ownTowerModel, true);
+            ownSmoke = BuildSmoke(ownTower, ownFootprintRadius);
+            ownShown = !hideOwnTowerUntilLocked;
+            ownTowerModel.gameObject.SetActive(ownShown);
 
             // The anchor sits at the tag; the tower hangs below it by the tag-to-ground offset.
             tagAnchor = new GameObject("OpponentTagAnchor").transform;
@@ -83,9 +117,118 @@ namespace BridgeRush.Gameplay
                 instance.transform.localScale.y,
                 instance.transform.localScale.z * widthMultiplier);
             footprintRadius = MeasureFootprintRadius(instance);
+            if (towerIgnoresArOcclusion) ArDepthClear.AddCopies(instance);
             CreateBaseRing(root.transform, color, footprintRadius);
 
             return root.transform;
+        }
+
+        // Your own tower blocks your own view, so it is hidden (its floor ring stays) until you lock it. Locking shows it in a puff of
+        // smoke, with a short grow-in; unlocking puffs it away again. Visual only: the engine and the other player are unaffected.
+        private void UpdateOwnTowerVisibility()
+        {
+            bool show = !hideOwnTowerUntilLocked || matchState.OwnTowerLocked;
+            if (show != ownShown)
+            {
+                ownShown = show;
+                ownShownAt = Time.time;
+                ownTowerModel.gameObject.SetActive(show);
+                if (ownSmoke != null)
+                {
+                    ownSmoke.Clear();
+                    ownSmoke.Play();
+                }
+            }
+
+            if (!ownShown) return;
+            float t = Mathf.Clamp01((Time.time - ownShownAt) / AppearSeconds);
+            // Ease out with a little overshoot, rising from the floor and widening slightly.
+            float c = 1.70158f;
+            float back = 1f + (c + 1f) * Mathf.Pow(t - 1f, 3f) + c * Mathf.Pow(t - 1f, 2f);
+            float rise = Mathf.Max(0.0001f, back);
+            float widen = Mathf.Lerp(0.6f, 1f, Mathf.Clamp01(back));
+            ownTowerModel.localScale = new Vector3(widen, rise, widen);
+        }
+
+        private static Texture2D softPuffTexture;
+
+        // A one-shot puff of grey smoke around the base: soft round sprites that rise, swell and fade. Built in code so no asset
+        // is needed. Local space, so it scales and moves with the tower.
+        private static ParticleSystem BuildSmoke(Transform parent, float baseRadius)
+        {
+            if (softPuffTexture == null)
+            {
+                const int size = 64;
+                softPuffTexture = new Texture2D(size, size, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, name = "SoftPuff" };
+                for (int y = 0; y < size; y++)
+                {
+                    for (int x = 0; x < size; x++)
+                    {
+                        float dx = (x + 0.5f) / size * 2f - 1f, dy = (y + 0.5f) / size * 2f - 1f;
+                        float d = Mathf.Sqrt(dx * dx + dy * dy);
+                        float a = Mathf.Clamp01(1f - d);
+                        a = a * a * (3f - 2f * a); // smoothstep: soft edge, denser middle
+                        softPuffTexture.SetPixel(x, y, new Color(1f, 1f, 1f, a));
+                    }
+                }
+                softPuffTexture.Apply();
+            }
+
+            var go = new GameObject("TowerSmoke");
+            go.transform.SetParent(parent, false);
+            go.transform.localRotation = Quaternion.Euler(-90f, 0f, 0f); // the shape's disc lies on the floor, cone axis up
+            var ps = go.AddComponent<ParticleSystem>();
+            ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+
+            var main = ps.main;
+            main.playOnAwake = false;
+            main.loop = false;
+            main.duration = 1f;
+            main.simulationSpace = ParticleSystemSimulationSpace.Local;
+            main.scalingMode = ParticleSystemScalingMode.Hierarchy;
+            main.startLifetime = new ParticleSystem.MinMaxCurve(1.0f, 1.6f);
+            main.startSpeed = new ParticleSystem.MinMaxCurve(baseRadius * 0.4f, baseRadius * 1.2f);
+            main.startSize = new ParticleSystem.MinMaxCurve(baseRadius * 1.2f, baseRadius * 2.2f);
+            main.startRotation = new ParticleSystem.MinMaxCurve(0f, Mathf.PI * 2f);
+            main.startColor = new ParticleSystem.MinMaxGradient(new Color(0.92f, 0.92f, 0.94f, 0.85f), new Color(0.62f, 0.64f, 0.68f, 0.85f));
+            main.gravityModifier = -0.04f; // drifts up a little
+            main.maxParticles = 60;
+
+            var emission = ps.emission;
+            emission.rateOverTime = 0f;
+            emission.SetBursts(new[] { new ParticleSystem.Burst(0f, 36) });
+
+            var shape = ps.shape;
+            shape.enabled = true;
+            shape.shapeType = ParticleSystemShapeType.Cone;
+            shape.angle = 28f;
+            shape.radius = baseRadius * 1.1f;
+            shape.radiusThickness = 1f;
+
+            var growth = ps.sizeOverLifetime;
+            growth.enabled = true;
+            growth.size = new ParticleSystem.MinMaxCurve(1f, new AnimationCurve(new Keyframe(0f, 0.45f), new Keyframe(1f, 1.5f)));
+
+            var rotation = ps.rotationOverLifetime;
+            rotation.enabled = true;
+            rotation.z = new ParticleSystem.MinMaxCurve(-0.7f, 0.7f);
+
+            var colour = ps.colorOverLifetime;
+            colour.enabled = true;
+            var fade = new Gradient();
+            fade.SetKeys(
+                new[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 1f) },
+                new[] { new GradientAlphaKey(0f, 0f), new GradientAlphaKey(1f, 0.12f), new GradientAlphaKey(0.55f, 0.6f), new GradientAlphaKey(0f, 1f) });
+            colour.color = fade;
+
+            var renderer = go.GetComponent<ParticleSystemRenderer>();
+            renderer.renderMode = ParticleSystemRenderMode.Billboard;
+            renderer.sortingOrder = 5;
+            var material = new Material(Shader.Find("Sprites/Default")) { name = "TowerSmoke", mainTexture = softPuffTexture };
+            renderer.sharedMaterial = material;
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
+            return ps;
         }
 
         // set the height and also ground the tower.
@@ -179,7 +322,7 @@ namespace BridgeRush.Gameplay
         // constantly update positon, rotation, and visibility of the towers based on the current state of the match and the arena frame.
         private void Update()
         {
-            float arenaScale = ArenaScale;
+            float arenaScale = TowerScale; // named for what it feeds below: the footprint offsets of the towers
             ownTower.localScale = Vector3.one * arenaScale;
             opponentTower.localScale = Vector3.one * arenaScale;
 
@@ -218,8 +361,7 @@ namespace BridgeRush.Gameplay
             }
             ownTower.position = ownBase + forward * OwnTowerForwardOffsetMeters;
 
-            bool showOwnTower = !hideOwnTowerUntilLocked || matchState.OwnTowerLocked;
-            if (ownTower.gameObject.activeSelf != showOwnTower) ownTower.gameObject.SetActive(showOwnTower);
+            UpdateOwnTowerVisibility();
 
             if (arenaFrame.HasLane)
             {

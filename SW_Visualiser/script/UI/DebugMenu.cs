@@ -19,6 +19,7 @@ namespace BridgeRush.UI
         [SerializeField] private ArenaFrame arenaFrame;
         [Tooltip("Optional. Lets the Tracking category tune the tag size live.")]
         [SerializeField] private AprilTagTracker aprilTagTracker;
+        private TrackingDebugOverlay laneOverlay; // found at runtime, no scene wiring
         [Tooltip("Optional. Lets the Gestures category trigger glove gestures without the hardware.")]
         [SerializeField] private GesturePad gesturePad;
         [Tooltip("Optional. Shows how the floor height was found, in the Tracking category.")]
@@ -53,8 +54,18 @@ namespace BridgeRush.UI
             mqttConnection?.Subscribe(HeartbeatTopic, OnMqttMessage);
         }
 
+        // The frame rate during a match: it starts fresh with each match and keeps counting while this menu is closed (open it
+        // afterwards to read it, because drawing the menu itself costs a little).
+        private readonly FrameRateMeter frameMeter = new FrameRateMeter();
+        private bool meterWasRunning;
+
         private void Update()
         {
+            bool matchRunning = matchState != null && matchState.MatchStarted;
+            if (matchRunning && !meterWasRunning) frameMeter.Reset();
+            meterWasRunning = matchRunning;
+            if (matchRunning) frameMeter.Tick(Time.unscaledDeltaTime);
+
             if (mqttConnection == null || !mqttConnection.IsConnected) return;
 
             timeSinceLastHeartbeat += Time.deltaTime;
@@ -92,6 +103,7 @@ namespace BridgeRush.UI
 
         public bool MenuExpanded => menuExpanded;
         public void ToggleMenu() => menuExpanded = !menuExpanded;
+        public void SetMenuOpen(bool open) => menuExpanded = open;
 
         private enum Category { None, Match, Opponent, Gestures, Tracking, Comms }
 
@@ -103,8 +115,8 @@ namespace BridgeRush.UI
         {
             float s = UiScale;
 
-            // The DEBUG button is a HUD button (MatchHudUI) in the slot the COMMANDS button used to have. This draws the panel
-            // under it, at the same scale, so the two line up whatever the canvas scale is.
+            // The settings window (gear button, MatchHudUI) opens this menu. MatchHudUI keeps an invisible anchor rectangle
+            // under the gear; this draws the panel under it, at the same scale, so it lines up whatever the canvas scale is.
             if (!menuExpanded) return;
             float cs = canvas != null ? canvas.scaleFactor : 1f;
             var debugButtonRect = new Rect(Screen.width - 240f * cs, 170f * cs, 220f * cs, 56f * cs);
@@ -128,6 +140,9 @@ namespace BridgeRush.UI
             float start = top + 6f * s;
             float y = start;
 
+            // The menu is opened from the settings window (gear), so it carries its own way out.
+            if (Row("Close debug menu  x", left, ref y, rowWidth, new Color(1f, 0.6f, 0.55f))) menuExpanded = false;
+
             bool godModeAvailable = matchState.GodModeAvailable;
             string godModeLabel = !godModeAvailable
                 ? "God mode: N/A (client)"
@@ -136,6 +151,17 @@ namespace BridgeRush.UI
             {
                 matchState.SetGodMode(!matchState.GodMode);
             }
+
+            string fpsLabel = frameMeter.Frames < 100
+                ? "FPS: play a match to measure"
+                : $"FPS {frameMeter.Fps:0}   avg {frameMeter.AverageFps:0.0}\n1% low {frameMeter.OnePercentLowFps:0} - {frameMeter.Seconds:0} s - tap resets";
+            if (Row(fpsLabel, left, ref y, rowWidth, new Color(0.7f, 1f, 0.8f), 2)) frameMeter.Reset();
+
+            var latency = matchState.SummonLatency;
+            string latencyLabel = latency.Count == 0
+                ? "Summon -> drawn: needs a\nVS PLAYER match on the board"
+                : $"Summon->drawn avg {latency.AverageMs:0} ms\nmin {latency.MinMs:0} max {latency.MaxMs:0} n {latency.Count} - tap resets";
+            if (Row(latencyLabel, left, ref y, rowWidth, new Color(0.7f, 1f, 0.8f), 2)) latency.Reset();
 
             var coach = TutorialCoach.Instance;
             if (coach != null && coach.IsRunning && Row("Tutorial: skip this step", left, ref y, rowWidth, new Color(0.6f, 0.85f, 1f)))
@@ -173,16 +199,19 @@ namespace BridgeRush.UI
             return open ? drawBody(left, y, rowWidth) : y;
         }
 
-        private bool Row(string label, float left, ref float y, float rowWidth, Color color)
+        // A row of buttons' height; `lines` above 1 makes it taller and wraps the label, for a readout that does not fit on one line.
+        private bool Row(string label, float left, ref float y, float rowWidth, Color color, int lines = 1)
         {
             float s = UiScale;
             var style = new GUIStyle(GUI.skin.button)
             {
                 fontSize = Mathf.RoundToInt(15f * s),
+                wordWrap = lines > 1,
                 normal = { textColor = color }
             };
-            bool pressed = GUI.Button(new Rect(left, y, rowWidth, RowHeight * s), label, style);
-            y += (RowHeight + RowGap) * s;
+            float height = (RowHeight + (lines - 1) * 20f) * s;
+            bool pressed = GUI.Button(new Rect(left, y, rowWidth, height), label, style);
+            y += height + RowGap * s;
             return pressed;
         }
 
@@ -204,10 +233,6 @@ namespace BridgeRush.UI
             if (Row("Jump to last minute (test 2x mana)", left, ref y, rowWidth, new Color(1f, 0.9f, 0.5f)))
             {
                 matchState.DebugSetTimeRemaining(matchState.DoubleManaLastSeconds - 1f);
-            }
-            if (Row($"Bridges: {(matchState.TwoBridges ? 2 : 1)} (tap, then Restart)", left, ref y, rowWidth, new Color(0.8f, 0.9f, 0.6f)))
-            {
-                matchState.TwoBridges = !matchState.TwoBridges;
             }
             return y;
         }
@@ -256,6 +281,13 @@ namespace BridgeRush.UI
                 new GUIStyle(GUI.skin.label) { fontSize = Mathf.RoundToInt(14f * s), normal = { textColor = Color.white } });
             y += 28f * s;
 
+            // The cyan line between the two towers. It was a tracking aid; it is hidden unless switched on here.
+            if (laneOverlay == null) laneOverlay = FindAnyObjectByType<TrackingDebugOverlay>();
+            if (laneOverlay != null && Row($"Lane line: {(laneOverlay.ShowLine ? "shown" : "hidden")}", left, ref y, rowWidth, Color.white))
+            {
+                laneOverlay.ShowLine = !laneOverlay.ShowLine;
+            }
+
             if (aprilTagTracker != null)
             {
                 GUI.Label(new Rect(left, y, rowWidth, 26f * s), $"Tag size: {aprilTagTracker.TagSizeMeters:0.000} m",
@@ -286,10 +318,18 @@ namespace BridgeRush.UI
                 {
                     aprilTagTracker.RotateClockwise = !aprilTagTracker.RotateClockwise;
                 }
-                if (Row($"Mirror Y: {(aprilTagTracker.MirrorY ? "on" : "off")}", left, ref y, rowWidth, Color.white))
+                // If a centred tag lines up but a tag off-centre lands a quarter turn away (iPad), tap to turn the tag's position.
+                if (Row($"Tag turn: {aprilTagTracker.TagFrameQuarterTurns * 90} deg (tap to turn 90)", left, ref y, rowWidth, Color.white))
                 {
-                    aprilTagTracker.MirrorY = !aprilTagTracker.MirrorY;
+                    aprilTagTracker.TagFrameQuarterTurns++;
                 }
+            }
+
+            // For a device (an iPad on iPadOS 26 and later) whose 3D world comes out turned a quarter turn against the room: tap to
+            // turn the camera 90 degrees at a time until the towers stand upright. 0 leaves the device as it is; remembered per device.
+            if (Row($"Camera roll: {CameraRollCorrection.Degrees} deg (tap to turn 90)", left, ref y, rowWidth, Color.white))
+            {
+                CameraRollCorrection.Cycle();
             }
 
             if (floorHeightProvider != null)

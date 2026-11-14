@@ -42,6 +42,13 @@ namespace BridgeRush.Tracking
             Selected = SelectedPlayer.None;
         }
 
+        // Back from the start screen to the player screen: the mode stays, the player choice is forgotten.
+        public void BackToPlayerSelect()
+        {
+            HasSelected = false;
+            Selected = SelectedPlayer.None;
+        }
+
         public void ChooseVsPlayer()
         {
             LeaveTutorial();

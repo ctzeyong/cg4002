@@ -53,6 +53,13 @@ namespace BridgeRush.Networking
                 if (!HasRequestedStart) Debug.LogWarning("MatchCountdown: no game/match from the engine yet, START not sent.");
                 return;
             }
+
+            // VS PLAYER is the board's game only. A phone must never start or host one on its own.
+            if (matchSetup.Mode == MatchSetup.GameMode.VsPlayer)
+            {
+                Debug.LogWarning("MatchCountdown: VS PLAYER needs the board engine; the phone will not start the match itself.");
+                return;
+            }
             HasRequestedStart = true;
 
             bool isVsCpu = matchSetup.Mode == MatchSetup.GameMode.VsCpu;

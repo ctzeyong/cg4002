@@ -122,6 +122,14 @@ namespace BridgeRush.Match
         private float GetManaCost(UnitType type) =>
             unitStatsTable.TryGetEntry(type, out var entry) ? entry.ManaCost : 0f;
 
+        // The scene's unit numbers (cost, HP, damage, crossing time, range), for the how-to-play unit table.
+        public bool TryGetUnitStats(UnitType type, out UnitStatsTable.Entry entry)
+        {
+            if (unitStatsTable != null) return unitStatsTable.TryGetEntry(type, out entry);
+            entry = default;
+            return false;
+        }
+
         private bool CreateUnit(UnitType type, UnitSide side, Vector3? explicitSpawnPosition = null)
         {
             if (!arenaFrame.HasLane) return false;
@@ -167,7 +175,7 @@ namespace BridgeRush.Match
         }
 
         // Offline/mock only (BubbleSync's mock toggle). In a real match the Ultra96 awards bubble mana, never the phone.
-        public void MockAwardMana(float amount) => ManaCurrent = Mathf.Min(manaMax, ManaCurrent + amount);
+        public void MockAwardMana(float amount) => ManaCurrent = Mathf.Min(maxMana, ManaCurrent + amount);
 
         public bool TrySpendMana(float amount)
         {

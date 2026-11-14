@@ -12,7 +12,8 @@ namespace BridgeRush.Tracking
         [SerializeField] private float lineWidth = 0.02f;
         [SerializeField] private bool showDebugText;
 
-        public bool ShowLine { get; set; } = true;
+        // Hidden by default: the line between the towers was a tracking aid. The debug menu's Tracking section switches it on.
+        public bool ShowLine { get; set; } = false;
 
         private LineRenderer lineRenderer;
         private GUIStyle textStyle;

@@ -8,6 +8,7 @@ import copy
 import json
 import math
 import pathlib
+import re
 import sys
 
 import pytest
@@ -151,27 +152,39 @@ def test_out_of_bounds_hurts_only_the_player_who_is_out():
         assert snap.tower_hp[other - 1] == 1000
 
 
+def _reach_behind_the_end():
+    """How far behind the lane's end the device can be before the tower's centre is past the arena edge: the arena's rear
+    margin plus the distance the tower is drawn in front of the device (rules.json ownTowerForwardOffsetInRadii, 0 = on the tag)."""
+    rules = load_rules()
+    offset = TEST_TOWER_RADIUS * rules["TowerController"]["ownTowerForwardOffsetInRadii"]
+    return rules["MatchState"]["rearMarginFraction"] * L + offset
+
+
 def test_a_tower_only_counts_as_out_once_more_than_half_of_it_is_out():
-    # The tower is drawn 1.5 radii (0.225 m) in front of the device, and the arena reaches 0.1 m behind the lane's end, so the
-    # device can be up to 0.325 m behind the end before the tower's centre (half of it) is past the edge.
-    for player, behind in ((1, 0.30), (2, 0.30)):
+    # The tower is drawn ownTowerForwardOffsetInRadii in front of the device, so the device can be that far (plus the arena's
+    # rear margin) behind the end before the tower's centre (half of it) is past the edge.
+    reach = _reach_behind_the_end()
+    for player in (1, 2):
         m = started(load_rules(outOfBoundsGraceSeconds=0))
+        behind = reach - 0.02
         x = -behind if player == 1 else L + behind
         m.set_position(player, (x / L, 0.0))
         assert run(m, 3).tower_hp[player - 1] == 1000, f"player {player}: tower still mostly inside"
 
     for player in (1, 2):
         m = started(load_rules(outOfBoundsGraceSeconds=0))
-        x = -0.35 if player == 1 else L + 0.35
+        behind = reach + 0.05
+        x = -behind if player == 1 else L + behind
         m.set_position(player, (x / L, 0.0))
         assert run(m, 3).tower_hp[player - 1] == pytest.approx(1000 - 20 * 3, abs=0.5), f"player {player}: tower mostly out"
 
 
 def test_a_summon_is_allowed_while_the_tower_is_mostly_inside():
+    reach = _reach_behind_the_end()
     m = started()
-    m.set_position(1, (-0.15 / L, 0.0))  # device 0.15 m behind the end, tower 0.075 m inside it
+    m.set_position(1, (-(reach - 0.02) / L, 0.0))  # tower's centre just inside the edge
     assert m.gesture(1, "warrior", (0.1, 0.0)).ok
-    m.set_position(1, (-0.40 / L, 0.0))  # tower 0.175 m past the edge
+    m.set_position(1, (-(reach + 0.15) / L, 0.0))  # tower well past the edge
     assert m.gesture(1, "warrior", (0.1, 0.0)).reason == "tower_out_of_arena"
 
 
@@ -321,12 +334,12 @@ def test_spell_aim_may_be_the_enemy_side_but_not_off_the_island():
 # --- economy -----------------------------------------------------------------------------------
 
 
-def test_mana_regenerates_one_per_second_and_caps():
+def test_mana_regenerates_a_third_per_second_and_caps():
     m = started()
     m.gesture(1, "warrior", (0.1, 0.0))  # 5 -> 3
     assert m.snapshot().mana == (3.0, 5.0)
     snap = run(m, 2)
-    assert snap.mana[0] == pytest.approx(5.0, abs=0.01)
+    assert snap.mana[0] == pytest.approx(3.0 + 2 * 0.33, abs=0.01)
     assert run(m, 30).mana == (10.0, 10.0)
 
 
@@ -339,7 +352,7 @@ def test_double_mana_in_the_last_minute():
     m.gesture(1, "warrior", (0.1, 0.0))  # 2
     assert m.snapshot().mana[0] == pytest.approx(0.0, abs=0.01)
     snap = run(m, 3)
-    assert 5.5 < snap.mana[0] < 6.1  # +2 per second, not +1
+    assert snap.mana[0] == pytest.approx(3 * 2 * 0.33, abs=0.05)  # +0.66 per second, not +0.33
 
 
 def test_spawn_costs_by_type_and_refuses_without_mana():
@@ -415,7 +428,7 @@ def test_bubble_cooldown_stops_with_the_clock():
 
 def test_bubble_mana_is_capped():
     m = started()
-    run(m, 6)
+    run(m, 20)  # 5 + 20 * 0.33 is past the cap, so the bubble's reward has nowhere to go
     m.bubble(1, 0)
     assert m.snapshot().mana[0] == 10.0
 
@@ -613,15 +626,48 @@ def test_a_sleeping_unit_target_is_always_in_the_snapshot():
 
 
 def test_tower_approach_is_3d_with_the_ground_offset():
-    # D11: a unit stands groundYOffsetMeters above the tower's base, so the stand-off reached across
-    # the floor is sqrt(s^2 - h^2). With h = 0.2 and s = 0.15 + 0.07 that is only 0.092 m.
-    m = started(load_rules(groundYOffsetMeters=0.2))
+    # D11: a unit stands groundYOffsetMeters above the tower's base, so the stand-off reached across the floor is
+    # sqrt(s^2 - h^2), with s = tower radius + towerClearanceMeters. A flat stand-off would stop it a full s from the tower.
+    h = 0.2
+    rules = load_rules(groundYOffsetMeters=h)
+    s_off = TEST_TOWER_RADIUS + rules["MatchState"]["towerClearanceMeters"]
+    reach = (s_off ** 2 - h ** 2) ** 0.5
+    m = started(rules)
     m.gesture(1, "warrior", (0.0, 0.3))
     for _ in range(200):
         snap = m.tick(DT)
         if unit(snap, 1).state == "Attacking":
             break
-    assert unit(snap, 1).along * L > L - 0.12  # a flat stand-off would stop it at L - 0.22
+    assert unit(snap, 1).along * L > L - (reach + 0.03)
+    assert reach + 0.03 < s_off  # i.e. clearly closer than a flat stand-off would allow
+
+
+def test_melee_unit_stops_on_the_tower_ring_edge():
+    # The tower's base ring (the red or blue circle) is 1.4 footprint radii. A melee unit hits from its edge, in view, not from
+    # inside the tower. The Mage (ranged) stops at its range instead, see the next test.
+    m = started()
+    m.gesture(1, "warrior", (0.0, 0.3))
+    for _ in range(300):
+        snap = m.tick(DT)
+        if unit(snap, 1).state == "Attacking":
+            break
+    u = unit(snap, 1)
+    floor_distance = math.hypot(L - u.along * L, u.lat)   # the tower stands on the lane's centre line
+    ring = 1.4 * TEST_TOWER_RADIUS
+    assert ring - 0.02 < floor_distance < ring + 0.04, f"{floor_distance:.3f} m from the tower, ring at {ring:.3f} m"
+
+
+def test_ranged_unit_attacks_the_tower_from_its_range():
+    m = started()
+    m.gesture(1, "mage", (0.0, 0.3))
+    for _ in range(600):
+        snap = m.tick(DT)
+        if unit(snap, 1).state == "Attacking":
+            break
+    assert unit(snap, 1).state == "Attacking"
+    u = unit(snap, 1)
+    floor_distance = math.hypot(L - u.along * L, u.lat)
+    assert floor_distance > 1.4 * TEST_TOWER_RADIUS + 0.1, f"{floor_distance:.3f} m: a Mage should hit from a distance"
 
 
 def test_chasing_unit_stops_short_of_its_target():
@@ -635,3 +681,27 @@ def test_chasing_unit_stops_short_of_its_target():
         if len(ids) == 2:
             closest = min(closest, abs(ids[1].along - ids[2].along) * L)
     assert closest >= 0.15 * 0.9 - 1e-6  # never inside 0.9 of the hit reach
+
+
+def test_mana_rules_in_csharp_match_rules_json():
+    """VS CPU and the tutorial run MatchState.cs; VS PLAYER runs this engine. Their mana rules must be the same numbers,
+    or mana fills at a different speed depending on the mode."""
+    cs = (HERE.parent / "script" / "Match" / "MatchState.cs").read_text(encoding="utf-8")
+    rules = json.loads((HERE / "rules.json").read_text(encoding="utf-8"))["MatchState"]
+    # rules.json key -> (the Board* const holding the board's number, the Inspector field that defaults to it)
+    fields = {
+        "manaMax": ("BoardManaMax", "maxMana"),
+        "manaStart": ("BoardManaStart", "startMana"),
+        "manaRegenPerSecond": ("BoardManaRegenPerSecond", "manaPerSecond"),
+        "doubleManaLastSeconds": ("BoardDoubleManaLastSeconds", "doubleManaFinalSeconds"),
+        "doubleManaMultiplier": ("BoardDoubleManaMultiplier", "doubleManaFactor"),
+    }
+    for key, (const, field) in fields.items():
+        found = re.search(rf"\bconst float {const} = ([0-9.]+)f;", cs)
+        assert found, f"{const} is not a const in MatchState.cs"
+        assert float(found.group(1)) == float(rules[key]), key
+        # The Inspector field must start from that const, so a fresh scene gives the board's number.
+        assert re.search(rf"\[SerializeField\] private float {field} = {const};", cs), f"{field} must default to {const}"
+    # The old field names are still saved in the scene (manaRegenPerSecond 0.2); reusing one would load that stale value.
+    for old in ("manaMax", "manaStart", "manaRegenPerSecond", "doubleManaLastSeconds", "doubleManaMultiplier"):
+        assert not re.search(rf"\bprivate (const )?float {old}\b", cs), f"{old} must not come back as a field in MatchState.cs"
