@@ -89,7 +89,7 @@ struct MotorPattern {
     uint32_t onMs;
 };
 static constexpr MotorPattern BUZZ_RECOGNISED = {1, 200, 200};
-static constexpr MotorPattern BUZZ_GESTURE_START = {1, 150, 50};
+static constexpr MotorPattern BUZZ_GESTURE_START = {1, 180, 50};
 static constexpr MotorPattern BUZZ_GESTURE_REJECTED = {2, 160, 0};
 
 // Requested BLE connection parameters.
