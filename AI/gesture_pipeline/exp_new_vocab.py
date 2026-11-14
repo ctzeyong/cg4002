@@ -52,7 +52,7 @@ def main():
                         sessions_dir=a.sessions),
         aug=aug,
         channels=10 if a.feat else 6,
-        seeds=(1, 2, 3),
+        seeds=(2,),
         tag=("new_feat" if a.feat else "new_lean") + ("" if a.resample else "_native")
             + ("_bg" if a.filler == "background" else "") + ("_noise" if a.noise else ""),
     )

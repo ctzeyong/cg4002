@@ -397,15 +397,18 @@ async def run(
     ai_h5=None,
     vocab=None,
     bitstream=None,
+    pl_mhz=None,
 ) -> None:
     """Maintain the Ultra96 TCP connection, reconnecting automatically after failures,
     waiting RECONNECT_BACKOFF_S between attempts.
     """
     use_flag = gesture_flag or bool(ai_h5)  # a Keras model always runs on the flag path
     classifier = (
-        gesture.load_classifier(ai_h5=ai_h5, vocab=vocab, bitstream=bitstream)
+        gesture.load_classifier(ai_h5=ai_h5, vocab=vocab, bitstream=bitstream, pl_mhz=pl_mhz)
         if use_flag else None
     )
+    if pl_mhz is not None and not use_flag:
+        log.warning("--pl-mhz ignored: without --gesture-flag no overlay is loaded")
     if classifier is not None:
         log.info("classifier: %s", type(classifier).__name__)
     while True:
@@ -420,7 +423,7 @@ async def run(
 
 
 def add_gesture_flag(parser):
-    """Add the model args A and B share: --gesture-flag, --vocab and --bitstream."""
+    """Add the model args A and B share: --gesture-flag, --vocab, --bitstream and --pl-mhz."""
     parser.add_argument(
         "--gesture-flag",
         action="store_true",
@@ -441,6 +444,14 @@ def add_gesture_flag(parser):
         metavar="NAME",
         help="FPGA overlay filename to load on the board (resolved next to the model); "
         "required for --gesture-flag, and must output --vocab's class count.",
+    )
+    parser.add_argument(
+        "--pl-mhz",
+        type=float,
+        default=None,
+        metavar="MHZ",
+        help="slow the FPGA clock to this once the overlay is loaded, put back when the "
+        "client stops (board_settings.py). Default: leave it as the overlay sets it",
     )
 
 
@@ -482,6 +493,7 @@ def main() -> None:
                 ai_h5=args.ai_h5,
                 vocab=args.vocab,
                 bitstream=args.bitstream,
+                pl_mhz=args.pl_mhz,
             )
         )
     except KeyboardInterrupt:
