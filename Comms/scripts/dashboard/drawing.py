@@ -12,6 +12,7 @@ from dashboard.relay_log import STALE_S
 
 REDRAW_S = 0.25
 PLAIN_REDRAW_S = 2.0  # when stdout is not a console, print a whole frame this often
+POWER_QUIET_S = 15.0  # the monitor publishes every 5 s, so this means it has stalled
 
 GREEN = "\033[38;5;40m"
 YELLOW = "\033[38;5;184m"
@@ -114,7 +115,79 @@ def _board_rows(board, mono_now):
     if board.bad_messages:
         states.append((f"bad messages {board.bad_messages}", YELLOW))
     rows.append(states)
+    rows += _power_rows(board, mono_now)
     return rows
+
+
+# The board's rail names, shortened for the screen
+RAIL_LABELS = (("PSINT_FP", "CPU"), ("INT", "FPGA"), ("PSDDR", "DDR"), ("3V3", "3V3"))
+
+
+def _watts(value):
+    return "-" if value is None else f"{value:.3f} W"
+
+
+def _power_rows(board, mono_now):
+    """The power monitor's latest reading, and the session's idle and playing so far."""
+    power = board.power
+    if not board.link_ok or power is None:
+        return [[("  Power        ", ""), ("not recording (start with --power)", DIM)]]
+    state = power["state"]
+    live = state in ("idle", "playing")
+    quiet = mono_now - board.power_at
+    now = [("  Power        ", "")]
+    if live:
+        now.append((f"{_watts(power['now_W'])} now  ", BOLD))
+        now.append(_status(state, GREEN if state == "playing" else "", 8))
+        rails = power["now_rails"]
+        now.append(("  ".join(f"{label} {rails[name]:.3f}" for name, label in RAIL_LABELS
+                              if name in rails) + "  ", DIM))
+        now.append((f"{age(quiet)} ago", YELLOW if quiet > POWER_QUIET_S else DIM))
+    elif state == "stopped":
+        now.append(("monitor stopped; its last session:", YELLOW))
+    else:  # the broker's last will: the monitor went without saying goodbye
+        now.append(("monitor offline: it stopped without writing totals", YELLOW))
+        return [now]
+    session = [("  This session ", "")]
+    for s in ("idle", "playing"):
+        seconds = power[f"{s}_s"] or 0
+        session.append((f"{s} {_watts(power[f'{s}_W'])} over {age(seconds):<5}  ",
+                        "" if seconds else DIM))
+    if power["idle_W"] is not None and power["playing_W"] is not None:
+        session.append((f"playing {power['playing_W'] - power['idle_W']:+.3f} W  ", BOLD))
+    session.append((f"{power['gestures'] or 0} gestures", DIM))
+    return [now, session, _tuning_row(power.get("tuning"), stopped=state == "stopped")]
+
+
+# (field, how to show its value) for the Tuning row
+TUNING_SHOWN = (("cpu_mhz", "CPU {:g} MHz".format),
+                ("cores", lambda n: f"{n:g} core" + ("" if n == 1 else "s")),
+                ("pl_mhz", "PL {:g} MHz".format))
+
+
+def _tuning_row(tuning, stopped=False):
+    """The board's CPU clock, cores and PL clock; a tuned one also shows what it was.
+
+    Once the monitor stopped they are the session's: the board has had its own put back.
+    """
+    row = [("  Tuning       ", "")] + ([("session used: ", DIM)] if stopped else [])
+    if tuning is None:
+        return row + [("unknown (the board has an older power_monitor.py; --sync)", DIM)]
+    now, was = tuning["now"], tuning["was"]
+    tuned = False
+    for name, shown in TUNING_SHOWN:
+        if now[name] is None:
+            continue
+        text = shown(now[name])
+        if was[name] is not None and was[name] != now[name]:
+            row.append((f"{text} ", BOLD))
+            row.append((f"(was {was[name]:g})  ", DIM))
+            tuned = True
+        else:
+            row.append((f"{text}  ", ""))
+    if not tuned:
+        row.append(("board defaults", DIM))
+    return row
 
 
 def _player_rows(board, mono_now):
