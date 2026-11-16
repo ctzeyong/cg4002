@@ -154,6 +154,3 @@ Run after any build, in this order:
 | Start works on one phone only | The other phone has no current-match snapshot yet; check broker connectivity and `game/match` |
 | A changed code default has no effect | The scene saves its own value; change it in the Inspector |
 
-## Credentials
-
-SSH usernames, passwords, hostnames and the VPN configuration for the board tunnel are private. They never go in this repo or its docs.
