@@ -9,17 +9,15 @@ namespace Comms.Visualiser
 {
     /// <summary>
     /// The phone's half of the mTLS leg: load this device's identity, and decide whether
-    /// to trust the broker that answers. Read notes/mtls.md before changing anything here
-    /// -- particularly the key inventory, because the shape of TLS is the thing that
-    /// misleads people coming from SSH.
+    /// to trust the broker that answers.
     ///
     /// The phone holds its OWN keypair. It never holds the laptop's, and the two are not
     /// interchangeable: mosquitto runs `use_identity_as_username true`, so the certificate
     /// CN becomes the MQTT username, and a phone presenting the relay's certificate would
-    /// authenticate as `laptop-relay`. Separate certificates are the entire point.
+    /// authenticate as `laptop-relay`. Separate certificates keep the two identities apart.
     ///
     /// Nothing here is packaged in the APK. Both files are pushed to the app's private
-    /// storage with adb, the same pattern notes/tunnelled_visualiser.md uses for SSH keys,
+    /// storage with adb, the same pattern tunnelled-visualiser uses for SSH keys,
     /// and for the same reason: anyone with the APK can extract what is inside it.
     ///
     ///     adb push ca.crt               /sdcard/Android/data/&lt;package&gt;/files/ca.crt
@@ -68,7 +66,7 @@ namespace Comms.Visualiser
         /// <summary>
         /// Is there material to run mTLS with? File presence is the switch, so `adb push`
         /// turns TLS on and deleting the files turns it back off. That matters while the
-        /// plaintext listener is still up: notes/mtls.md keeps it alive until the phone
+        /// plaintext listener is still up: it stays alive until the phone
         /// works over TLS, because a broken phone leg and a broken handshake look
         /// identical from the phone.
         /// </summary>
@@ -170,8 +168,8 @@ namespace Comms.Visualiser
         ///
         /// What is NOT waived is the name check. The broker certificate carries IP SANs for
         /// 127.0.0.1 and the laptop's AP address precisely so the address actually dialled
-        /// is proven, and accepting a mismatch would throw that away and make the SAN work
-        /// in notes/mtls.md pointless.
+        /// is proven, and accepting a mismatch would throw that away and make the SANs
+        /// pointless.
         /// </summary>
         public static bool IsOurBroker(X509Certificate presented, SslPolicyErrors errors, X509Certificate2 pinnedCa)
         {
@@ -199,7 +197,7 @@ namespace Comms.Visualiser
 
                 // The root of the built chain must be our CA, by thumbprint. Comparing the
                 // issuer NAME instead would accept any certificate claiming to be signed by
-                // "B16 Comms CA" -- which is exactly the forgery Phase 2's foreign-CA test
+                // "B16 Comms CA" -- which is exactly the forgery a foreign-CA test
                 // proved the broker rejects in the other direction.
                 var root = chain.ChainElements[chain.ChainElements.Count - 1].Certificate;
                 return string.Equals(root.Thumbprint, pinnedCa.Thumbprint, StringComparison.OrdinalIgnoreCase);

@@ -1,13 +1,10 @@
-# Extra packages for configuration B only (broker on this board).
+# Extra packages for the board's MQTT client only (broker on this board).
 #
 # requirements.txt beside this file is a `pip freeze` snapshot of the stock
-# pynq-venv, not a spec -- do not add to it. This lists only what configuration B
-# adds on top, so A stays installable by doing nothing.
+# pynq-venv, not a spec -- do not add to it. This lists only what the MQTT client
+# adds on top, so tcp_client.py stays installable by doing nothing.
 #
-# Install into a SEPARATE venv, not into pynq-venv. pynq-venv is system-wide on a
-# board other teams use, and configuration B needs nothing from it (this client is
-# stdlib + aiomqtt, no pynq overlay). Build it from the system interpreter -- a venv
-# created from inside pynq-venv can fail on `ensurepip is not available`:
+# Install into a SEPARATE venv, not into pynq-venv:
 #
 #   /usr/bin/python3 -m venv ~/comms-venv
 #   ~/comms-venv/bin/pip install -r requirements-mqtt.txt
@@ -20,10 +17,10 @@
 #
 # Ubuntu's .bashrc returns early for non-interactive shells, so `ssh board "python3
 # ..."` and any systemd unit see neither venv -- activation works when you type it
-# and silently does not when a script runs it. See notes/ultra96_setup.md.
+# and silently does not when a script runs it.
 #
-# The broker itself is NOT a pip package. Mosquitto, installed 2026-09-17; see
-# notes/tunnelled_visualiser.md. It must be bound to loopback only.
+# The broker itself is NOT a pip package. Mosquitto, installed 2026-09-17.
+# It must be bound to loopback only.
 
 # Same client the laptop relay uses, so QoS 1 and reconnect behave identically at
 # both ends. 2.x is the API tcp_client_mqtt.py is written against: `identifier=`

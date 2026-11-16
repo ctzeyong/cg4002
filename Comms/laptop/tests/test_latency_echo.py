@@ -1,7 +1,7 @@
 """Tests for timing the crossing between the board and a phone from an echo capture.
 
 The capture lines are made up in the shape of the board's `mosquitto_sub -F '%U %t %p'`. Phone
-clocks run 100 s ahead of the board unless a test says otherwise. notes/latency.md 3.13.
+clocks run 100 s ahead of the board unless a test says otherwise.
 """
 
 import csv

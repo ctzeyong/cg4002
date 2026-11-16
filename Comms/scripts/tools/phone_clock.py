@@ -1,15 +1,15 @@
 """Phone <-> laptop clock offset over USB, and the phone's logcat, for one latency run.
 
-    python phone_clock.py start A1     # clear logcat, measure the offset. Then UNPLUG the phone
+    python phone_clock.py start run1   # clear logcat, measure the offset. Then UNPLUG the phone
     ...                                # run the test with the phone on battery
-    python phone_clock.py finish A1    # replug first: measure the offset again, dump logcat
+    python phone_clock.py finish run1  # replug first: measure the offset again, dump logcat
 
 Writes logs/phone/<name>_start.json, <name>_end.json and <name>_logcat.txt, which
 latency_report.py reads with --phone logs/phone/<name>.
 
 The phone runs unplugged because USB power may change its Wi-Fi power saving, so its logcat
 lines are recovered afterwards from the buffer, and the offset is measured on both sides of
-the run and interpolated. Method: notes/latency.md 3.3.
+the run and interpolated.
 """
 
 import argparse
@@ -24,8 +24,8 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent.parent
 OUT_DIR = REPO / "logs" / "phone"
 
-# Unity's bundled adb, never the Android SDK's: two adb servers fight over port 5037
-# (notes/unity_visualiser.md). ADB in the environment overrides it.
+# Unity's bundled adb, never the Android SDK's: two adb servers would both try to use port 5037.
+# ADB in the environment overrides it.
 UNITY_ADB = "C:/Program Files/Unity/Hub/Editor/*/Editor/Data/PlaybackEngines/AndroidPlayer/SDK/platform-tools/adb.exe"
 
 # A shell builtin, so no process is spawned on the phone: forking `date` would add time to
@@ -43,7 +43,7 @@ def find_adb():
         return os.environ["ADB"]
     found = sorted(glob.glob(UNITY_ADB))
     if not found:
-        raise SystemExit("no Unity adb found; set ADB to its path (notes/unity_visualiser.md)")
+        raise SystemExit("no Unity adb found; set ADB to its path")
     return found[-1]
 
 
@@ -63,7 +63,7 @@ def measure(query, samples=SAMPLES):
     l1 and l3 the laptop's perf_counter either side.
 
     offset = phone_time - (l1 + l3)/2, so phone_time_on_laptop_clock = phone_time - offset,
-    the same sign as the board's (latency.md 3.3). Wrong by at most rtt/2.
+    the same sign as the board's. Wrong by at most rtt/2.
     """
     query()  # warm-up: the first exchange pays for the shell starting up
     best = min((query() for _ in range(samples)), key=lambda s: s[2] - s[0])
@@ -116,8 +116,7 @@ def run_adb(adb, *args):
     if result.returncode != 0:
         raise SystemExit(
             f"adb {' '.join(args)} failed: {result.stderr.strip() or result.stdout.strip()}\n"
-            "No device? Check USB debugging, and that Samsung Auto Blocker is off "
-            "(notes/unity_visualiser.md)."
+            "No device? Check USB debugging, and that Samsung Auto Blocker is off."
         )
     return result.stdout
 
@@ -162,7 +161,7 @@ def finish(adb, name):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("step", choices=("start", "finish", "check"))
-    parser.add_argument("name", nargs="?", default="run", help="run name, e.g. A1 (start/finish)")
+    parser.add_argument("name", nargs="?", default="run", help="run name, e.g. run1 (start/finish)")
     parser.add_argument(
         "--buffer", metavar="SIZE", help="start: enlarge logcat's buffer first, e.g. 16M"
     )

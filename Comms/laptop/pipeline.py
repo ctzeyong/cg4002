@@ -1,5 +1,9 @@
 """The whole relay in one process: BLE, TCP and MQTT on a single event loop.
 
+Running this file is the laptop-broker setup, which was evaluated but is not used in the
+final system. The final system runs pipeline_board_broker.py, which imports forward_uplink
+and the start-up helpers from here.
+
 Each leg is supervised by its own module and reconnects on its own backoff; this
 file owns nothing but the queues between them and the keyboard at the front. It
 is the only module that imports all three legs.
@@ -77,7 +81,7 @@ async def forward_uplink(uplink, stop):
     """
     window = RateWindow()
     forwarded = 0
-    # "unsent" (nowhere to send it) is not "dropped" (lost on the BLE side); notes/tcp_leg.md.
+    # "unsent" (nowhere to send it) is not "dropped" (lost on the BLE side).
     unsent = 0
     linked = None  # None until the first packet shows whether the Ultra96 is there
 
@@ -153,7 +157,7 @@ async def forward_downlink(downlink, outbound, stats, stop):
 
         topic = gesture_topic(player)
         mqtt_client.enqueue_event(outbound, topic, mqtt_client.build_envelope(msg, seq), stats)
-        # INFO: once per AI event. scripts/tools/latency_report.py reads `t=`; notes/latency.md.
+        # INFO: once per AI event. scripts/tools/latency_report.py reads `t=`.
         log.info("downlink seq=%d t=%.6f -> %s: %s", seq, time.perf_counter(), topic, msg)
         seq += 1
 
@@ -177,7 +181,7 @@ async def keystroke_reader(nodes, outboxes, stop, poll_interval=KEY_POLL_S):
 
     Only letters and digits send. `1`/`2` send to that board only; any other letter
     or digit sends to every board. The key goes in field 0 so the Ultra96 can map it
-    to a gesture (notes/tcp_leg.md).
+    to a gesture.
     """
     if msvcrt is None:
         log.warning("no console keyboard on this platform; keystroke reader is idle")
@@ -222,7 +226,7 @@ async def keystroke_reader(nodes, outboxes, stop, poll_interval=KEY_POLL_S):
             [node.node_id for node in targets],
         )
         seq = (seq + 1) & 0xFF
-        # Yield, so a held-down key or a paste cannot starve the BLE and TCP tasks.
+        # Yield, so a held-down key or a paste cannot hold up the BLE and TCP tasks.
         await asyncio.sleep(0)
 
 
@@ -231,7 +235,6 @@ def install_interrupt_handler(stop):
 
     On Windows, Ctrl-C arrives as a signal, not a key, so keystroke_reader never sees it.
     A second Ctrl-C force-quits. Returns a function that restores the old handler.
-    See notes/shutdown_and_ordering.md.
     """
     loop = asyncio.get_running_loop()
     previous = signal.getsignal(signal.SIGINT)
@@ -283,9 +286,7 @@ async def run_pipeline(
         asyncio.create_task(mqtt_client.run_relay(broker, outbound, inbound, stop, mqtt_stats)),
         asyncio.create_task(forward_uplink(ble_queue, stop)),
         asyncio.create_task(forward_downlink(downlink, outbound, mqtt_stats, stop)),
-        # Phone -> laptop traffic is logged and goes no further. Whether it
-        # continues on to the Ultra96 depends on where the game engine ends up
-        # running, which is not settled; see notes/schedule.md.
+        # Phone -> laptop traffic is logged and goes no further.
         asyncio.create_task(mqtt_client.drain_inbound(inbound, stop)),
         asyncio.create_task(keystroke_reader(nodes, outboxes, stop)),
     ]
@@ -301,7 +302,7 @@ async def run_pipeline(
         # would set `stop`, every other leg would retire, and shutdown would block
         # forever on the one task that never finishes. Any leg finishing means the
         # run is over: either the keyboard asked to stop, or something died and
-        # .result() re-raises it here instead of leaving the process wedged.
+        # .result() re-raises it here instead of leaving the process hung.
         # Same rule, and the same reason, as mqtt_client.one_session.
         done, _ = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
         for task in done:
@@ -344,7 +345,7 @@ def main():
     parser.add_argument(
         "--tls",
         action="store_true",
-        help="use the mTLS listener and comms/certs material (Week 6; not yet generated)",
+        help="use the mTLS listener and comms/certs material (made by make_certs.ps1)",
     )
     parser.add_argument(
         "--tunnel",

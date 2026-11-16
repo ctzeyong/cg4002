@@ -1,16 +1,16 @@
-"""Per-hop latency from one run's logs: laptop, board and (stage 2) phone.
+"""Per-hop latency from one run's logs: laptop, board and phone.
 
-    python latency_report.py --config B --board <tcp_client_mqtt_*.log> --phone logs/phone/B1
-    python latency_report.py --config A --board <tcp_client_*.log> --laptop <pipeline_*.log> --phone logs/phone/A1
+    python latency_report.py --config B --board <tcp_client_mqtt_*.log> --phone logs/phone/run1
+    python latency_report.py --config A --board <tcp_client_*.log> --laptop <pipeline_*.log> --phone logs/phone/run1
 
 Joins the per-event INFO lines each hop already writes, converts board and phone times onto
 the laptop's perf_counter with their clock offsets, and prints median / p95 / max per hop.
-Events missing a link are counted, never dropped. Method: notes/latency.md 3.
+Events missing a link are counted, never dropped.
 
 Every time is read from a field in the line, never the line's own timestamp, so
 run_board*.py's relayed copy works as the board log too, provided it covers the whole run (a
 fresh start, not a re-attach that tails only the last 200 lines). The board's own file, via
---fetch-logs, is the canonical one. notes/latency.md 3.8.
+--fetch-logs, is the canonical one.
 
 --phone takes the prefix scripts/tools/phone_clock.py wrote: <prefix>_start.json, <prefix>_end.json
 and <prefix>_logcat.txt.
@@ -19,7 +19,6 @@ and <prefix>_logcat.txt.
 
 --echo times the crossing between the board and each phone, on any phone, from the board's
 capture of gestures and echoes. Adding --board also gives laptop receipt to phone.
-notes/latency.md 3.13.
 """
 
 import argparse
@@ -46,23 +45,24 @@ EVENT = re.compile(
     rf"AI event seq=(?P<seq>\d+) player=(?P<player>\S+) .*?t_event=(?P<t_event>{NUM})"
     rf"(?: conf=\S+ t_infer_ms=(?P<t_infer_ms>{NUM}))?"
 )
-# Both relays' publish line; t= is board wall clock under B, laptop perf_counter under A.
+# Both relays' publish line. t= is board wall clock from the board, and laptop perf_counter
+# from the laptop-broker relay.
 PUBLISHED = re.compile(rf"published (?P<event_id>\S+) to (?P<topic>\S+) t=(?P<t>{NUM})")
 
-# Laptop line under A (laptop/pipeline.py forward_downlink). The event is a Python dict
-# repr, single-quoted, so it is read with ast.literal_eval, not json.
+# Laptop line in the laptop-broker setup (laptop/pipeline.py forward_downlink). The event is
+# a Python dict repr, single-quoted, so it is read with ast.literal_eval, not json.
 DOWNLINK = re.compile(rf"downlink seq=(?P<seq>\d+) t=(?P<t>{NUM}) -> (?P<topic>\S+): (?P<msg>\{{.*\}})\s*$")
 
 # Phone lines: `adb logcat -v epoch -v usec`, where AddLine's Debug.Log copy of an event reads
-# "<epoch> <pid> <tid> I Unity   : [demo] 01:31:20 player=1 laptop-relay:ab12cd34:7 {...}".
-# The tag is LogTag in demo-visualiser (A) or tunnelled-visualiser (B).
+# "<epoch> <pid> <tid> I Unity   : [tunnelled] 01:31:20 player=1 ultra96-relay:ab12cd34:7 {...}".
+# The tag is LogTag in tunnelled-visualiser, or in demo-visualiser for the laptop-broker setup.
 PHONE_TAGS = ("[demo]", "[tunnelled]")
 LOGCAT_TIME = re.compile(r"^\s*(?P<t>\d+\.\d+)\s")
 PHONE_EVENT = re.compile(
     r"^\s*(?P<t>\d+\.\d+)\s.*?(?:\[demo\]|\[tunnelled\]) \S+ player=\S+ (?P<event_id>\S+:\d+) "
 )
 
-# (column, label). Durations in ms. Hop numbers are notes/latency.md 3.2's.
+# (column, label). Durations in ms.
 HOPS = [
     ("laptop_rx_to_board_rx", "1 -> 3  laptop rx -> board rx"),
     ("board_rx_to_event", "3 -> 4  board rx -> AI event"),
@@ -441,7 +441,7 @@ def print_summary(run, config, out=sys.stdout):
         print(f"  {name}: {value}", file=out)
 
 
-# --- the crossing between the board and a phone, from an echo capture (notes/latency.md 3.13) ---
+# --- the crossing between the board and a phone, from an echo capture ---
 # each capture line is mosquitto_sub's '%U %t %p', which is board time, topic and envelope
 
 ECHO_WINDOW_S = 30.0  # a phone's clock offset is assumed constant within a window
@@ -690,7 +690,7 @@ def main(argv=None):
     parser.add_argument("--config", choices=("A", "B"), required=True)
     parser.add_argument("--board", type=Path, help="the board's log file (required unless --echo)")
     parser.add_argument("--laptop", type=Path, help="pipeline_*.log (A: needed for the return hop)")
-    parser.add_argument("--phone", help="prefix written by phone_clock.py, e.g. logs/phone/A1")
+    parser.add_argument("--phone", help="prefix written by phone_clock.py, e.g. logs/phone/run1")
     parser.add_argument("--echo", type=Path, help="configuration B only, the board's capture of gestures and echoes")
     parser.add_argument("--csv", type=Path, help="write one row per event here, or per pair with --echo")
     args = parser.parse_args(argv)

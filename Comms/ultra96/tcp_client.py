@@ -1,11 +1,15 @@
 """Ultra96-side TCP client. Connects to the laptop, sends heartbeats, answers
 BLE packets with AI events.
 
+Running this file is the laptop-broker setup's board client, which was evaluated but is
+not used in the final system. The final system runs tcp_client_mqtt.py, which imports its
+receive and send loops from here.
+
 Run on the same machine as tcp_server.py for a loopback check, or on the Ultra96
 with the laptop reachable via the SSH reverse tunnel (the client dials
 localhost:8888 on the Ultra96 -> forwarded to laptop 8888).
 
-This is the far end of criterion 5's pipeline. A keystroke on the laptop becomes
+This is the far end of the keypress pipeline. A keystroke on the laptop becomes
 a CMD to a FireBeetle, the board negates the fields and returns them as an ECHO,
 the laptop forwards it here, and this generates one random AI event and sends it
 back for the laptop to publish to the visualiser.
@@ -14,7 +18,6 @@ back for the laptop to publish to the visualiser.
 glove flags.
 
 Auto-reconnects on any disconnect, per Comms Initial Design Report Table 4.3.
-The protocol decisions behind this file are in notes/tcp_leg.md.
 """
 
 import argparse
@@ -39,16 +42,16 @@ CONNECT_TIMEOUT_S = 10.0
 # of what is being measured.
 PROGRESS_INTERVAL_S = 1.0
 
-# Which uplink packet earns an AI event. ECHO is the keystroke-caused packet, so
-# one keypress produces one event the examiner can follow end to end; firing on the
-# SENSOR stream instead would bury it. See notes/tcp_leg.md.
+# Which uplink packet makes an AI event. ECHO is the packet a keypress causes, so
+# one keypress makes one event that can be followed end to end. Firing on the
+# SENSOR stream instead would hide it among 100 packets a second.
 AI_EVENT_TRIGGER = "ECHO"
 HEARTBEAT_ACK = "HEARTBEAT_ACK"  # the laptop's reply; liveness, not uplink traffic
 SENSOR = "SENSOR"  # passed to AI with --gesture-flag, and a trigger only when AI answers
 
 TICKER_PLAYER = 1  # --event-every has no packet to attribute to; pick one
 
-# Keep the best (lowest-RTT) heartbeat sample from this long ago. notes/latency.md 3.3.
+# Keep the best (lowest-RTT) heartbeat sample from this long ago.
 OFFSET_WINDOW_S = 30.0
 
 log = logging.getLogger("tcp_client")
@@ -73,7 +76,7 @@ class ClockOffset:
 
     t1 = board sends HEARTBEAT, t2 = laptop answers, t3 = board receives the ACK.
     offset = (t1 + t3)/2 - t2, wrong by at most rtt/2. The lowest-RTT sample in the
-    last OFFSET_WINDOW_S is kept, as the least delayed. notes/latency.md 3.3.
+    last OFFSET_WINDOW_S is kept, as the least delayed.
     """
 
     def __init__(self, window_s=OFFSET_WINDOW_S):
@@ -110,7 +113,7 @@ def parse_echo(msg):
     """Return `(player, key)` from an ECHO. abs() undoes the FireBeetle's negation.
 
     `key` is None if field 0 is not a character (e.g. the dummy data was zeroed);
-    the event still happens, with a random gesture. See notes/tcp_leg.md.
+    the event still happens, with a random gesture.
 
     Raises:
         ValueError: the message is malformed; the text says what is wrong.
@@ -154,7 +157,7 @@ class EventSource:
         self.seq += 1
         self.sent += 1
         # t_event is the event's own timestamp, not this line's time: this line comes
-        # after the TCP send, B's after a queue put. notes/latency.md 3.2.
+        # after the TCP send, tcp_client_mqtt's after a queue put.
         log.info(
             "AI event seq=%d player=%s key=%r gesture=%s t_event=%s%s",
             event["seq"],
@@ -210,7 +213,7 @@ async def receiver(
 
     An ECHO is always a trigger and gets a dummy gesture. With `windows`, every SENSOR
     packet goes to AI, and a packet is a trigger when AI answers with a gesture. With
-    `gloves` (configuration B's GloveStatus), every SENSOR packet is also counted there.
+    `gloves` (tcp_client_mqtt's GloveStatus), every SENSOR packet is also counted there.
     """
     count = 0
     window_count = 0
@@ -237,7 +240,7 @@ async def receiver(
             log.warning("server closed the connection")
             stop.set()
             return
-        # Board clock: t3 for an ACK, and hop 3 for a trigger. notes/latency.md 3.2.
+        # Board clock: t3 for an ACK, and hop 3 for a trigger.
         received_at = time.time()
 
         # heartbeats confirm the connection is alive but are excluded from
@@ -288,7 +291,7 @@ async def receiver(
                 continue
         else:
             continue
-        # Logged here, not in emit, so A and B share it. The AI code should log the same line.
+        # Logged here, not in emit, so both board clients share it. The AI code should log the same line.
         seq = msg.get("seq")
         log.info(
             "trigger node=%d seq=%s t_laptop_rx=%s t_rx=%s",
@@ -423,7 +426,7 @@ async def run(
 
 
 def add_gesture_flag(parser):
-    """Add the model args A and B share: --gesture-flag, --vocab, --bitstream and --pl-mhz."""
+    """Add the model args both board clients share: --gesture-flag, --vocab, --bitstream and --pl-mhz."""
     parser.add_argument(
         "--gesture-flag",
         action="store_true",
@@ -458,7 +461,7 @@ def add_gesture_flag(parser):
 def main() -> None:
     """CLI entry point: parse args, set log level, run until Ctrl-C.
 
-    `--verbose` adds the per-frame dump; see notes/logging.md for the levels.
+    `--verbose` adds the per-frame dump.
     """
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", default=DEFAULT_HOST)

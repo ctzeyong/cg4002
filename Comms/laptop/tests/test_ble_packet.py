@@ -207,7 +207,7 @@ def test_firmware_and_laptop_agree_on_the_packet_size():
 
 
 def test_format_packet_is_readable_and_shows_named_fields_and_crc():
-    """Guideline 7: log files carry decoded values and a CRC, not raw hex."""
+    """Log files carry decoded values and a CRC, not raw hex."""
     raw = make_packet(TYPE_SENSOR, 9)
     _, _, payload = decode(raw)
 

@@ -230,7 +230,7 @@ def test_a_quiet_phone_pauses_the_match_after_phone_fresh_s():
 
 
 def test_a_request_just_after_the_phone_went_quiet_finds_the_match_paused_without_a_tick():
-    """The phase is worked out at each message, so no tick has to come first (R90)."""
+    """The phase is worked out at each message, so no tick has to come first."""
     g = running_game()
     g.sources[2] = None
     g.run(0.05)  # player 2's last sample is now ~0.05 s old
@@ -492,7 +492,7 @@ def test_a_tick_that_raises_ends_the_match_and_the_last_good_state_repeats():
 
 
 def test_an_action_that_raises_ends_the_match():
-    """The core may have spent the mana before it failed, so nothing can carry on (R108)."""
+    """The core may have spent the mana before it failed, so nothing can carry on."""
     g = running_game()
     g.match.raise_in.add("request")
     assert g.tap(1)[0].reason == "engine_error"

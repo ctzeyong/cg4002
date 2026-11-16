@@ -292,7 +292,7 @@ def test_load_password_prefers_the_process_environment(monkeypatch, tmp_path, ca
 
 
 def test_load_password_reads_dotenv_when_the_environment_is_unset(monkeypatch, tmp_path):
-    """The .env key is what makes a logon task possible; notes/ultra96_setup.md."""
+    """The .env key is what makes a logon task possible."""
     env_file = tmp_path / ".env"
     env_file.write_text("JUMP_PASSWORD=from-dotenv\n", encoding="utf-8")
     monkeypatch.delenv(tunnel.PASSWORD_KEY, raising=False)
@@ -314,8 +314,8 @@ def test_load_password_prompts_when_nothing_is_stored(monkeypatch, tmp_path):
 def test_the_password_cannot_reach_tunnel_config(tmp_path):
     """TunnelConfig holds no credential, so no repr or traceback can print one.
 
-    A stored password makes this load-bearing rather than tidy: a field added here
-    would be printed by every describe() line and every asyncssh traceback.
+    This matters because the password is stored. A field added here would be
+    printed by every describe() line and every asyncssh traceback.
     """
     env_file = tmp_path / ".env"
     env_file.write_text(

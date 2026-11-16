@@ -12,7 +12,6 @@ namespace Comms.Visualiser
     /// The board password IS saved (it is a shared lab password). The jump-host password is
     /// NOT: it is the user's NUS account, so it is typed each launch and kept in memory only.
     /// Key passphrases are not saved either; only key filenames are.
-    /// Why: notes/tunnelled_visualiser.md, "Credentials".
     /// </summary>
     [Serializable]
     public sealed class TunnelConfig

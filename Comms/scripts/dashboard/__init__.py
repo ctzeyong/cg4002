@@ -1,4 +1,4 @@
-"""Show the whole configuration B pipeline on one screen that redraws in place.
+"""Show the whole pipeline on one screen that redraws in place.
 
 It follows the relay's newest log file, and runs mosquitto_sub on the board over its
 own SSH connection. It never talks to the relay or the board client while it runs.

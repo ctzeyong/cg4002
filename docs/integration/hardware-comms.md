@@ -4,18 +4,10 @@ This document explains how the single MPU6050 on each player's FireBeetle is con
 Comms firmware, the C++ interface shared by both sides, and what must change when either side
 changes its implementation.
 
-> **Current status (16 Oct 2026):** branch `hardware-comms` reads one MPU6050 per FireBeetle,
-> reports sensor faults, and keeps the existing SENSOR packet layout. A board with no IMU
-> attached has been flashed and checked (see [Verification](#verification-and-current-evidence)).
-> Real IMU readings and a two-player run are still to be tested.
->
-> **20 Oct 2026, on `mvp-full-pipeline`:** Hardware's gesture detector runs in the firmware,
-> reading every sample from the MPU6050's FIFO at 500 Hz. Compiled and checked in a host
-> simulation, not yet flashed.
->
-> **12 Nov 2026, on `packet-20b`:** the SENSOR packet shrinks from 26 to 20 bytes. The three
-> unused reserved fields are gone. The IMU status and gesture flag keep their bytes, and the CRC
-> moves to bytes 18–19. Compiled, not yet flashed.
+> **Final build:** each glove reads one MPU6050 and reports sensor faults. Hardware's gesture
+> detector reads every sample from the MPU6050's FIFO at 500 Hz and flags the samples of a
+> gesture. The glove sends a 20-byte SENSOR packet every 10 ms. Its IMU status and gesture flag
+> are the two reserved fields (bytes 14–17), and the CRC is in bytes 18–19.
 
 ## Architecture overview
 

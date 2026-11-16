@@ -1,8 +1,7 @@
 """Pipeline tests: the forwarders that join the three legs, and the keyboard.
 
-Each leg is tested in its own file; this covers only the joins, which is where
-criterion 5 lives. The TCP half runs against a real loopback socket for the
-reason given in helpers.py.
+Each leg is tested in its own file; this covers only the joins. The TCP half
+runs against a real loopback socket for the reason given in helpers.py.
 """
 
 import asyncio
@@ -67,10 +66,10 @@ async def running(coro, stop=None):
 
 @pytest.mark.asyncio
 async def test_uplink_forwards_a_ble_packet_to_the_ultra96():
-    """The join criterion 5 is built on, and the format the Ultra96 parses.
+    """The join the keypress chain is built on, and the format the Ultra96 parses.
 
     Asserts the decoded message rather than just that something arrived:
-    guideline 7 asks for readable fields on the wire, and the Ultra96 keys its
+    the wire carries readable fields, and the Ultra96 keys its
     AI event trigger off `type` and attributes it with `node`.
     """
     uplink = asyncio.Queue(maxsize=8)
@@ -207,7 +206,7 @@ async def test_downlink_publishes_unattributed_rather_than_dropping():
     stop = asyncio.Event()
 
     async with running(pipeline.forward_downlink(downlink, outbound, stats, stop), stop):
-        # `True` is the trap: bool subclasses int, so a naive isinstance check
+        # `True` is the tricky case. bool subclasses int, so a naive isinstance check
         # would route this to `game/gesture/True`.
         downlink.put_nowait({"type": "AI_EVENT", "player": True})
         topic, envelope = await asyncio.wait_for(outbound.get(), DEADLINE_S)
@@ -400,7 +399,7 @@ async def test_keystroke_seq_wraps_at_one_byte(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_keystroke_reader_yields_between_keys(monkeypatch):
-    """A key repeat or a pasted line must not starve the rest of the loop.
+    """A key repeat or a pasted line must not hold up the rest of the loop.
 
     read_key never returns None here, so without an unconditional yield the
     reader spins forever and every other task — BLE, TCP, MQTT — stops running.
@@ -428,7 +427,7 @@ async def test_keystroke_reader_yields_between_keys(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_a_quit_key_shuts_the_whole_pipeline_down(monkeypatch):
-    """Esc must end the run, not wedge it.
+    """Esc must end the run, not hang it.
 
     The bug this pins: `run_pipeline` used `asyncio.gather()`, which waits for
     *every* task. `tcp_server.run()` serves forever and has no `stop` to watch,
@@ -468,7 +467,7 @@ async def test_sigint_shuts_down_through_stop_not_a_keyboardinterrupt(monkeypatc
     2026-09-13 that closed the loop with six tasks still pending and broke
     bleak's disconnect() with "no running event loop".
 
-    Asserting run_pipeline *returns* is the whole point: before the fix this
+    The test asserts that run_pipeline *returns*. Before the fix this
     propagated KeyboardInterrupt out of the task that happened to catch it.
     """
 
@@ -502,7 +501,7 @@ async def test_the_sigint_handler_is_restored_when_the_pipeline_ends(monkeypatch
 
     call_soon_threadsafe on a closed loop raises from inside a signal handler,
     which is close to undebuggable. The tests run several pipelines in one
-    process, so this is load-bearing here before it is load-bearing in a demo.
+    process, so this matters here as much as in a demo.
     """
 
     async def waits_for_stop(*args, **kwargs):
@@ -528,7 +527,7 @@ async def test_the_sigint_handler_is_restored_when_the_pipeline_ends(monkeypatch
 async def test_a_second_interrupt_restores_the_default_handler():
     """An operator who cannot stop the process is worse off than a messy exit.
 
-    The first Ctrl-C asks the legs to drain. If draining wedges, the next one has
+    The first Ctrl-C asks the legs to drain. If draining hangs, the next one has
     to kill the process the ordinary way rather than setting an event nobody is
     left watching — so the handler disarms itself as it fires.
     """

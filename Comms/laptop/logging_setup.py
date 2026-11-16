@@ -1,8 +1,5 @@
 """Console and file logging for every laptop entry point.
 
-Levels, what `-v` means, and the colour scheme are all in notes/logging.md.
-Read it before changing a level or adding a colour.
-
 `ultra96/board_logging.py` is the board's copy; keep the two in step.
 """
 
@@ -18,7 +15,7 @@ from logging.handlers import QueueHandler, QueueListener
 LINE_FORMAT = "%(asctime)sZ [%(name)s] %(message)s"
 
 # Library log levels, kept here even under -v. asyncssh matters most: it logs the
-# jump username and hostnames at INFO. notes/logging.md.
+# jump username and hostnames at INFO.
 THIRD_PARTY_LEVELS = {
     "asyncssh": logging.WARNING,
     "asyncio": logging.INFO,
@@ -42,7 +39,7 @@ def _sgr(index):
 
 # One colour per link, keyed by logger name, as (counter, event) 256-colour codes:
 # counters and per-packet lines get the first, one-off events the brighter second.
-# Warnings and errors are always yellow/red. notes/logging.md.
+# Warnings and errors are always yellow/red.
 LINK_COLOURS = {
     # BLE is the exception: one shade each, because a second shade read as a second
     # board. This green is for lines about both boards; each board's is in NODE_COLOURS.
@@ -59,7 +56,7 @@ LINK_COLOURS = {
     "plumbing": (245, 255),
 }
 
-# Each FireBeetle is its own connection (guideline 3), so each board's BLE lines get
+# Each FireBeetle is its own connection, so each board's BLE lines get
 # a green of their own. Keyed by the `node` that ble_client.node_log attaches.
 NODE_COLOURS = {
     1: (151, 151),  # pale green -- BLE, FireBeetle 1

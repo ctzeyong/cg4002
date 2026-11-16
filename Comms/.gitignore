@@ -26,7 +26,7 @@ video/scratch*.txt
 .env
 
 # mTLS key material. The CA key, the broker key and every client key are generated
-# locally and must never reach the remote -- see notes/mtls.md. Ignored BEFORE the
+# locally and must never reach the remote. Ignored BEFORE the
 # directory exists, so the first `openssl` run cannot be committed by accident.
 certs/
 *.key

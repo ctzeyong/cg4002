@@ -11,16 +11,16 @@ using UnityEngine;
 namespace Comms.Visualiser
 {
     /// <summary>
-    /// Configuration B for the Vis app: the phone's two-hop SSH nest to the broker on the
+    /// The Vis app's link to the board: the phone's two-hop SSH tunnel to the broker on the
     /// Ultra96, supervised, in front of the app's own MqttConnection, which is not edited.
     ///
-    ///   MqttConnection -> phone 127.0.0.1:1883 == nest == board 127.0.0.1:1883 (Mosquitto)
+    ///   MqttConnection -> phone 127.0.0.1:1883 == tunnel == board 127.0.0.1:1883 (Mosquitto)
     ///
     /// MqttConnection has no reconnect, so this supplies one from outside: it calls Connect()
     /// again whenever the client is down, and only after probing the broker itself, because
-    /// the nest accepts locally whether or not the broker is there, and M2Mqtt leaks a
-    /// spinning thread when a connect fails after its socket opened (section 10, F1).
-    /// MQTT always goes down before the tunnel. notes/integration/vis_integration.md 4.3.
+    /// the tunnel accepts locally whether or not the broker is there, and M2Mqtt leaks a
+    /// spinning thread when a connect fails after its socket opened.
+    /// MQTT always goes down before the tunnel.
     /// </summary>
     public class CommsTunnelBridge : MonoBehaviour
     {
@@ -69,11 +69,11 @@ namespace Comms.Visualiser
             Config = TunnelConfig.Load();
 
             // No key files on an iPhone (no adb push), so passwords only. TunnelConfig
-            // defaults this to true, which fails with "Private key not found" (F7).
+            // defaults this to true, which fails with "Private key not found".
             Config.UsePrivateKeys = false;
 
             // Gloves mean nobody touches the screen, so without this iOS auto-locks the
-            // phone mid-match, suspends the app and the nest dies. Same as TunnelledVisualiser.
+            // phone mid-match, suspends the app and the tunnel dies. Same as TunnelledVisualiser.
             Screen.sleepTimeout = SleepTimeout.NeverSleep;
 
             AddLine("enter the jump-host password, then press Connect.");
@@ -97,7 +97,7 @@ namespace Comms.Visualiser
             _run = RunAfterAsync(previous, _cts.Token);
         }
 
-        /// <summary>MQTT first, while the nest can still carry its DISCONNECT; then the tunnel.</summary>
+        /// <summary>MQTT first, while the tunnel can still carry its DISCONNECT; then the tunnel.</summary>
         public void Disconnect()
         {
             _cts?.Cancel();
@@ -109,7 +109,7 @@ namespace Comms.Visualiser
         private async Task RunAfterAsync(Task previous, CancellationToken ct)
         {
             // The old run releases phone 127.0.0.1:1883 in its finally; wait so the new
-            // nest does not race it for the port.
+            // tunnel does not race it for the port.
             try { await previous; }
             catch (Exception) { /* Already logged by the run itself. */ }
 
@@ -140,7 +140,7 @@ namespace Comms.Visualiser
         private void OnDestroy() => Disconnect();
 
         /// <summary>
-        /// Outer loop: build the nest, keep MQTT up inside it until the nest drops, retry.
+        /// Outer loop: build the tunnel, keep MQTT up inside it until the tunnel drops, retry.
         /// The wait doubles after a short run and resets after a healthy one (MqttConfig).
         /// </summary>
         private async Task RunAsync(CancellationToken ct)
@@ -197,14 +197,14 @@ namespace Comms.Visualiser
         }
 
         /// <summary>
-        /// Inner loop, while the nest is up: whenever his client is down and not mid-connect,
-        /// probe the broker and only then call his Connect(), on the same backoff ladder.
+        /// Inner loop, while the tunnel is up: whenever the app's client is down and not mid-connect,
+        /// probe the broker and only then call its Connect(), on the same backoff ladder.
         /// His Connect() re-subscribes every topic, so the hook's topic comes back with it.
-        /// Returns after two failed probes in a row, so the outer loop builds a new nest.
+        /// Returns after two failed probes in a row, so the outer loop builds a new tunnel.
         /// </summary>
         private async Task KeepMqttUpAsync(SshMqttTunnel tunnel, int localPort, CancellationToken ct)
         {
-            // A client left over from the last nest would read as connected here.
+            // A client left over from the last tunnel would read as connected here.
             if (mqttConnection.IsConnected) SafeDisconnect("stale client from the previous nest");
 
             var backoff = MqttConfig.MinBackoffSeconds;
@@ -257,7 +257,7 @@ namespace Comms.Visualiser
                         }
                         else if (++failedProbes >= ProbesBeforeRebuild && tunnel.IsReady)
                         {
-                            // the nest can look up while carrying nothing, so build a new one
+                            // the tunnel can look up while carrying nothing, so build a new one
                             AddLine($"NEST_REBUILD: {failedProbes} probes failed in a row");
                             return;
                         }
@@ -279,7 +279,7 @@ namespace Comms.Visualiser
 
         /// <summary>
         /// One MQTT CONNECT/CONNACK on our own socket, then DISCONNECT. True only on a CONNACK
-        /// with return code 0. Never touches his client.
+        /// with return code 0. Never touches the app's client.
         /// </summary>
         private async Task<bool> ProbeBrokerAsync(int localPort, CancellationToken ct)
         {
@@ -353,7 +353,7 @@ namespace Comms.Visualiser
         }
 
         /// <summary>
-        /// Teardown, in order: his client first (a DISCONNECT if the nest still carries one),
+        /// Teardown, in order: the app's client first (a DISCONNECT if the tunnel still carries one),
         /// a short wait for M2Mqtt to close, then the tunnel off the main thread.
         /// </summary>
         private async Task ReleaseAsync(SshMqttTunnel tunnel)

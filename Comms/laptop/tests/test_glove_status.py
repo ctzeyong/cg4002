@@ -1,4 +1,4 @@
-"""How the board judges each glove ready and publishes it on status/gloves (configuration B).
+"""How the board judges each glove ready and publishes it on status/gloves.
 
 The retained message, the will and the resend after a reconnect are tested against a real
 Mosquitto, since a fake broker would only fake the behaviour being tested.

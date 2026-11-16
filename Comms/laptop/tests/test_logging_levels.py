@@ -1,6 +1,4 @@
 """What `-v` means, what stays legible without it, and the console colour rules.
-
-The measurements and the reasoning are in notes/logging.md.
 """
 
 import asyncio
@@ -190,7 +188,7 @@ def test_the_log_file_never_gets_escape_codes(configure_logging, tmp_path):
 
 def test_every_link_gets_its_own_colour():
     """One logger per distinct leg; the shared hues in LINK_COLOURS are the same
-    leg seen twice (both ends, or either configuration)."""
+    leg seen twice (both ends, or either board client)."""
     legs = ["ble_client", "tcp_server", "mqtt_client", "tunnel", "pipeline"]
     colours = {logging_setup.LINK_COLOURS[name] for name in legs}
 
@@ -225,7 +223,7 @@ def test_the_legs_a_configuration_b_laptop_shows_are_all_distinct():
 
 
 def test_each_firebeetle_prints_in_one_green_of_its_own():
-    """Guideline 3: a colour per connection, and each board is one. One shade per
+    """A colour per connection, and each board is one. One shade per
     board, since a second shade per board read as a second board, and a third green
     for lines about both (node None). None may be any other leg's colour or a level's."""
     fmt = logging_setup.ConsoleColourFormatter(enabled=True)
@@ -305,7 +303,7 @@ def test_no_color_is_honoured(monkeypatch):
     assert logging_setup.console_supports_colour(Terminal()) is False
 
 
-# --- the criterion-5 chain, at INFO ----------------------------------------
+# --- the keypress chain, at INFO -------------------------------------------
 
 
 @pytest.mark.asyncio
@@ -358,7 +356,7 @@ async def _drain_one(loop_coro, published, stop):
 
 @pytest.mark.asyncio
 async def test_laptop_publish_is_legible_without_verbose(caplog):
-    """Hop 5 under A: reached the broker, not just the outbound queue."""
+    """Hop 5 in the laptop-broker setup: reached the broker, not just the outbound queue."""
     outbound = asyncio.Queue(maxsize=8)
     stop = asyncio.Event()
     client = _AcceptingClient()
@@ -380,8 +378,8 @@ async def test_laptop_publish_is_legible_without_verbose(caplog):
 
 @pytest.mark.asyncio
 async def test_board_publish_is_legible_without_verbose(caplog):
-    """Hop 5 under B, which had no publish line at any level. The two
-    configurations never share a file, so each needs its own test."""
+    """Hop 5 on the board, which had no publish line at any level. The two
+    setups never share a file, so each needs its own test."""
     outbound = asyncio.Queue(maxsize=8)
     stop = asyncio.Event()
     client = _AcceptingClient()
@@ -405,8 +403,8 @@ async def test_board_publish_is_legible_without_verbose(caplog):
 
 @pytest.mark.asyncio
 async def test_an_envelope_without_an_event_id_does_not_kill_the_publish_loop():
-    """The publish line must not become a poison pill: raising after a successful
-    publish would have the supervisor republish and re-raise forever."""
+    """The publish line must never raise. Raising after a successful publish would
+    make the supervisor republish and re-raise forever."""
     for module, stats in (
         (mqtt_client, mqtt_client.MqttStats()),
         (mqtt_publisher, mqtt_publisher.PublishStats()),

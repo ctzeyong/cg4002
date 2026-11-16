@@ -1,4 +1,4 @@
-"""How the board turns packets into AI events, in both configurations.
+"""How the board turns packets into AI events, in both board clients.
 
 An ECHO always makes a dummy event. With --gesture-flag every SENSOR sample goes to AI, and
 each gesture it classifies makes one event. The transport rules are tested in test_gesture.py.

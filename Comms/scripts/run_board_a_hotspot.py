@@ -1,8 +1,8 @@
-"""Start configuration A's board client over Tailscale: one SSH hop, no jump host, no password.
+"""Start the laptop-broker board client over Tailscale: one SSH hop, no jump host, no password.
 
 Pane 2 of two; pane 1 is run_pipeline_a_hotspot.ps1, and run_board_a_hotspot.ps1 wraps
 this file. Same board command as run_board_a.py; only the connection differs.
-Decisions: notes/ultra96_setup.md -> "Fallback D".
+The laptop-broker setup was evaluated but is not used in the final system.
 
     python run_board_a_hotspot.py                  # start it, or re-attach if running
     python run_board_a_hotspot.py --sync           # re-copy ultra96/*.py, then restart it

@@ -1,17 +1,18 @@
-"""Relay for configuration B: broker on the Ultra96, no MQTT leg on this laptop.
+"""Relay with the broker on the Ultra96: no MQTT leg on this laptop.
 
-Alternative to `pipeline.py`, which is configuration A. Run one or the other.
+Alternative to `pipeline.py`, the laptop-broker setup, which was evaluated but is not
+used in the final system. Run one or the other.
 
-    A   BLE -> laptop -> TCP -> Ultra96 -> TCP -> laptop -> MQTT -> phones
-    B   BLE -> laptop -> TCP -> Ultra96 -> MQTT -> phones
-                                          (published on the board's own loopback)
+    laptop broker  BLE -> laptop -> TCP -> Ultra96 -> TCP -> laptop -> MQTT -> phones
+    this relay     BLE -> laptop -> TCP -> Ultra96 -> MQTT -> phones
+                                                     (published on the board's own loopback)
 
-Under B the Ultra96 publishes its own AI events (`ultra96/tcp_client_mqtt.py`), so
+Here the Ultra96 publishes its own AI events (`ultra96/tcp_client_mqtt.py`), so
 this laptop has **no MQTT role at all** -- no relay, no downlink forwarder, no
 inbound drain, no broker address. Three legs instead of six, and this process
 never touches aiomqtt.
 
-The uplink stays TCP, unchanged. `notes/tcp_leg.md` settled that on measurement:
+The uplink stays TCP, unchanged. That was settled on measurement:
 traffic is ~200:1 asymmetric and MQTT would add overhead on the congested
 direction.
 
@@ -22,8 +23,6 @@ there is nothing to forward a broker port for.
 
 Selector loop note: this process runs bleak and asyncssh but **not** aiomqtt, so
 `use_selector_event_loop()` is deliberately not called. See main().
-
-Design decisions for this leg live in `notes/tunnelled_visualiser.md`, not here.
 """
 
 import argparse
@@ -86,8 +85,8 @@ def post_vibrate(msg, outboxes, seq):
 async def drain_downlink(downlink, outboxes, stop):
     """Pass each VIBRATE from the board on to its glove, and log and discard anything else.
 
-    Under configuration A this queue carried AI events into `forward_downlink` and
-    on to MQTT. Under B the board publishes those itself, so the only thing it sends
+    In the laptop-broker setup this queue carried AI events into `forward_downlink`
+    and on to MQTT. Here the board publishes those itself, so the only thing it sends
     down is a VIBRATE.
 
     HEARTBEATs never reach this queue: `tcp_server` answers them itself and they go
@@ -187,7 +186,7 @@ async def run_pipeline(nodes, tcp_host, tcp_port, tunnel_config=None, tunnel_pas
 
 
 def main():
-    """Entry point for configuration B's relay."""
+    """Entry point for the relay."""
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("-v", "--verbose", action="store_true", help="log every packet")
     parser.add_argument(
@@ -240,7 +239,7 @@ def main():
     # No use_selector_event_loop() here, unlike pipeline.py, and that is deliberate:
     # aiomqtt is what needs the selector loop and this process never imports it.
     # bleak works on either. asyncssh's standalone VPN-drop proof was on the default
-    # Proactor loop, so configuration B actually runs --tunnel on the loop that
+    # Proactor loop, so this relay actually runs --tunnel on the loop that
     # proof was taken on, rather than the one it was re-verified on.
 
     try:

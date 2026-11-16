@@ -1,6 +1,7 @@
 <#
 .SYNOPSIS
     Check the mTLS material issued by make_certs.ps1, before anything depends on it.
+    Not used in the final system (broker on Ultra96). See "Mutual TLS" in Comms/README.md.
 
 .DESCRIPTION
     A TLS handshake failure reads like a network fault -- that is the whole reason
@@ -91,11 +92,11 @@ foreach ($name in (@("broker") + $ClientRoles)) {
     Test-Claim "$name.crt <-> $name.key" ($fromCert -eq $fromKey)
 }
 
-# --- 4. the SAN trap ------------------------------------------------------------
-# Both configurations connect by ADDRESS, so the broker cert needs IP SANs. A
+# --- 4. the SAN check -----------------------------------------------------------
+# Clients connect by ADDRESS, so the broker cert needs IP SANs. A
 # DNS-only cert fails hostname validation in MQTTnet and paho alike, and the
-# symptom is a generic handshake error. notes/mtls.md calls this the single most
-# likely thing to burn an evening; this is the check that stops it.
+# symptom is a generic handshake error that gives no hint of the cause.
+# This check catches it first.
 
 Write-Host "`nbroker SANs are IP entries, not DNS names"
 $brokerText = Get-CertText (Join-Path $CertDir "broker.crt")
@@ -150,8 +151,8 @@ foreach ($name in (@("ca", "broker") + $ClientRoles)) {
 Write-Host "`nPKCS#12 bundles readable with an empty password"
 foreach ($p12 in @("phone-visualiser.p12", "phone-visualiser-legacy.p12")) {
     # -noout, not -info: -info writes the MAC parameters to stderr even on success,
-    # which with `2>&1` becomes a NativeCommandError and aborts the run. Same trap
-    # as the verify loop above.
+    # which with `2>&1` becomes a NativeCommandError and aborts the run. The verify
+    # loop above avoids the same problem.
     & openssl pkcs12 -in (Join-Path $CertDir $p12) -passin "pass:" -nokeys -noout | Out-Null
     Test-Claim $p12 ($LASTEXITCODE -eq 0)
 }

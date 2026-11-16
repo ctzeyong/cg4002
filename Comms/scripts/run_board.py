@@ -1,8 +1,8 @@
-"""Start configuration B's board client and game engine over asyncssh, with no password prompt.
+"""Start the board client and game engine over asyncssh, with no password prompt.
 
 Opens both SSH hops, starts tcp_client_mqtt.py and the game engine on the Ultra96
 (or re-attaches to them), then shows the client's log here. Pane 2 of two; pane 1 is
-run_pipeline.ps1, and run_board.ps1 wraps this file. Design: notes/tunnelled_visualiser.md.
+run_pipeline.ps1, and run_board.ps1 wraps this file.
 
     python run_board.py                  # start both, or re-attach if running
     python run_board.py --sync           # re-copy ultra96/*.py and the engine, then restart both
@@ -61,7 +61,7 @@ PKILL = "sudo -n pkill"
 CLIENT = "~/comms/tcp_client_mqtt.py"
 # Must start at "python", or pgrep/pkill would also match our own remote shell.
 PROCESS_PATTERN = r"^[^ ]*python[0-9.]*[ ]+[^ ]*tcp_client_mqtt\.py"
-# Configuration A's client, stopped before B's starts. A copy of run_board_a.PROCESS_PATTERN,
+# The laptop-broker client, stopped before this one starts. A copy of run_board_a.PROCESS_PATTERN,
 # because that file imports this one; tests/test_run_board_a.py keeps the two equal.
 A_PROCESS_PATTERN = r"^[^ ]*python[0-9.]*[ ]+[^ ]*tcp_client\.py"
 # Today's (UTC) log folder, made here as xilinx before the launch.
@@ -162,7 +162,7 @@ def remote_command(port, client_args, restart, power=False, monitor_args=""):
         f'> "$cap" 2>&1 &'
     )
     steps = [
-        # tcp_server keeps the newest client, so a leftover A client and this one would
+        # tcp_server keeps the newest client, so a leftover laptop-broker client and this one would
         # evict each other every 2 s, with no error. Mirror of run_board_a.py.
         f'{PKILL} -f "{A_PROCESS_PATTERN}" && echo "STOPPED: configuration A client killed"',
     ]
@@ -265,7 +265,7 @@ async def fetch_logs(conn, day):
     """Copy one UTC day's board logs into logs/board/<day>/. Only reads the board.
 
     The board's own files, not this script's relay of them: the relay re-stamps lines
-    and delivers them in bunches. notes/latency.md 3.5.
+    and delivers them in bunches.
     """
     remote = f"comms/logs/{day}"
     local = FETCHED_LOGS / day

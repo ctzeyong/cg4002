@@ -1,9 +1,12 @@
 """Laptop-side MQTT relay. One supervised session carrying both game topics.
 
+The relay is used only by the laptop-broker setup (pipeline.py), which was evaluated but
+is not used in the final system. There the laptop has no MQTT role. fake_phone.py and
+mqtt_ping.py import only use_selector_event_loop from here.
+
 Publishes AI gesture events to `game/gesture/<player>` for the phone visualisers,
 and subscribes to `viz/ready/+` so a phone announcing itself shows up during
-bring-up. The topic contract, including which topics have producers today, is in
-notes/mqtt_topics.md.
+bring-up.
 
 Both directions share one broker connection and one supervisor, the same shape as
 ble_client.run_node: connect, run, back off, retry, forever. The broker address
@@ -230,11 +233,9 @@ async def _publish_loop(client, outbound, pending, stats, stop):
         try:
             payload = json.dumps(envelope, separators=(",", ":")).encode("utf-8")
         except (TypeError, ValueError) as exc:
-            # Drop it, do NOT retry. The opposite call from the MqttError below,
-            # because a serialisation failure is deterministic: the same envelope
-            # fails the same way on every reconnect, forever. Left in `pending` it
-            # is a poison pill that blocks every later event. The full argument is
-            # in notes/shutdown_and_ordering.md.
+            # Drop it, and do NOT retry. Unlike the MqttError below, a serialisation
+            # failure is deterministic. The same envelope would fail on every reconnect,
+            # and left in `pending` it would block every later event.
             identifier = (
                 envelope.get("event_id", "<no id>")
                 if isinstance(envelope, dict)
@@ -255,9 +256,9 @@ async def _publish_loop(client, outbound, pending, stats, stop):
             raise
         pending.clear()
         stats.published += 1
-        # INFO: once per game event. `.get` because a KeyError here would be a poison
-        # pill -- the supervisor would republish and re-raise forever. `t=` is the
-        # PUBACK time for scripts/tools/latency_report.py; notes/latency.md.
+        # INFO: once per game event. Use `.get`, because a KeyError here would make the
+        # supervisor republish and re-raise forever. `t=` is the PUBACK time for
+        # scripts/tools/latency_report.py.
         log.info(
             "published %s to %s t=%.6f",
             envelope.get("event_id", "<no id>"),
@@ -367,7 +368,7 @@ async def run_relay(broker, outbound, inbound, stop, stats=None):
     # _publish_loop. Owned here rather than by a session, so an envelope a failed
     # session was midway through survives the reconnect and goes out first on the
     # next one. Requeueing it instead would reorder it behind everything that
-    # queued during the outage; see notes/shutdown_and_ordering.md.
+    # queued during the outage.
     pending = []
     backoff = MIN_BACKOFF_S
 
@@ -448,8 +449,7 @@ async def drain_inbound(inbound, stop):
 
     Not just a stand-in: this is the consumer in the merged pipeline too. A phone
     announcing itself is worth seeing in the log during bring-up, and nothing
-    downstream needs it. Whether phone-to-laptop traffic ever continues on to the
-    Ultra96 is unsettled; see notes/mqtt_topics.md.
+    downstream needs it.
     """
     while not stop.is_set():
         try:
@@ -514,7 +514,7 @@ def main():
     parser.add_argument(
         "--tls",
         action="store_true",
-        help="use the mTLS listener and comms/certs material (Week 6; not yet generated)",
+        help="use the mTLS listener and comms/certs material (made by make_certs.ps1)",
     )
     parser.add_argument(
         "--publish-every",

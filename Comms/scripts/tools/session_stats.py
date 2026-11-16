@@ -1,4 +1,4 @@
-"""The numbers for one day's runs under B, from the logs alone: latency, BLE round trip, packet loss.
+"""The numbers for one day's runs, from the logs alone: latency, BLE round trip, packet loss.
 
     python scripts/tools/session_stats.py --board logs/board/2026-11-05 --relay logs/2026-11-05 --since 030600
 
@@ -15,7 +15,7 @@ Read-only. Prints three sections:
    more packets missed, from the per-second rate lines' cumulative missed=.
 
 --since keeps board logs whose name stamp (HHMMSS) is at or after it, so runs made from another
-laptop can be left out. Method and the numbers: notes/latency.md 3.14.
+laptop can be left out.
 """
 
 import argparse

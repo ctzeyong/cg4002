@@ -1,5 +1,5 @@
-# Configuration A, laptop half: Mosquitto on this laptop, then the relay. Pane 1 of two;
-# pane 2 is run_board_a.ps1. Bring-up and the traps checked below: notes/demo_network.md.
+# Laptop-broker setup, laptop half: Mosquitto on this laptop, then the relay. Pane 1 of two;
+# pane 2 is run_board_a.ps1. This setup was evaluated but is not used in the final system.
 #
 #   .\run_pipeline_a.ps1 [--no-tunnel] [-v] [--nodes 1,2] ...
 #
@@ -32,7 +32,7 @@ foreach ($a in $passthru) {
 # keystroke_reader uses msvcrt, which reads the console rather than stdin.
 if ([Console]::IsInputRedirected) {
     Write-Warning "stdin is redirected, so keypresses will send no CMD packet."
-    Write-Warning "Run this directly in Windows Terminal for criterion 5."
+    Write-Warning "Run this directly in Windows Terminal to send test commands from the keyboard."
 }
 
 # The service would hold 1883 and answer as the wrong broker, silently.
@@ -76,7 +76,7 @@ $broker = Start-Process -FilePath $mosquitto -ArgumentList "-c", "`"$brokerConf`
     -WorkingDirectory (Join-Path $repo "laptop") -NoNewWindow -PassThru `
     -RedirectStandardOutput "$stem.stdout.log" -RedirectStandardError $brokerErr
 
-# Both listeners, or nothing: the bind is guideline 9's evidence (demo_network.md step 4).
+# Both listeners, or nothing: the bind keeps the broker off the NUS-assigned address.
 $deadline = (Get-Date).AddSeconds(5)
 do {
     Start-Sleep -Milliseconds 200

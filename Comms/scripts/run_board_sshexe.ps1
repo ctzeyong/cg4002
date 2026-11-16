@@ -1,12 +1,10 @@
 # FALLBACK -- use run_board.ps1 instead. This drives ssh.exe, which takes a
 # password only from a terminal, so it prompts every run and twice with --sync.
 # It exists to answer one question when run_board.ps1 fails: is the SSH path
-# broken, or the asyncssh launcher? Same role as the raw -R command in
-# ultra96_setup.md. Do not "simplify" the two into one.
+# broken, or the asyncssh launcher? Do not "simplify" the two into one.
 #
-# Configuration B, board half: start ultra96/tcp_client_mqtt.py over the jump
-# host. Pane 2 of two. Auth and the preflight checks: notes/ultra96_setup.md,
-# notes/tunnelled_visualiser.md.
+# Board half of the pipeline: start ultra96/tcp_client_mqtt.py over the jump
+# host. Pane 2 of two.
 #
 #   .\run_board_sshexe.ps1                  # start it, or re-attach
 #   .\run_board_sshexe.ps1 --sync           # re-copy ultra96\*.py, then restart
@@ -141,6 +139,6 @@ if (-not $stop) {
 $remoteCmd = $remote -join "; "
 
 # -t for a pty so Ctrl-C reaches tail. The pane is plain, not coloured: the log
-# file is deliberately written without ANSI. notes/tunnelled_visualiser.md.
+# file is deliberately written without ANSI.
 & $ssh "-t" "-J" $jumpSpec $boardSpec $remoteCmd
 exit $LASTEXITCODE

@@ -27,7 +27,7 @@ if str(SCRIPTS) not in sys.path:
 
 import fake_phone  # noqa: E402
 
-# The fields of the engine spec, section 1.2
+# The fields of each message the phone sends the engine
 LANE_FIELDS = {
     "match_id": str, "hasLane": bool, "lane_length_m": float, "hasPosition": bool,
     "along": float, "lat": float, "locked": bool, "hasAim": bool, "aimAlong": float,

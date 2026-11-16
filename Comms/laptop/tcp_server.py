@@ -6,9 +6,6 @@ directions of the Ultra96 leg.
   - **downlink**: whatever the Ultra96 sends back goes onto a queue for the MQTT
     bridge, except HEARTBEATs, which are answered here.
 
-The protocol decisions behind this file (framing, the heartbeat contract, the
-one-client rule, why the uplink does not buffer) are in notes/tcp_leg.md.
-
 Run standalone:
 
     python tcp_server.py
@@ -35,8 +32,7 @@ DOWNLINK_MAXSIZE = 256  # AI events are event-paced, not stream-paced
 PROGRESS_EVERY = 10  # placeholder until the real packet progress bar lands
 
 # Two FireBeetles at 100 Hz is 200 sends/s, so the budget is ~5 ms per send and
-# anything at or above this is backpressure rather than jitter. See notes/tcp_leg.md
-# for what the timing distinguishes.
+# anything at or above this is backpressure rather than jitter.
 SLOW_SEND_MS = 50.0
 # A sustained stall at 200 sends/s would emit 200 warnings a second, and the logging
 # would then be part of what it is measuring. Summarise instead.
@@ -164,7 +160,7 @@ async def handle_client(
             if isinstance(msg, dict) and msg.get("type") == "HEARTBEAT":
                 heartbeats += 1
                 # t1 echoes the board's send time and t2 is ours, so the board can
-                # estimate the clock offset. notes/tcp_leg.md -> Heartbeats.
+                # estimate the clock offset.
                 ack = {
                     "type": "HEARTBEAT_ACK",
                     "seq": msg.get("seq"),
@@ -263,7 +259,7 @@ async def run_standalone(host: str, port: int) -> None:
 def main() -> None:
     """CLI entry point: parse args, set log level, serve until Ctrl-C.
 
-    `--verbose` adds the per-frame dump; see notes/logging.md for the levels.
+    `--verbose` adds the per-frame dump.
     """
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", default=DEFAULT_HOST)

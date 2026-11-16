@@ -9,7 +9,7 @@ Python API shared by both teams, and what must change when either side changes i
 > the record of the 15 Oct integration.
 >
 > **Current status (15 Oct 2026):** FPGA classification has been exercised in the live
-> Configuration B pipeline on branch `ai-comms`. The FireBeetle firmware still sends dummy IMU
+> pipeline on branch `ai-comms`. The FireBeetle firmware still sends dummy IMU
 > values, and `--sensor-trigger` is only a test trigger. The run validates integration and timing,
 > not gesture accuracy or production gesture detection.
 
@@ -37,9 +37,9 @@ AI's local Python API
        v
 Comms builds an AI_EVENT
        |
-       +-- Configuration A: TCP to laptop -> laptop MQTT broker -> phones
+       +-- laptop-broker setup (not used): TCP to laptop -> laptop MQTT broker -> phones
        |
-       `-- Configuration B: board-local MQTT broker -> phones
+       `-- final system: board-local MQTT broker -> phones
 ```
 
 The AI API is an **in-process Python API**. Comms imports AI's module and
@@ -53,8 +53,8 @@ calls it inside the Ultra96 process. BLE, TCP, MQTT, and phone delivery remain C
 |---|---|---|
 | AI | `AI/board/ai_api.py`, `gesture_min_q.xsa` | Define the model input requirements; convert and classify a window; own FPGA/DMA/model details, labels, and confidence |
 | Comms | [`Comms/ultra96/gesture.py`](../../Comms/ultra96/gesture.py) | Validate SENSOR messages, track sequence gaps, and keep separate rolling sample history for each player |
-| Comms | [`Comms/ultra96/tcp_client.py`](../../Comms/ultra96/tcp_client.py) | Receive samples, invoke the shared API, and provide Configuration A's TCP event sink |
-| Comms | [`Comms/ultra96/tcp_client_mqtt.py`](../../Comms/ultra96/tcp_client_mqtt.py) | Reuse the same receiver/API path and provide Configuration B's MQTT event sink |
+| Comms | [`Comms/ultra96/tcp_client.py`](../../Comms/ultra96/tcp_client.py) | Receive samples, invoke the shared API, and provide the laptop-broker setup's TCP event sink |
+| Comms | [`Comms/ultra96/tcp_client_mqtt.py`](../../Comms/ultra96/tcp_client_mqtt.py) | Reuse the same receiver/API path and provide the MQTT event sink |
 | Comms | [`Comms/ultra96/ai_events.py`](../../Comms/ultra96/ai_events.py) | Convert the classifier result into the common `AI_EVENT` payload |
 | Comms | [`Comms/scripts/run_board.py`](../../Comms/scripts/run_board.py) | Deploy the Comms board files, AI API, and bitstream to `~/comms/` and start the client |
 
@@ -162,15 +162,15 @@ the DMA or reload the bitstream before the next inference.
    This is a test stand-in for a gesture boundary, not production segmentation.
 3. A selected player is classified only after its history is full. The returned label becomes
    `AI_EVENT.gesture`; confidence, inference time, and missing-packet count remain log-only.
-4. Configurations A and B create the same event and differ only in how they deliver it.
+4. Both board clients create the same event and differ only in how they deliver it.
 
 ECHO keypress events and `--event-every` events continue to use dummy gestures. Only a selected
 SENSOR packet calls the classifier.
 
 ## Event sent to the rest of the system
 
-`ai_events.make_event()` creates the inner `AI_EVENT`. Configuration A sends this event to the
-laptop over TCP. Configuration B wraps it in the standard MQTT envelope and publishes it at QoS 1
+`ai_events.make_event()` creates the inner `AI_EVENT`. The laptop-broker setup sends this event
+to the laptop over TCP. The final system wraps it in the standard MQTT envelope and publishes it at QoS 1
 to `game/gesture/<player>`:
 
 ```json
@@ -205,7 +205,7 @@ and event contract remain unchanged. The following changes require coordination:
 | IMU range, scale, units, or calibration | Sensors and AI align hardware configuration, training/preprocessing assumptions, and `ai_api.py` scales |
 | Gesture class names or number of classes | AI updates `LABELS` and the model output; Game/Vis agree on strings carried in `AI_EVENT.gesture` |
 | Return type, exception, timeout, or classifier lifecycle | AI and Comms update `ai_api.py`, `gesture.py`, event/log handling, and tests together |
-| MQTT topic or `AI_EVENT` fields | Comms updates both A/B paths, tests, and phone/game consumers; the classifier API need not change |
+| MQTT topic or `AI_EVENT` fields | Comms updates both board clients, tests, and phone/game consumers; the classifier API need not change |
 
 After any AI deployment change, run `run_board.ps1 --sync`; otherwise the board may still use an
 older API or XSA even when the repository is current.
@@ -213,7 +213,7 @@ older API or XSA even when the repository is current.
 ## Run the integrated path
 
 The Ultra96 can load only one bitstream at a time, so coordinate before running another FPGA
-experiment. From `Comms/`, follow the [Configuration B setup](../subsystem/comms/README.md#2-run-configuration-b),
+experiment. From `Comms/`, follow the [pipeline setup](../subsystem/comms/README.md#2-run-the-pipeline),
 then use two terminals:
 
 ```powershell
@@ -257,11 +257,11 @@ The code-level contract is covered by:
   raw-count conversion, time-major DMA layout, Q6.10 conversion, return value, errors, warm-up,
   and real/stub classifier selection.
 - `test_sensor_trigger.py` (now `test_gesture_flag.py`): trigger selection,
-  full-window requirement, failure isolation, and equal classifier output in Configurations A/B.
+  full-window requirement, failure isolation, and equal classifier output in both board clients.
 - [`test_run_board.py`](../../Comms/laptop/tests/test_run_board.py): deployment of `ai_api.py` and
   the XSA, including the bitstream filename agreement.
 
-The 15 Oct Configuration B hardware log records:
+The 15 Oct hardware log records:
 
 | Check | Result |
 |---|---:|

@@ -1,11 +1,11 @@
-"""Ultra96 relay for configuration B: uplink over TCP, events out over MQTT.
+"""Ultra96 relay with the broker on this board: uplink over TCP, events out over MQTT.
 
-Use this or `tcp_client.py` (configuration A), never both.
+Use this or `tcp_client.py` (the laptop-broker setup's client), never both.
 
-    A   board --TCP--> laptop --MQTT--> broker on the laptop --> phones
-    B   board --MQTT--> broker on this board --> phones
+    laptop broker  board --TCP--> laptop --MQTT--> broker on the laptop --> phones
+    this client    board --MQTT--> broker on this board --> phones
 
-In both, sensor data still comes up from the laptop over TCP. Under B the board
+In both, sensor data still comes up from the laptop over TCP. Here the board
 publishes its own AI events, so they never go back down the tunnel. Only a VIBRATE for
 the player's glove does, after each classified gesture. The TCP side is reused from
 `tcp_client.py`.

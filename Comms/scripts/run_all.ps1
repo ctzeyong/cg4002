@@ -1,4 +1,4 @@
-# Configuration B in one Windows Terminal window. The dashboard is on the left, and the
+# The pipeline in one Windows Terminal window. The dashboard is on the left, and the
 # relay (run_pipeline.ps1) and board client (run_board.ps1) logs are stacked on the right.
 #
 #   .\run_all.ps1                          # start all three

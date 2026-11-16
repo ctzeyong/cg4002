@@ -1,7 +1,7 @@
 """Console and file logging for the Ultra96 scripts.
 
 The board's copy of laptop/logging_setup.py (only ultra96/ is copied to the board).
-Keep the two in step; notes/logging.md, which also says why the names differ.
+Keep the two in step.
 
 The log file matters most here: when the SSH session dies, the console goes with it.
 """
@@ -19,7 +19,7 @@ from logging.handlers import QueueHandler, QueueListener
 LINE_FORMAT = "%(asctime)sZ [%(name)s] %(message)s"
 
 # Under ~, never /tmp, which the board wipes on reboot. tcp_client_mqtt.py uses its
-# own name so the two configurations' logs never mix.
+# own name so the two clients' logs never mix.
 DEFAULT_LOG_FILE = pathlib.Path.home() / "comms" / "logs" / "tcp_client.log"
 
 THIRD_PARTY_LEVELS = {
@@ -43,7 +43,7 @@ def _sgr(index):
 LINK_COLOURS = {
     "tcp_client": (33, 45),  # blue -- the laptop leg
     "tcp_client_mqtt": (245, 255),  # grey -- the relay itself
-    "mqtt_publisher": (170, 218),  # pink -- the broker, configuration B
+    "mqtt_publisher": (170, 218),  # pink -- the broker
 }
 
 _log_listeners = []

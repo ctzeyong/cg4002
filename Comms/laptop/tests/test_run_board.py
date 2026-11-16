@@ -76,11 +76,11 @@ def test_sync_kills_the_previous_client_before_relaunching():
 
 
 def test_a_plain_start_does_not_kill_bs_own_client():
-    """Only --sync and --stop may kill B's own client; a normal start must be able to
-    attach. Stopping a configuration A client is allowed: it would block B's anyway."""
+    """Only --sync and --stop may kill the board's own client; a normal start must be able to
+    attach. Stopping a laptop-broker client is allowed: it would block this one anyway."""
     command = run_board.remote_command(8888, [], restart=False)
     assert f'pkill -f "{run_board.PROCESS_PATTERN}"' not in command
-    assert command.count("pkill") == 1  # A's, and nothing else
+    assert command.count("pkill") == 1  # the laptop-broker client's, and nothing else
 
 
 def test_client_arguments_reach_the_client_and_not_the_shell():
@@ -233,11 +233,11 @@ LAUNCHERS = [run_board, run_board_a]
 
 @pytest.mark.parametrize("module", LAUNCHERS)
 def test_the_client_is_launched_as_root_and_keeps_home(module):
-    """Each part is load-bearing:
+    """Each part is needed:
     - setsid: off the SSH terminal, so a dropped session cannot reach the client through sudo;
     - sudo -n: fails at once instead of waiting for a password nobody can type;
     - HOME kept: the client logs to ~/comms/logs, where --fetch-logs and attach look, not /root;
-    - XILINX_XRT: sudo drops it, and without it pynq raises "No Devices Found" (I1, 15 Oct).
+    - XILINX_XRT: sudo drops it, and without it pynq raises "No Devices Found".
     """
     branch = launch_branch(module.remote_command(8888, [], restart=False))
 
@@ -252,7 +252,7 @@ def test_the_client_is_launched_as_root_and_keeps_home(module):
 @pytest.mark.parametrize("restart", [False, True])
 def test_every_kill_runs_as_root(module, restart):
     """A plain pkill cannot kill a root client. --sync would then attach to the old code, and
-    the A and B launchers could not stop each other's client, which then evict each other."""
+    the two setups' launchers could not stop each other's client, which then evict each other."""
     for command in (module.remote_command(8888, [], restart=restart), module.stop_command()):
         assert command.count("pkill") == command.count("sudo -n pkill -f ") > 0
 
@@ -278,7 +278,7 @@ def test_the_process_patterns_do_not_match_sudo(cmdline, pattern):
 @pytest.mark.parametrize("module", LAUNCHERS)
 def test_todays_log_folder_is_made_before_the_root_client_starts(module):
     """If the root client made it, the folder would be root's, and a client not run as root
-    (the A/B baseline from comms/) could not create its log there that day."""
+    (the older copy used for the latency comparison) could not create its log there that day."""
     command = module.remote_command(8888, [], restart=False)
 
     assert command.index('mkdir -p ~/comms/logs/"$(date -u +%Y-%m-%d)"') < command.index("nohup")
@@ -745,7 +745,7 @@ def test_the_power_pattern_matches_the_monitor():
     "tail -f /home/xilinx/comms/logs/2026-11-12/power_console_20261112T101500Z.log",
 ])
 def test_the_power_pattern_does_not_match_our_shell_sudo_or_a_tail(cmdline):
-    """The same three traps as the client's pattern."""
+    """The same three cases as the client's pattern."""
     assert not power_matches(cmdline)
 
 

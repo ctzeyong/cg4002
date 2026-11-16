@@ -1,4 +1,8 @@
-"""Round-trip a file through one FireBeetle over the existing BLE link."""
+"""Round-trip a file through one FireBeetle over the existing BLE link.
+
+Used only for the individual subsystem test, and not used in the final system. The
+firmware still accepts these packets: see "BLE file-transfer packets" in Comms/README.md.
+"""
 
 import argparse
 import asyncio

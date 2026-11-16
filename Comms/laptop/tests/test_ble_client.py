@@ -135,7 +135,7 @@ async def test_a_vibrates_echo_is_not_forwarded_to_the_board():
 
 @pytest.mark.asyncio
 async def test_each_board_prints_in_its_own_green(monkeypatch, caplog):
-    """Guideline 3: a colour per connection. Driven through the real handler, so a
+    """A colour per connection. Driven through the real handler, so a
     line that loses its board tag fails here, and a board's counter and event lines
     must share its one colour."""
     clock = itertools.count(1000.0, 1.0)  # a second per packet: every one closes the window
@@ -180,7 +180,7 @@ async def test_seq_gap_still_counted():
 @pytest.mark.asyncio
 async def test_seq_gap_storm_is_summarised_not_one_warning_per_lost_packet(monkeypatch, caplog):
     """The first loss warns at once; the rest fold into the next summary, and
-    `missed` stays exact. notes/logging.md."""
+    `missed` stays exact."""
     monkeypatch.setattr(ble_module, "LOSS_REPORT_S", 60.0)  # suppress all but the first
     queue = asyncio.Queue(maxsize=100)
     stats = NodeStats()
@@ -544,11 +544,11 @@ async def run_writer(client, outbox, stats, predicate):
 
 @pytest.mark.asyncio
 async def test_the_cmd_line_is_logged_before_its_own_echo(caplog):
-    """Hop 2 of the criterion-5 chain must print before hop 3.
+    """Hop 2 of the keypress chain must print before hop 3.
 
     The board answers a CMD while `write_gatt_char` is still awaiting its ack, so a
     line logged on completion came out *after* the ECHO its own write caused. Seen on
-    every keypress of the 2026-09-22 configuration-B run, 0-6 ms apart.
+    every keypress of the 2026-09-22 run, 0-6 ms apart.
     """
     outbox = asyncio.Queue(maxsize=4)
     stats = NodeStats()

@@ -11,7 +11,7 @@ import time
 # its Tank. test_vis_vocabulary.py fails if this drifts from either.
 GESTURES = ("warrior", "mage", "fireball", "rogue", "lightning", "hero", "shield")
 
-# Pressed key -> gesture. The only copy of this table; see notes/tcp_leg.md.
+# Pressed key -> gesture. The only copy of this table.
 # Any other key (including 1 and 2) gets a random gesture.
 KEY_GESTURES = {
     "w": "warrior",
@@ -49,7 +49,7 @@ def _event(player, seq, gesture):
         "player": player,
         "seq": seq,
         "gesture": gesture,
-        # board wall clock, taken after inference and before the A and B emits split,
+        # board wall clock, taken after inference and before the TCP and MQTT emits split,
         # hop 4 of the latency measurement
         "timestamp": time.time(),
     }

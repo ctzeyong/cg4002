@@ -9,10 +9,10 @@ Read-only. For each spawn tap it joins three arrivals on the board's mosquitto_s
 3. for an ok tap, the first game/state at or after the request whose units hold its unit_id.
 
 2 -> 3 is mostly the wait for the next 10 Hz game/state, so 1 -> 3 can be up to 100 ms longer
-than the engine's own work. 1 -> 3 is the number to set against B0's 105 ms (notes/integration/b0_run.md),
+than the engine's own work. 1 -> 3 is the number to set against the earlier 105 ms,
 which ran from the same request to the first game/state with the unit, with the host phone as engine.
 
-Captures are the runbook's A3 pair (engine_board_run.md): engine_game_<stamp>.log holds the requests
+Captures come in pairs from one run: engine_game_<stamp>.log holds the requests
 and events, engine_stream_<stamp>.log the game/state stream. Each pair is read on its own.
 """
 

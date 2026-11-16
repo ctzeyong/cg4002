@@ -5,7 +5,7 @@
 
 asyncssh, not ssh.exe: the jump host needs a password, and a tunnel that reconnects
 by itself must be able to give it without a terminal. Reconnects with backoff like
-ble_client.run_node. Decisions: notes/tcp_leg.md; background: notes/ultra96_setup.md.
+ble_client.run_node.
 
     python tunnel.py                            # the tunnel on its own
     python pipeline_board_broker.py --tunnel    # inside the relay (one loop, one log)
@@ -28,7 +28,7 @@ from mqtt_config import port_number
 ENV_FILE = Path(__file__).resolve().parent.parent / ".env"
 LOG_FILE = Path(__file__).resolve().parent.parent / "logs" / "tunnel.log"
 
-# Read by load_password, never stored on TunnelConfig. notes/ultra96_setup.md.
+# Read by load_password, never stored on TunnelConfig.
 PASSWORD_KEY = "JUMP_PASSWORD"
 
 DEFAULT_JUMP_HOST = "stujump.comp.nus.edu.sg"
@@ -118,11 +118,11 @@ def load_config(env_file=ENV_FILE, **overrides):
 def load_password(jump_host, env_file=ENV_FILE):
     """Jump-host password from JUMP_PASSWORD (environment, then .env), else ask once.
 
-    Storing it lets the relay start unattended; the trade-off is in notes/ultra96_setup.md.
+    Storing it lets the relay start unattended.
     """
     stored = os.environ.get(PASSWORD_KEY) or read_dotenv(env_file).get(PASSWORD_KEY)
     if stored:
-        # Never the value, and never at DEBUG either: notes/logging.md.
+        # Never the value, and never at DEBUG either.
         log.info("jump-host password taken from %s, not prompted", PASSWORD_KEY)
         return stored
     return prompt_for_password(jump_host)
@@ -132,7 +132,7 @@ def prompt_for_password(jump_host):
     """Ask for the jump-host password once; it is reused on every reconnect.
 
     The prompt text is logged, not passed to getpass, so it shows in order after
-    the other log lines instead of getting lost among them. notes/logging.md.
+    the other log lines instead of getting lost among them.
 
     Raises:
         SystemExit: empty password, which the jump host always rejects.
@@ -200,7 +200,7 @@ async def one_session(config, password, stop):
             **session_options,
         ) as board:
             # Board localhost:8888 -> laptop 127.0.0.1:8888. Use 127.0.0.1, not "localhost":
-            # Windows tries IPv6 first and tcp_server listens on IPv4 only. notes/tcp_leg.md.
+            # Windows tries IPv6 first and tcp_server listens on IPv4 only.
             await board.forward_remote_port(
                 "localhost", config.port, "127.0.0.1", config.port
             )

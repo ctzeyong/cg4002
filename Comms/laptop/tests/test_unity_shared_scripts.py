@@ -2,9 +2,9 @@
 
 `phone/demo-visualiser` is the LAN client (broker on the laptop) and
 `phone/tunnelled-visualiser` is the same visualiser reached through the two-hop
-SSH nest (broker on the Ultra96). They are separate Unity projects on purpose —
-the LAN one is a proven APK and must not grow a 4.9 MB BouncyCastle dependency
-it never uses — but that buys the classic duplicated-source drift.
+SSH tunnel (broker on the Ultra96). They are separate Unity projects on purpose.
+The LAN one is a proven APK and must not grow a 4.9 MB BouncyCastle dependency
+it never uses. The cost is that the duplicated files can drift apart.
 
 Three files encode the wire contract with `mqtt_client.py`, and a change applied
 to one copy and not the other is invisible: both projects still compile, both
@@ -42,8 +42,7 @@ def test_shared_script_is_identical_in_both_projects(name):
     assert tunnelled.exists(), f"{tunnelled} is missing"
 
     # Bytes, not text: a copy that went through a tool which rewrote LF to CRLF
-    # is still drift worth knowing about, and it is the same Windows newline trap
-    # CLAUDE.md records for write_text in the mutation-testing rule.
+    # is still drift worth knowing about.
     assert lan.read_bytes() == tunnelled.read_bytes(), (
         f"{name} has drifted between the two Unity projects. "
         f"Copy the intended version across; do not edit one in place."
@@ -55,7 +54,7 @@ def test_tunnelled_project_has_no_stray_copy_of_the_lan_client():
 
     Both declare a `[RuntimeInitializeOnLoadMethod]` bootstrap in the same
     namespace, so a stray copy does not fail to compile — it builds two
-    visualisers at startup, and they fight over the broker client id.
+    visualisers at startup, and both use the same broker client id.
     """
     for name in ["MqttVisualiser.cs", "VisualiserUI.cs"]:
         assert not (_TUNNELLED / name).exists(), (
@@ -64,11 +63,12 @@ def test_tunnelled_project_has_no_stray_copy_of_the_lan_client():
         )
 
 
-# --- phone/comms-visualiser: the folder the Vis app imports (vis_integration.md 4.2) ---------
+# --- phone/comms-visualiser: the folder the Vis app imports ----------------------------------
 #
-# Copies of our scripts that the Vis teammate drops into his Unity project. Drift here is
+# Copies of our scripts that the Vis teammate drops into the team's Unity project. Drift here is
 # the same silent failure as above, and the folder's shape is part of the contract: the
-# Transport/ half is deleted outright for fallback A, so Hook/ must never need it.
+# Transport/ half is deleted outright if the broker is on the laptop, so Hook/ must never
+# need it.
 
 _DROPIN = _COMMS / "phone" / "comms-visualiser"
 
@@ -100,7 +100,7 @@ DROPIN_FILES = sorted(
 TRANSPORT_TYPES = ["CommsTunnelBridge", "SshMqttTunnel", "SshTunnelSettings", "SshHopSettings", "TunnelConfig"]
 HOOK_TYPES = ["AiGestureHook", "GestureEcho", "GloveStatusParser", "Envelope", "SeenEvents"]
 
-# Gesture names, current and old. None may be spelled out in the drop-in (4.6).
+# Gesture names, current and old. None may be spelled out in the drop-in.
 GESTURE_WORDS = [
     "warrior", "mage", "fireball", "rogue", "lightning", "hero", "shield", "tank",
     "circle", "caret", "arc", "z", "infinity", "triangle", "star", "square", "zigzag", "line",
@@ -166,7 +166,7 @@ def test_dropin_holds_exactly_the_planned_files():
     ids=["transport-names-no-hook-type", "hook-names-no-transport-type"],
 )
 def test_dropin_halves_depend_only_on_shared(half, forbidden):
-    """Fallback A deletes Transport/; the hook must still compile without it."""
+    """With the broker on the laptop, Transport/ is deleted; the hook must still compile without it."""
     files = sorted((_DROPIN / half).glob("*.cs"))
     assert files, f"no C# found in comms-visualiser/{half}"
 

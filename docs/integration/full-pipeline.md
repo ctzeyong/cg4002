@@ -1,7 +1,7 @@
 # Full pipeline: Hardware -> Comms -> AI -> Visualiser
 
 This is the runbook for the merged `mvp-full-pipeline` branch. It explains how a player's hand
-movement becomes an action in the Vis game, and how to run that path in Configuration B.
+movement becomes an action in the Vis game, and how to run that path.
 
 It does not replace the detailed [Hardware-Comms](hardware-comms.md) and [AI-Comms](ai-comms.md)
 contracts, or the [Vis drop-in README](../../Comms/phone/comms-visualiser/README.md). Those
@@ -62,13 +62,13 @@ Each iPhone (Vis app + Comms drop-in)
   topic as if the gesture had been drawn on the screen
 ```
 
-This page uses **Configuration B**, where the Ultra96 publishes directly to its own loopback
-broker. The laptop has no MQTT role in this configuration. Configuration A is still supported,
-but it is not the path used for full-pipeline integration.
+The Ultra96 publishes directly to its own loopback broker, and the laptop has no MQTT role.
+The laptop-broker alternative is still supported, but it is not the path used for
+full-pipeline integration.
 
 ## Run the pipeline
 
-Complete the one-time [Configuration B setup](../subsystem/comms/README.md#2-run-configuration-b)
+Complete the one-time [pipeline setup](../subsystem/comms/README.md#2-run-the-pipeline)
 first. In particular:
 
 - prepare the laptop virtual environment and `.env` tunnel settings;
@@ -132,7 +132,7 @@ keypresses (below).
 Useful board commands are:
 
 ```powershell
-# Stop the detached Configuration B client
+# Stop the detached board client
 .\scripts\run_board.ps1 --stop
 
 # Copy today's UTC board logs into Comms/logs/board/<date>/
@@ -163,19 +163,19 @@ through `run_all.ps1`.
 | Flag | Passed to | Effect |
 |---|---|---|
 | `--sync` | `run_board.py` | Re-copy `ultra96/*.py` and AI's model files to the board, then restart the client. Use on the first run after any change under `ultra96/` or to AI's module/bitstream. |
-| `--stop` | `run_board.py` | Stop the Configuration B client on the Ultra96 and exit; does not start the panes. |
+| `--stop` | `run_board.py` | Stop the board client on the Ultra96 and exit; does not start the panes. |
 | `--fetch-logs [YYYY-MM-DD]` | `run_board.py` | Copy that UTC day's board logs into `Comms/logs/board/`, then exit (default: today). |
 | `--port N` | `run_board.py` | Override `TUNNEL_PORT` for this run. |
 | `--gesture-flag` | `tcp_client_mqtt.py` | Turn classification on: pass every SENSOR packet to AI and emit an AI event for each gesture the glove flags. Without it, the board only makes events from laptop keypresses. |
 | `--event-every N` | `tcp_client_mqtt.py` | Publish a dummy AI event every `N` seconds, with no ECHO or gesture trigger. MQTT-only diagnostic, not a substitute for `--gesture-flag`. |
-| `-v`, `--verbose` | `tcp_client_mqtt.py` | Log every packet (the per-packet DEBUG dump; see `notes/logging.md`). |
+| `-v`, `--verbose` | `tcp_client_mqtt.py` | Log every packet (the per-packet DEBUG dump). |
 | `--host`, `--broker-host`, `--broker-port` | `tcp_client_mqtt.py` | Override the TCP tunnel endpoint or the board's broker address/port the client connects to. Defaults match the tunnel and the loopback broker; rarely needed. |
 
 `--sync`, `--stop`, `--port`, and `--fetch-logs` are `run_board.py`'s own flags; everything else
 is forwarded on to `tcp_client_mqtt.py` unparsed, so a flag `tcp_client_mqtt.py` adds later works
 here too without an update to this table. `--ai-h5` (local Keras model testing before a bitstream
 exists, see [`Comms/README.md`](../../Comms/README.md#testing-the-model-in-the-comms-pipeline-laptop-before-bitstream))
-is Configuration A's `tcp_client.py` only and does not apply to `run_board.ps1` / `run_all.ps1`.
+is `tcp_client.py` only and does not apply to `run_board.ps1` / `run_all.ps1`.
 
 ### 3. Connect the phones
 
@@ -366,7 +366,7 @@ Do not treat a live run as evidence of real gesture accuracy yet:
 
 | Evidence | What it establishes | What it does not establish |
 |---|---|---|
-| 588 automated Comms tests passing on 20 Oct, including both classification paths, the VIBRATE return and the detector copy check | Message validation, per-player state, IMU-status filtering, gap reset, AI invocation, event construction, VIBRATE routing, A/B wiring | Physical IMU behaviour, FPGA deployment, or phone receipt |
+| 588 automated Comms tests passing on 20 Oct, including both classification paths, the VIBRATE return and the detector copy check | Message validation, per-player state, IMU-status filtering, gap reset, AI invocation, event construction, VIBRATE routing, both board clients' wiring | Physical IMU behaviour, FPGA deployment, or phone receipt |
 | [16 Oct merged laptop log](../../Comms/logs/2026-10-16/pipeline_board_broker_125107Z.log) and [board log](../../Comms/logs/board/2026-10-16/tcp_client_mqtt_125116Z.log): two nodes at about 100 Hz each, no IMUs attached | Firmware, BLE, TCP, real classifier startup, IMU fault rejection, ECHO events, and MQTT publishing work together | Real IMU samples entering the FPGA or a classified gesture reaching the phones |
 | 20 Oct simulation of the detector firmware (the real `imu.cpp` and Hardware's headers against a simulated MPU6050 with a FIFO) | FIFO handling, the flag matching a reference detector on every OK packet, restarts after faults, 100 Hz packets | The real chip, the detector's thresholds on our gloves, real BLE timing |
 | 20 Oct board run with recorded gestures replayed as packets for two players, through the laptop relay and tunnel to `--gesture-flag` | AI's module and `baseline_improved.xsa` on the real FPGA: 60 of 60 gestures gave an event, 59 correct (training data), inference median 23 ms | Live gloves, or accuracy on new data |

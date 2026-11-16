@@ -1,5 +1,4 @@
-# Configuration B, laptop half: the relay with no MQTT role. Pane 1 of two.
-# Bring-up and the traps guarded below: notes/tunnelled_visualiser.md.
+# Laptop half of the pipeline: the relay with no MQTT role. Pane 1 of two.
 #
 #   .\run_pipeline.ps1 [--no-tunnel] [-v] [--nodes 1,2] ...
 #
@@ -21,7 +20,7 @@ foreach ($a in $args) {
     if ($a -is [array]) { $passthru += ($a -join ",") } else { $passthru += [string]$a }
 }
 
-# --tunnel by default: under B the tunnel is just another leg on the same loop.
+# --tunnel by default: the tunnel is just another leg on the same loop.
 $tunnel = "--tunnel"
 $forward = @()
 foreach ($a in $passthru) {
@@ -31,7 +30,7 @@ foreach ($a in $passthru) {
 # keystroke_reader uses msvcrt, which reads the console rather than stdin.
 if ([Console]::IsInputRedirected) {
     Write-Warning "stdin is redirected, so keypresses will send no CMD packet."
-    Write-Warning "Run this directly in Windows Terminal for criterion 5."
+    Write-Warning "Run this directly in Windows Terminal to send test commands from the keyboard."
 }
 
 Write-Output "Running BLE connections and TCP server with tunneling to Ultra96 (MQTT broker)"

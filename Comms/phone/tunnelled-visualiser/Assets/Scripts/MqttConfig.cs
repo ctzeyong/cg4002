@@ -4,12 +4,11 @@ using UnityEngine;
 namespace Comms.Visualiser
 {
     /// <summary>
-    /// The phone's MQTT settings, matching laptop/mqtt_config.py. Topic names are defined
-    /// only in notes/mqtt_topics.md; change them there first.
+    /// The phone's MQTT settings, matching laptop/mqtt_config.py.
     /// </summary>
     public static class MqttConfig
     {
-        // Default broker address; the LAN client can replace it at runtime (LoadHost).
+        // Default broker address; a client can replace it at runtime (LoadHost).
         public const string DefaultHost = "127.0.0.1";
 
         public const int PlaintextPort = 1883;

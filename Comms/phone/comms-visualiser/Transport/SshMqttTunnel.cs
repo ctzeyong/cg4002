@@ -39,7 +39,7 @@ namespace Comms.Visualiser
         /// <summary>Phone-local port MQTTnet connects to.</summary>
         public int PayloadLocalPort = 1883;
 
-        /// <summary>Port on the board's own loopback: 1883 for Mosquitto, 18080 for the T1 probe.</summary>
+        /// <summary>Port on the board's own loopback: 1883 for Mosquitto, 18080 for the echo probe.</summary>
         public int PayloadRemotePort = 1883;
 
         public int ConnectionTimeoutSeconds = 15;
@@ -63,7 +63,7 @@ namespace Comms.Visualiser
     /// because the jump host refuses to forward to any board port except 22 (tested).
     ///
     /// No Unity calls here, so the blocking SSH.NET calls can run on a worker thread;
-    /// the `log` callback is called from those threads. notes/tunnelled_visualiser.md.
+    /// the `log` callback is called from those threads.
     /// </summary>
     public sealed class SshMqttTunnel : IDisposable
     {
@@ -89,7 +89,7 @@ namespace Comms.Visualiser
         /// <summary>
         /// Last forwarding error, if SSH.NET reported one. Extra detail for the status line
         /// only: it is NOT raised when the broker is down, so use IsReady to tell
-        /// "tunnel up, broker down" apart. notes/tunnelled_visualiser.md.
+        /// "tunnel up, broker down" apart.
         /// </summary>
         public string LastForwardError { get; private set; }
 

@@ -2,7 +2,7 @@
 
 Streams viz/lane, presses START and taps cards as told, and logs every game/match and
 game/event. --gesture instead sends one glove gesture exactly as the board's relay
-would, then exits. The messages are those of the engine spec, section 1.
+would, then exits.
 
     python fake_phone.py --player 2 --start                      # an opponent that's always ready
     python fake_phone.py --player 2 --start --tap Warrior --every 3

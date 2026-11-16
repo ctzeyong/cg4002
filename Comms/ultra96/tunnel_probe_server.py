@@ -1,4 +1,4 @@
-"""Loopback-only echo endpoint for the Unity nested-SSH tunnel spike.
+"""Loopback-only echo endpoint for testing the phone's nested SSH tunnel.
 
 Run this on the Ultra96.  The service deliberately binds to 127.0.0.1 so it
 cannot bypass the board's port-22-only policy; a successful phone probe must

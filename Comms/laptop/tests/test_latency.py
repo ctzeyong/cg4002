@@ -1,7 +1,7 @@
-"""Latency measurement, stage 1: the heartbeat offset, the trigger line, the per-event
-times on both configurations' lines, and scripts/tools/latency_report.py's join.
+"""Latency measurement on the laptop and board: the heartbeat offset, the trigger line, the per-event
+times on both board clients' lines, and scripts/tools/latency_report.py's join.
 
-notes/latency.md 3.7. The report is fed lines the real code produced wherever it can,
+The report is fed lines the real code produced wherever it can,
 so a renamed field fails here rather than as an empty report after a hardware run.
 """
 
@@ -76,7 +76,7 @@ def test_offset_window_expires_old_samples():
     [(None, 1.0), (1.0, None), ("1.0", 1.0), (True, 1.0), (1.0, False)],
 )
 def test_an_ack_without_usable_times_is_ignored(t1, t2):
-    """An older laptop sends no t1/t2; that must not crash or poison the estimate."""
+    """An older laptop sends no t1/t2; that must not crash or spoil the estimate."""
     clock = tcp_client.ClockOffset()
     clock.add(t1, t2, 5.0, now=0.0)
     assert clock.best() is None
@@ -390,7 +390,7 @@ def test_hop_4_comes_from_the_events_timestamp_not_the_lines_time():
 
 
 def test_a_events_are_joined_exactly_even_when_a_reconnect_reuses_board_seq():
-    """A's EventSource restarts seq per TCP session, so (player, seq) alone is not unique."""
+    """tcp_client's EventSource restarts seq per TCP session, so (player, seq) alone is not unique."""
     board = lines(
         "uplink rx: total=1 rate=1.0 msg/s, 0 AI events sent, offset=1000.000000 rtt=2.000ms",
         "trigger node=1 seq=1 t_laptop_rx=10.000000 t_rx=1010.003000",

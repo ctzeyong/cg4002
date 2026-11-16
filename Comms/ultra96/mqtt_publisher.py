@@ -1,9 +1,8 @@
-"""Publish the board's AI events and the gloves' status to the MQTT broker on this board
-(configuration B).
+"""Publish the board's AI events and the gloves' status to the MQTT broker on this board.
 
-Publish-only; nothing here subscribes. notes/tunnelled_visualiser.md.
+Publish-only; nothing here subscribes.
 
-Rules for AI events (why: notes/shutdown_and_ordering.md):
+Rules for AI events:
 - A failed publish is kept and retried after reconnecting, so order is kept.
 - An event that cannot be turned into JSON is thrown away; it would fail every time.
 - An event older than EVENT_TTL_S is thrown away rather than shown late.
@@ -115,7 +114,7 @@ async def _publish_loop(client, outbound, pending, stats, stop):
     """
     while not stop.is_set():
         # Always yield once per pass, so a stuck `pending` cannot freeze the board.
-        # Do not remove; see notes/tunnelled_visualiser.md.
+        # Do not remove.
         await asyncio.sleep(0)
 
         if not pending:
@@ -153,7 +152,7 @@ async def _publish_loop(client, outbound, pending, stats, stop):
         stats.published += 1
         pending.clear()
         # `.get`, so an event with no id cannot crash the loop after publishing.
-        # `t=` is the PUBACK time on the board clock; notes/latency.md 3.2.
+        # `t=` is the PUBACK time on the board clock.
         log.info("published %s to %s t=%.6f", env.get("event_id", "<no id>"), topic, time.time())
 
 
