@@ -1,79 +1,159 @@
-# SW_Visualiser
+# BridgeRush Software Visualiser (SW_Visualiser)
 
-The software visualiser for BridgeRush: a Unity AR app that renders the match on a real table. Two phones each track an AprilTag marker on the opponent's side, build a shared arena between the two devices, and draw towers, a bridge and units in AR. Players summon units by drawing gestures on the screen.
+The Software Visualiser is the Unity AR application on each player's phone in BridgeRush, a two-player AR tower-defence game (CG4002, Group B16). It overlays the arena, two islands joined by two bridges with a tower on each side, on the live camera feed, turns the player's aim and movement into game input, and renders the match the Ultra96 game engine decides.
 
-This folder holds the scripts I wrote for it (`script/`). Art packs, Unity `Library/` output and builds are not included.
+Each phone tracks the opponent's worn AprilTag and uses its own device pose for the near end of the arena. Positions cross the network as normalised arena coordinates (`along` 0 to 1 from Player 1 to Player 2, `lat` normalised by lane width), so the two phones never need to share an AR coordinate origin.
 
-- **AR arena tracking**: detect the opponent's AprilTag with `jp.keijiro.apriltag`, smooth the pose, hold it when the marker is briefly lost, and build a lane axis between the two devices. Towers, bridge and water are placed along that axis, with the floor height taken from AR plane detection.
-- **Gesture input**: the real input is the glove/arm, classified on the Ultra96 and delivered over MQTT (`GloveGestureReceiver`; `AiGestureHook` only shows glove status and echoes gestures for latency), through one table, `GestureBindings`. The on-screen drawing pad was removed on 2026-10-21; a banner shows what each gesture did and why it failed. A summon cursor chooses where a unit spawns.
-- **Match logic**: a mana economy, unit spawning, lane movement, melee combat, tower damage and counter-damage, out-of-bounds damage, an optional enemy bot, and a 180 s match timer. Unit stats and prefabs are data-driven through ScriptableObjects.
-- **Networking**: an MQTT connection that follows the comms team's contract (MQTTnet, five-field envelope, de-duplication on `event_id`, automatic reconnect), and sync so both phones agree on ready state, tower lock, countdown and game state.
-- **Rendering and visuals**: unit and tower views, bridge, water and tower pedestal visuals, and a renderer that draws the match state in AR.
-- **Scale**: sized for a 2 m lane. The opponent tower matches your own tower's size, hanging below the worn tag by a tag-to-ground offset; units are 0.15 m; a spawn is valid anywhere inside your own territory.
-- **Bubble capture**: capture bubbles sit on the opponent's tower. Holding the crosshair on one fills it; a full bubble reports `bubble_captured` to the Ultra96, which awards the mana. The defender's phone shows a warning while they are being locked. See `integration_update.md`.
-- **UI**: match HUD, unit card hand, setup screen, a short result banner under the top bar, a settings window (gear button, top right: Haptics, Music, Sound, HOW TO PLAY pages, the DEBUG menu, Quit to main menu) and a tracking overlay for testing without a second player. The tutorial coach shows a looping animation of each motion and points at the card; after the last step it starts a fresh VS CPU match.
+## What the player can do
 
-## How a match works
+| Player action | How |
+| --- | --- |
+| Prepare a match | Pick VS PLAYER, VS CPU or TUTORIAL, pick a player, scan the floor and opponent tag, lock in, press Start |
+| Summon units and cast spells | Glove gestures classified by the AI pipeline (Warrior, Rogue, Mage, Tank, Hero, Lightning, Fireball); card taps as backup |
+| Aim | The centre-screen crosshair projects onto the floor; rings show placement validity and spell radius |
+| Place the tower | Shake the phone sideways to lock or release the tower position |
+| Capture bubbles | Hold the crosshair on a bubble on the opponent's tower to earn mana; the defender gets a warning |
+| Follow the battle | Unit models and animations, tower HP bars, mana, timer, damage flash, haptics, sounds and music |
+| Recover and replay | Automatic reconnection and pause handling; result screen with Play Again |
 
-1. **Setup**: each phone connects to the MQTT broker, scans the floor, and marks itself ready.
-2. **Tracking**: the phone detects the opponent's AprilTag and builds the lane between the two devices.
-3. **Countdown**: once both players are ready, a synced countdown starts the match.
-4. **Play**: mana regenerates over time. The player makes a gesture with the glove (or draws one on screen when testing), aims with the summon cursor, and the matching unit spawns and walks the lane. Units fight on contact and towers hit back.
-5. **End**: the match runs on a timer (180 s by default) and tower HP decides the result.
+## Architecture
 
-## Script layout
+In VS PLAYER, the Ultra96 is the only authority for validation, mana, combat and the result. The phones publish input and render what the board sends back. VS CPU and the tutorial run a local C# simulation instead, so one phone can run alone.
+
+```mermaid
+flowchart LR
+    subgraph Phone["Phone (this code)"]
+        T[Tracking<br/>AprilTag, floor, arena frame]
+        I[Input<br/>aim, gestures, shake]
+        N[Networking<br/>EngineLink, MQTT]
+        M[MatchState<br/>board client or local sim]
+        R[Presentation<br/>units, effects, HUD]
+    end
+    G[Glove + AI pipeline] -->|action label| U[Ultra96 engine]
+    I -->|"viz/lane (aim, tower) 10 Hz<br/>game/request (taps, Start)"| U
+    U -->|"game/match, game/event,<br/>game/state snapshots"| N
+    N --> M --> R
+    T --> I
+    T --> R
+```
+
+The action path separates recognising an action from executing it. A refused action costs nothing and explains itself on screen.
+
+```mermaid
+flowchart TD
+    A[Glove motion] -->|classifier| B["Semantic label on game/gesture/{player}"]
+    C["Phone aim + tower pose on viz/lane/{player}"] --> D
+    B --> D[Board validates:<br/>match phase, player, aim, mana]
+    D -->|refuse| E["game/event with reason<br/>no mana spent"]
+    D -->|accept| F["game/event result +<br/>units in next game/state"]
+    E --> H[Acting phone shows card + banner feedback]
+    F --> G[Both phones render the same outcome]
+```
+
+### Script layout (`script/`)
 
 | Folder | What it does |
 | --- | --- |
-| `script/Tracking/` | `AprilTagTracker` detects markers. `ArenaFrame` turns the device pose and opponent marker into a lane axis and world positions. `FloorHeightProvider`, `MatchSetup` and `TrackingDebugOverlay` support placement and debugging. |
-| `script/Input/` | `GestureBindings` maps a gesture to a game action. `GesturePad` shows the result of glove gestures (run through `GloveGestureReceiver`) and the reason one failed; the on-screen drawing pad and shape recogniser were removed on 2026-10-21. `SummonCursor` picks the spawn point. `ShakeDetector` and `TowerShakeInput` lock/unlock the own tower when the phone is shaken (the Lock Tower button was removed). |
-| `script/Match/` | `MatchState` is the core game logic, split into `.Economy` (mana), `.Combat`, `.Geometry` (lane, two bridges, bounds), `.Spells` (lightning strikes and the shared spell numbers) and `.Network`. `UnitState`, `UnitStatsTable` and `UnitPrefabCatalog` define the units (Warrior, Rogue, Mage, Tank, Hero). |
-| `script/Networking/` | `MqttConnection` owns the broker connection and the envelope. `Glove/GloveGestureReceiver` turns glove events into actions. `Sync/` (`MatchNetworkSync`, `PeerReadySync`, `TowerLockSync`, `MatchCountdown`) keeps both phones in step. `Sync/BubbleSync` reports captures and streams lock progress. `NetworkMessages` holds the payload types. `Engine/` (`EngineLink`, `EngineLinkCore`, `EngineMessages`) is the phone's end of the Ultra96 game engine: it streams the tower position and crosshair on `viz/lane/{player}` (and reads the other player's `viz/lane` to draw their tower where they report it), sends taps and START on `game/request/{player}`, and checks `game/match`, `game/event` and `game/state`. It is still being tested and does nothing until `EngineLink.Activate()`, which `MatchNetworkSync` calls for every VS PLAYER match when `EngineLink` is wired (the board-client role, `MatchState.Engine.cs`; wiring steps in `integration_update.md` section 6). `Comms/` holds the comms team's `Envelope`, `SeenEvents` and `MqttConfig`, copied unchanged. `Comms/CommsVisualiser/` is the comms team's SSH-tunnel transport and AI gesture hook, copied unchanged from branch `vis-comms`. |
-| `script/Resources/` | `BridgeRushTowerDepthClear.shader`, loaded by `TowerController` so towers are not hidden by AR occlusion. |
-| `script/Gameplay/` | `GameStateRenderer`, `UnitView`, `SpawnEffect` (summon dust, smoke and sparks), `TowerController`, `ArDepthClear` (keeps towers and bubbles from being hidden by AR occlusion) and `SpellCaster`, plus `Environment/` for the bridge, water and tower pedestal visuals, and `Bubbles/` (`BubbleCaptureManager`, `CaptureBubble`, `BubbleReward`) for the capture mechanic. |
-| `plugins/iOS/` | `BridgeRushHaptics.mm`, the native iOS code for damage vibration. It is not part of `script/`: copy it to `My project/Assets/Plugins/iOS/` (already done) and set it to iOS only in the Inspector. Needs a full iOS rebuild. |
-| `script/UI/` | `MatchHudUI`, `CardHandUI`, `SetupScreen`, `TitleArt` (the wooden menu button), `CardArt` (card-style frames, gems, bars), `HowToPlayWindow`, `BubbleWarningUI`, `DebugMenu`, `OptionsWindow` and shared UI helpers. |
-| `script/Tutorial/` | The tutorial mode: `TutorialFlow` (ten steps: shake to lock the tower, shake to unlock it, capture a bubble, each unit twice, then the two spells) and `TutorialCoach` (the panel that says which gesture to do next). Chosen with TUTORIAL on the setup screen. |
+| `Tracking/` | `AprilTagTracker` (portrait image rotation, focal rescaling, tagStandard41h12 detection), `ArenaFrame` (lane axis, smoothing, last-pose hold), `FloorHeightProvider` (downward raycast with lowest-plane fallback and per-device offset), `CameraRollCorrection`, `MatchSetup` |
+| `Input/` | `SummonCursor` (floor aim, deployment and spell validity), `GestureBindings` (semantic label table), `GloveGestureReceiver`, `ShakeDetector` and `TowerShakeInput` (tower lock) |
+| `Match/` | `MatchState` partials (`.Economy`, `.Combat`, `.Geometry`, `.Spells`, `.Network`, `.Engine`), `UnitState`, `UnitStatsTable`, `UnitPrefabCatalog` |
+| `Networking/` | `MqttConnection` (envelope, de-dupe, reconnect), `Engine/` (`EngineLink`, `EngineLinkCore`, `EngineMessages`: the board client), `Sync/` (ready, lock, countdown, bubbles), `Glove/`, `Comms/` (comms team's drop-in, copied unchanged, edit only in the comms repo) |
+| `Gameplay/` | `GameStateRenderer` (one `UnitView` per unit ID, snapshot interpolation), `SpellCaster`, `TowerController`, `ArDepthClear`, `Environment/` (bridges, water, pedestals), `Bubbles/`, `GameAudio`, `GameMusic`, `Haptics`, `ReticleArt` |
+| `UI/` | `SetupScreen`, `CardHandUI` (mana glow, motion tracer), `MatchHudUI` (bars, timer, damage flash), `OptionsWindow`, `HowToPlayWindow`, `BubbleWarningUI`, `DebugMenu` |
+| `Tutorial/` | `TutorialFlow` (ten steps: lock, release, capture, each unit twice, both spells), `TutorialCoach` |
+| `engine/` | The Python match core (`match.py`, `rules.json`, version `scene-checked-13nov-r8-mana-regen-033`) and `run_laptop_engine.sh`, the laptop isolation harness |
+| `plugins/iOS/` | `BridgeRushHaptics.mm`, the native Taptic Engine bridge (copy into `Assets/Plugins/iOS/`, iOS only) |
 
-## Integration with the comms pipeline
+`script/` is mirrored into `My project/Assets/Script/`; keep the two trees identical.
 
-The glove gesture reaches the phone as the comms team's AI event on `game/gesture/{player}`. Each phone subscribes to its own player's topic and plays the gesture through the same path as the touch pad, so on the Player 2 phone the existing request-to-host route still carries the aim.
+### MQTT interface
 
-| Topic | Direction | Used for |
+Every message is wrapped in the comms envelope (`event_id`, `source`, `seq`, `ts`, `payload`), type-checked and de-duplicated on `event_id`.
+
+| Topic | Phone direction | Purpose | QoS |
+| --- | --- | --- | --- |
+| `game/match` | receive | Match ID, phase, Start acknowledgements, winner, rules version, tick rate | 1 |
+| `game/state` | receive | Units, strikes, tower HP, mana, time, tick | 0 |
+| `game/event` | receive | Action result, reason, created unit ID | 1 |
+| `game/request/{player}` | publish | Start, rematch, card actions with request ID and aim | 1 |
+| `viz/lane/{player}` | publish | Lane validity, tower position, lock state, aim (10 Hz after lock-in) | 0 |
+| `viz/lane/{opponent}` | receive | Peer tower position in canonical coordinates | 0 |
+| `game/gesture/{player}` | receive | Classifier label (observed, not executed, when a board client) | shared config |
+| `viz/bubble_captured/{player}` | publish | Capture identity and match ID | publish default |
+| `bridgerush/bubble/player1-2` | both | Bubble targeting flag and progress for the defender warning | 0 |
+
+## Reproducing the build
+
+### Requirements
+
+- Unity **6000.5.9f1** with AR Foundation, ARKit and ARCore 6.5.0, URP 17.0.3, Input System 1.19.0, Newtonsoft JSON 3.2.2; `jp.keijiro.apriltag` from GitHub; MQTTnet 4.3.7 and SSH.NET as plugins. The package lock in `My project/Packages/` restores these.
+- The full Unity project (`Assets`, `Packages`, `ProjectSettings`, including the scene, prefab catalog, stats assets, models, shaders, native plugins and `.meta` files). Scripts alone do not reproduce the app.
+- Multiplayer additionally needs two AR phones, printed tagStandard41h12 markers, the glove and classifier pipeline, and the Ultra96 engine and comms deployment. One phone with the synthetic opponent runs alone for development.
+
+### Build steps
+
+```mermaid
+flowchart LR
+    A[Open project in<br/>Unity 6000.5.9f1] --> B[Restore packages,<br/>fix all compile errors]
+    B --> C[Open BridgeRush.unity,<br/>check XR Origin = Floor]
+    C --> D[Verify scene wiring<br/>and configuration audit]
+    D --> E[Set bundle ID + camera<br/>permission in Player Settings]
+    E --> F[Fresh platform build<br/>iOS: Unity build, then Xcode]
+```
+
+1. Open `My project/` in Unity 6000.5.9f1 and let it compile. One compile error anywhere blocks every script from registering, so fix errors first.
+2. Open `Assets/Scenes/BridgeRush.unity`. Confirm `XR Origin` Tracking Origin Mode is **Floor**, with the AR camera, `ARCameraManager`, `ARPlaneManager` and `ARRaycastManager` present and the right provider (ARKit or ARCore) enabled.
+3. Verify the core wiring: `AprilTagTracker`, `ArenaFrame`, `FloorHeightProvider`, `MatchState`, `TowerController`, `SummonCursor`, `GameStateRenderer`, with `UnitStatsTable` and `UnitPrefabCatalog` assigned for all five units. `EngineLink` must reference `MqttConnection`, `MatchSetup`, `MatchState` and `PeerReadySync`. Keep `BubbleCaptureManager`, `BubbleSync` and `BubbleWarningUI` wired, and only one gesture consumer per scene (`AiGestureHook` or `GloveGestureReceiver`, not both, since `MqttConnection` keeps one handler per topic).
+4. On `MqttConnection`: broker `127.0.0.1`, port 1883, Connect On Start **off** when using the Comms tunnel. A broker host saved on the phone (`broker_host.txt`) overrides the Inspector value.
+5. Set the bundle identifier and camera usage description in Player Settings, not in Xcode. iOS needs a fresh Unity build before opening Xcode; re-running Xcode on a stale build picks up nothing. Android needs the VIBRATE permission for haptics and the ARCore checks.
+
+### Configuration audit
+
+Scene values override code defaults, and saved device preferences override both, so record the effective values rather than trusting defaults:
+
+| Setting | Expected | Watch out for |
 | --- | --- | --- |
-| `game/gesture/{player}` | pipeline to phone | Glove gesture. `payload.gesture` is one of circle, triangle, square, zigzag, arc, line. |
-| `viz/ready/{player}` | phone to pipeline | Sent when the arena frame is locked. Payload: `status`, `player`, `lane_length_m`. Not retained yet. |
-| `game/state` | host phone to client phone (retired for VS PLAYER: the board engine hosts it, a phone never does) | Game snapshot every tick, QoS 0. The snapshot layout is this project's own; it now also carries a `strikes` list (lightning telegraphs and fireball flights, with `kind`, `fromAlong`, `fromLat`, `burn`) so both phones draw the strike, and each unit carries `target` and `range` so the client can draw ranged bolts. |
-| `bridgerush/game/request` | client phone to host phone | Spawn or spell request. A lightning or fireball request carries the aim as `hasAim`, `along`, `lat`. Not in the comms contract. |
-| `viz/bubble_captured/{player}` | phone to pipeline | Bubble captured. Payload: `event`, `player`, `bubble_id`. Proposed topic, the Ultra96 awards the reward. |
-| `bridgerush/bubble/playerN` | phone to phone | Lock progress stream: `targeted`, `progress`. Drives the defender's warning. Stub. |
-| `bridgerush/ready/playerN`, `bridgerush/lock/playerN`, `bridgerush/match/countdown` | phone to phone | Lock-in, tower lock and countdown. Not in the comms contract. |
+| Tag size | Effective detector value per phone | Scene holds 0.185 m; a device preference may hold the calibrated 0.119 m |
+| Mana regeneration | 0.33/s (board rules) | An obsolete saved field is not the active setting |
+| Bubble hold / reward | 1.5 s / 2 mana | Matches board rules |
+| Bubble respawn | Align scene (0.5 s) with board rules (1 s) before release | Known discrepancy |
+| Unit height | 0.25 m before arena scaling | Older notes say 0.15 m; use the saved scene value |
+| Smoothing / floor | SmoothDamp 0.12 s; fallback plane at least 0.6 m below phone | Floor offset and quarter-turn corrections persist per device |
 
-Every message on every topic is wrapped in the five-field envelope (`event_id`, `source`, `seq`, `ts`, `payload`), and incoming messages are checked by type and de-duplicated on `event_id`.
+### Calibration
 
-The broker address is set on the `MqttConnection` component (keep it `127.0.0.1` when using the Comms tunnel). The debug menu no longer has a broker field: its Comms category connects through `CommsTunnelBridge`.
+1. Measure the printed tag's black-border edge (that edge, not the paper, is the tag size) and set it per phone; verify the reported distance against a tape measure at several separations.
+2. Use an off-centre tag to tell tag-frame error from camera-roll error; the two quarter-turn corrections are separate on purpose and persist per device.
+3. Scan the floor in good light, confirm the selected plane, and apply the per-device floor offset only after confirming the surface.
+4. Confirm `along = 0` is Player 1 and `along = 1` is Player 2 on both phones, and compare an off-centre point on both bridge sides; a centreline-only test hides a mirrored lateral axis.
 
-### Still open
+### Functional verification checklist
 
-- **Bubble capture on the comms side.** `viz/bubble_captured/{player}` is a proposed topic; the Ultra96 must validate it, award the mana and feed it back. See the TODO in `BubbleSync.cs` and `integration_update.md`.
-- **Who runs the game logic.** Here the Player 1 phone is the host. The comms notes assume the engine is on the laptop or the Ultra96 and phones only render. If that is decided, `MatchState` moves and `game/state` becomes the engine's output.
-- **Glove bindings.** The glove sends the name of the unit or spell it recognised, and `GestureBindings` accepts exactly these (not case sensitive): warrior, rogue, mage, tank (or shield), hero, lightning, fireball. Anything else is rejected as unknown. The classifier on the board must emit these names; until it does, its old classes (arc, caret, circle, infinity, star, triangle, z) are rejected.
-- **Phone-to-phone topics** above should be added to the comms topic contract, or moved onto contracted ones.
-- **`viz/ready` lifecycle** (retained, last will, match id) is not implemented.
-- **mTLS** is not implemented; it is only needed if the broker runs on the laptop.
+Run after any build, in this order:
 
-## Requirements
+1. **Tutorial / VS CPU** (no hardware needed): all five units, both spells, shake lock and release, bubble capture reward, insufficient-mana refusal, the timeout result and Play Again.
+2. **Multiplayer**: two phones with different player identities, lock-in, synchronised start, the same match on both screens, a controlled interruption (kill the link, watch the pause and the recovery), and rematch.
+3. Keep a screen recording of the pass for the demo video.
 
-- Unity `6000.5.9f1` (the comms visualiser uses `6000.6.0f1`).
-- Packages: AR Foundation 6.5.0, ARCore / ARKit XR plugins 6.5.0, XR Interaction Toolkit 3.5.1, Universal RP 17.0.3, Input System 1.19.0, `com.unity.nuget.newtonsoft-json` 3.2.2, and `jp.keijiro.apriltag` (from GitHub).
-- `MQTTnet.dll` (4.3.7, netstandard2.1) in `Assets/Plugins/MQTTnet`, and `Assets/link.xml` preserving MQTTnet and Newtonsoft. Both are in the comms repo at `comms/phone/demo-visualiser/Assets`.
-- Player Settings: Internet Access set to Require (`ForceInternetPermission: 1`), or MQTTnet's raw sockets are blocked on Android.
-- An MQTT broker on the same network as both phones.
+### Testing without the hardware chain
 
-## Running it
+- `engine/run_laptop_engine.sh` starts a local broker, simulated glove readiness and the engine core for isolation testing on a laptop.
+- `BubbleSync`'s **Mock Ultra96 Offline** toggle awards captures locally and loops your own lock back as the defender warning.
+- The **debug menu** (gear, DEBUG) has per-gesture test buttons, God mode, a jump to the last minute, tracking readouts (lane length, floor height, camera info) and the Comms connect panel.
+- `Comms/laptop/mqtt_client.py --publish-every` publishes glove events without a glove.
+- The retained software checks (wire-case generation, C# parsing checks, 900-snapshot engine run) and their outcomes are recorded under `docs/report_vis/evidence/` with source hashes.
 
-1. Open a Unity project with the packages above and copy `script/` into its `Assets` folder.
-2. Add MQTTnet, `link.xml` and the Internet setting as described above.
-3. Assign the scene references (ArenaFrame, MatchState, MqttConnection and so on) in the inspector. Tuning values such as mana, tower HP and lane size are serialized fields on `MatchState`.
-4. Build to an iOS or Android device. Both players need a printed AprilTag on their side of the table.
-5. To test without the glove, publish an event with `mqtt_client.py --publish-every` from the comms repo.
+### Troubleshooting
+
+| Symptom | Likely cause and fix |
+| --- | --- |
+| Arena sideways under an upright camera | Camera-roll correction needed, not a tag fix; use the separate quarter-turn controls |
+| Tower floats | Floor fallback picked the wrong plane, or XR Origin is not in Floor mode; check the Tracking readout, then the per-device floor offset |
+| Tag distance wrong and changes with tilt | Tag size or intrinsics mismatch; re-run the tape-measure calibration |
+| Nothing reacts to the glove | Two consumers on `game/gesture/{player}`, or the classifier emits labels outside the accepted vocabulary (warrior, rogue, mage, tank/shield, hero, lightning, fireball, case-insensitive) |
+| Start works on one phone only | The other phone has no current-match snapshot yet; check broker connectivity and `game/match` |
+| A changed code default has no effect | The scene saves its own value; change it in the Inspector |
+
+## Credentials
+
+SSH usernames, passwords, hostnames and the VPN configuration for the board tunnel are private. They never go in this repo or its docs.
