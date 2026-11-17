@@ -4,8 +4,8 @@ BridgeRush is a two-player augmented-reality game. Each player wears a glove wit
 and plays by making gestures. Gestures are classified on an Ultra96 board's FPGA. The game engine
 also runs on the Ultra96, and each player's iPhone draws the match on the table in AR.
 
-This page is the entry point. It covers the system as a whole, how to run it, and the one-time
-setup. Each subsystem has its own page, linked below.
+This covers the system as a whole, how to run it, and the one-time
+setup. Each subsystem has its own README for further details, linked below.
 
 ## Contents
 

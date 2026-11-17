@@ -1,12 +1,12 @@
 # Comms subsystem guide
 
-This is the reference for the communications subsystem: how the gloves, the laptop, the
+Details of the Communications subsystem: how the gloves, the laptop, the
 Ultra96 and the phones are linked, the packet and message formats, and where the MQTT broker
 runs. How to run the game, and the game engine's topics, are in the
 [team README](../README.md).
 
 The code is in this folder: the glove firmware (`firebeetle/`), the laptop relay (`laptop/`), the
-Ultra96 programs (`ultra96/`), the phone code (`phone/`: the app's drop-in and two test clients) and
+Ultra96 programs (`ultra96/`), the phone code (`phone/`: the Unity app's drop-in Comms scripts and two test clients) and
 the start-up scripts (`scripts/`).
 Testing a model on the laptop and recording training data over BLE are in
 [docs/model-development.md](../docs/model-development.md).
