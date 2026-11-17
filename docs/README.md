@@ -17,4 +17,5 @@ Each subsystem keeps its documentation in its own folder.
 
 - [System diagram](b16-system-diagram.html): the whole system on one page.
 - [Measuring and tuning the Ultra96's power](power.md), for the AI subsystem's power evaluation.
+- [Measuring latency](latency.md): how the report's latency figures were measured, and how to repeat them.
 - [Testing a model on the laptop, and recording training data over BLE](model-development.md).

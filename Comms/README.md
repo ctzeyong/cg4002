@@ -1,15 +1,17 @@
 # Comms subsystem guide
 
-Details of the Communications subsystem: how the gloves, the laptop, the
-Ultra96 and the phones are linked, the packet and message formats, and where the MQTT broker
-runs. How to run the game, and the game engine's topics, are in the
+Details of the Communications subsystem for BridgeRush: how the gloves, the laptop, the
+Ultra96 and the phones are linked, the packet and message formats, where the MQTT broker
+runs, and how each link reconnects automatically when it drops.
+How to run the game, and the game engine's topics, are in the
 [team README](../README.md).
 
 The code is in this folder: the glove firmware (`firebeetle/`), the laptop relay (`laptop/`), the
 Ultra96 programs (`ultra96/`), the phone code (`phone/`: the Unity app's drop-in Comms scripts and two test clients) and
 the start-up scripts (`scripts/`).
 Testing a model on the laptop and recording training data over BLE are in
-[docs/model-development.md](../docs/model-development.md).
+[docs/model-development.md](../docs/model-development.md). How latency is measured is in
+[docs/latency.md](../docs/latency.md).
 
 ## Table of contents
 
@@ -26,6 +28,10 @@ Testing a model on the laptop and recording training data over BLE are in
   - [Why the broker runs on the Ultra96](#why-the-broker-runs-on-the-ultra96)
   - [Alternative evaluated: broker on the laptop](#alternative-evaluated-broker-on-the-laptop)
   - [Mutual TLS: built, not used](#mutual-tls-built-not-used)
+- [3. Reconnection (Connection Drops)](#3-reconnection-connection-drops)
+  - [How each link recovers](#how-each-link-recovers)
+  - [When it stops retrying](#when-it-stops-retrying)
+  - [Tests on the hardware](#tests-on-the-hardware)
 
 ## 1. Architecture
 
@@ -341,3 +347,56 @@ The laptop-broker setup above runs plaintext and cannot use it (see
 `laptop/mosquitto_hotspot.conf`). The comparison that chose the Ultra96 broker therefore ran without
 TLS. TLS only adds work, so adding it to the laptop-hosted broker could not have reversed that choice.
 mTLS has not been run since 17 September, so treat `--tls` as unmaintained.
+
+
+## 3. Reconnection (Connection Drops)
+
+Every link reconnects by itself without manual intervention. When a link drops, the programs at both ends keep running,
+notice the drop, and retry in the background until the link is back. A match in progress pauses while a glove or a phone
+is missing and resumes by itself once it is back (`ultra96/game_engine.py`).
+
+### How each link recovers
+
+| Link | How a drop is noticed | What happens by itself | First wait |
+|---|---|---|---|
+| Glove to laptop (BLE) | Windows reports the disconnect | The laptop scans for the glove for up to 10 s and reconnects. Vibration commands queued during the outage are thrown away, not replayed | 2 s (`laptop/ble_client.py`) |
+| SSH tunnel, laptop to Ultra96 | SSH keepalive every 15 s, dead after 3 missed | The laptop opens both SSH hops again | 5 s (`laptop/tunnel.py`) |
+| TCP, laptop to Ultra96 | Board: no message for 3 s. Laptop: no message for 5 s | The board client dials the laptop again. The laptop drops the silent client and accepts the new one | 2 s, without doubling (`ultra96/tcp_client.py`) |
+| Board client to the broker (MQTT) | MQTT keepalive of 15 s | Reconnects, sends an unacknowledged gesture again unless it is over 2 s old, and publishes `status/gloves` again | 1 s (`ultra96/mqtt_publisher.py`) |
+| Game engine to the broker (MQTT) | MQTT keepalive of 15 s | Reconnects, sends `game/match` again, and sends unacknowledged game events again unless they are too old | 1 s (`ultra96/game_engine.py`) |
+| Game engine crash | The broker publishes the engine's last will, `offline` on `game/match` | The restart loop starts a new engine, which starts a new match | 2 s (`ultra96/run_engine.sh`) |
+| Phone to Ultra96 (SSH tunnels and MQTT) | No `game/state` for 1 s marks the link stale | After 5 s with no `game/state`, the phone reconnects MQTT. After two failed broker checks in a row, it rebuilds its SSH tunnels | 2 s (`phone/comms-visualiser/Shared/MqttConfig.cs`) |
+
+Each reconnect loop, except the board's TCP client, doubles its wait after every session shorter
+than 60 s, up to 60 s, and goes back to its first wait after a session of 60 s or more. A link that
+keeps failing is retried less often, and a single drop after a long run is still retried at once.
+Before a glove has ever connected, its first three retries all wait 2 s, so a glove switched on
+late is found quickly. The board's TCP client connects only to a port on its own board, so it
+retries every 2 s.
+
+Stopping one program yourself, with Ctrl-C or by closing its window, stops only that program.
+The others keep running and reconnect to it when it is started again. The board client and the
+engine run detached on the Ultra96, so closing the board's SSH window does not stop them.
+
+### When it stops retrying
+
+Retrying in this cases cannot succeed:
+- The SSH tunnel stops if the jump host or the board rejects its login, so that
+  retrying a wrong password cannot lock the account. The laptop logs `authentication rejected`.
+  Fix the cause and start the laptop program again.
+- The engine's restart loop stops if the engine exits with code 3, which it does when it would
+  fail the same way on every start, such as with a bad rules file.
+
+### Tests on the hardware
+
+Run these with the full system up and a match in progress. In each, nothing is restarted or typed
+by hand except the fault itself. The laptop program logs to `logs\<date>\`, and
+`.\scripts\run_board.ps1 --fetch-logs` copies the board's logs to `logs\board\<date>\`. Dates are
+in UTC.
+
+| Test | Expected | Result after testing |
+|---|---|---|
+| Switch a glove off, wait about 10 s, switch it on again | Laptop: `node N: peripheral disconnected`, `retrying in Ns`, then `node N: subscribed` after power-on. Engine: `paused, player N glove down` about 1 s after the glove stops, then `resumed` once the glove has been back for 1 s | Paused after 1.2 s, resumed about 4.5 s after power-on |
+| Make a phone lose its link (send the app to the background and turn the VPN off), then restore it | Engine: `paused, player N phone not connected` about 1 s after the phone's updates stop, then `resumed` once they have been back for 1 s | Paused 1.1 s after its updates stopped, resumed 6.1 s after the VPN was back |
+| Stop the laptop program with Ctrl-C, start it again about 10 s later | Board client: `server closed the connection` or `no message in 3.0s (3 missed heartbeats); reconnecting`, then `retrying in 2.0s ...` until the laptop is back. Engine: `paused, player N glove down`, then `resumed` once the tunnel, the board client and both gloves are back | Paused after 1.3 s, resumed 4.6 s after the restart |
+| Run `pkill -9 -f game_engine.py` on the Ultra96 | The phones receive `offline` on `game/match`. `run_engine`: `engine exited with code 137 after Ns, restarting in 2s`. The new engine starts a new match, so the players press START again | New engine on the broker 3.5 s after the will |

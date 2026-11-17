@@ -165,6 +165,16 @@ both gloves are `ready`. If it doesn't start, the screen says what it is waiting
 - After a match, both players press **PLAY AGAIN** for a rematch. If an app was restarted, it shows
   **START** instead, which works the same.
 
+### If a link drops
+
+Once `run_all.ps1` is running, a dropped link needs no manual intervention. A glove, the tunnel, the laptop to
+Ultra96 connection, the board's broker connections and the phones all reconnect by themselves, and
+the programs keep running throughout. A match pauses while a glove or a phone is missing, and
+resumes by itself once it is back. If the game engine crashes, it restarts by itself but starts a
+new match, so press **START** again. How each link recovers, and how to test it, is in the
+[Comms subsystem guide](Comms/README.md#3-reconnection-connection-drops). If a phone does not
+come back, see [Troubleshooting](#6-troubleshooting).
+
 ### 4. Stop
 
 Press **Ctrl-C in the Dashboard**. It stops the relay and the board client, and the board client
@@ -400,7 +410,7 @@ published ultra96-relay:... to game/gesture/1 t=...
 
 - [docs/README.md](docs/README.md): the index of every subsystem's documentation and the other guides.
 - [Comms subsystem guide](Comms/README.md): packet formats, TCP framing, the MQTT
-  envelope, and the laptop-broker alternative.
+  envelope, how each link reconnects by itself, and the laptop-broker alternative.
 - [System diagram](docs/b16-system-diagram.html): the whole system on one page.
 
 ## Appendix A: every command and flag
@@ -506,6 +516,7 @@ Open a shell on the board: `ssh -J <nusnet-id>@<jump-host> xilinx@<board-host>`.
 | `python scripts\tools\latency_report.py` | Per-hop latency from the run logs. See its `--help` |
 | `python scripts\tools\session_stats.py --board logs\board\<date> --relay logs\<date>` | One day's latency, BLE round trip and packet loss, from the logs fetched with `--fetch-logs`. `--since HHMMSS` skips earlier runs |
 | `python scripts\tools\card_tap_gap.py --board logs\board\<date>` | The time from a card tap to the engine's answer, from the board's engine captures. See its docstring |
+| `python scripts\tools\gesture_to_state.py --board <board client log> --capture <engine_game capture>` | The time from a glove gesture to the first game state that holds its unit. See [Measuring latency](docs/latency.md) |
 | `scripts\run_*_a*.ps1` | The laptop-broker setup, evaluated but not used in the final system. See the [Comms subsystem guide](Comms/README.md#alternative-evaluated-broker-on-the-laptop) |
 
 ## Appendix B: actions, units and spells
