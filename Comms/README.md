@@ -142,7 +142,7 @@ longer be trusted.
 
 | Message | Direction | Required fields and meaning |
 |---|---|---|
-| `SENSOR` / `ECHO` | Laptop → Ultra96 | `type`, `node`, `seq`, `timestamp`, `fields`; fixed packets also include `imu` (`ax`…`gz`), `reserved`, and validated integer `crc`. `node` comes from the BLE connection and `timestamp` is the laptop receive time. |
+| `SENSOR` / `ECHO` | Laptop → Ultra96 | `type`, `node`, `seq`, `timestamp`, `imu` (`ax`…`gz`), `reserved`, and validated integer `crc`. An `ECHO` also carries `fields`, all eight values as one list, because the Ultra96 reads the pressed key from `fields[0]`. `node` comes from the BLE connection and `timestamp` is the laptop receive time. |
 | `HEARTBEAT` | Ultra96 → laptop every 1 s | `type`, `seq`, `ts`. Keeps the full-duplex session alive. |
 | `HEARTBEAT_ACK` | Laptop → Ultra96 | `type`, `seq`, `t1`, `t2`; `t1` echoes the heartbeat timestamp and `t2` is the laptop reply timestamp. |
 | `AI_EVENT` | Not sent over TCP | Laptop-broker setup only (section 2): the AI event, with `type`, `player`, `seq`, `gesture`, and `timestamp`. Here the same event becomes the MQTT envelope payload directly on the Ultra96. |
@@ -155,7 +155,6 @@ Example decoded SENSOR message:
   "node": 1,
   "seq": 42,
   "timestamp": 12345.678,
-  "fields": [120, -4, 8190, 7, -2, 1, 1, 0],
   "imu": {"ax": 120, "ay": -4, "az": 8190, "gx": 7, "gy": -2, "gz": 1},
   "reserved": [1, 0],
   "crc": 19132

@@ -247,8 +247,10 @@ def packet_to_message(packet):
         "node": packet.node_id,
         "seq": packet.seq,
         "timestamp": packet.t_recv,
-        "fields": fields,
     }
+    # the board reads SENSOR values by name, and the pressed key from an ECHO's fields[0]
+    if packet.type != TYPE_SENSOR:
+        message["fields"] = fields
 
     if packet.type in FIXED_LEN_TYPES:
         message["imu"] = dict(zip(IMU_FIELD_NAMES, fields[:IMU_FIELD_COUNT]))

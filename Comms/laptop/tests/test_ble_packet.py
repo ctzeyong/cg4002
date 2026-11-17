@@ -240,7 +240,6 @@ def test_packet_to_message_names_imu_reserved_fields_and_crc():
         "node": 2,
         "seq": 9,
         "timestamp": 1234.5,
-        "fields": list(range(DATA_FIELD_COUNT)),
         "imu": {"ax": 0, "ay": 1, "az": 2, "gx": 3, "gy": 4, "gz": 5},
         "reserved": [6, 7],
         "crc": int.from_bytes(raw[CRC_OFFSET:], "little"),
