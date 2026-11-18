@@ -4,6 +4,14 @@ BridgeRush is a two-player augmented-reality game. Each player wears a glove wit
 and plays by making gestures. Gestures are classified on an Ultra96 board's FPGA. The game engine
 also runs on the Ultra96, and each player's iPhone draws the match on the table in AR.
 
+| Resource | Link |
+|---|---|
+| Demo video | [youtu.be/f6eO1ZZI9ZA](https://youtu.be/f6eO1ZZI9ZA) |
+| Gestures demo (with videos) | [Canva](https://canva.link/elqqsc8sswq4so6) |
+| Poster | [CG4002 Poster Digital.pdf](https://drive.google.com/file/d/1LLHhvsxJgjdckBzvWG0irFMn-bvVTPqd/view?usp=sharing) |
+| Code | [github.com/ctzeyong/cg4002](https://github.com/ctzeyong/cg4002/tree/main) |
+| Dataset export | [Release v1.0](https://github.com/ctzeyong/cg4002/releases/tag/v1.0): the gesture dataset and trained model, to reproduce the classifier's accuracy ([how](AI/data_collection/README.md#reproducing-the-deployed-model-from-the-release-zip)) |
+
 This covers the system as a whole, how to run it, and the one-time
 setup. Each subsystem has its own README for further details, linked below.
 
@@ -338,6 +346,10 @@ A healthy glove prints this on the Serial Monitor (115200 baud):
 Nothing to install by hand. `AI/ultra96/` holds the classifier (`wk10_integration.py`) and the FPGA
 overlay (`gesture_model.xsa`). `run_board.ps1 --sync` copies the classifier and the overlay named by `--bitstream` to the
 board. The board client feeds each glove's samples to it through `Comms/ultra96/gesture.py`.
+
+Retraining or re-checking the model needs the dataset, which isn't in git: download `AI_release.zip`
+from [Release v1.0](https://github.com/ctzeyong/cg4002/releases/tag/v1.0) and follow
+[AI/data_collection/README.md](AI/data_collection/README.md#reproducing-the-deployed-model-from-the-release-zip).
 
 ### Phone app (iPhone)
 
