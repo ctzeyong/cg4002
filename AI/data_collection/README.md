@@ -43,7 +43,7 @@ from the export's: see [train/README.md](../train/README.md).
 ## Reproducing the deployed model from the release zip
 
 The recordings are git-ignored, so a fresh clone can't rebuild `mage_noise_robust` or its
-background. `mage_noise_robust_release.zip` (37 MB) holds everything the deployed model's results
+background. `AI_release.zip` (37 MB) holds everything the deployed model's results
 depend on, with paths relative to `AI/`:
 
 | In the zip | What it is |
@@ -59,9 +59,9 @@ depend on, with paths relative to `AI/`:
 **1. Import it.** Clone the repo, then extract the zip into its `AI/` folder. From the repo root,
 in PowerShell (`-Force` because `gesture_model.xsa` is already there):
 ```powershell
-Expand-Archive mage_noise_robust_release.zip -DestinationPath AI -Force
+Expand-Archive AI_release.zip -DestinationPath AI -Force
 ```
-or in Git Bash / WSL: `unzip -o mage_noise_robust_release.zip -d AI`. Nothing else needs moving:
+or in Git Bash / WSL: `unzip -o AI_release.zip -d AI`. Nothing else needs moving:
 training looks for datasets and the background in `data_collection/datasets/`, and the cache name
 is the same on every clone, so it is used without the recordings.
 
