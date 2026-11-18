@@ -1,0 +1,183 @@
+{
+  "reviewed": true,
+  "annotation_method": "live_keyboard",
+  "boundary_basis": "latest received sensor sample; USB latency not corrected",
+  "intervals": [
+    {
+      "label": "triangle",
+      "start_us": 3781393113,
+      "end_us": 3782555113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "triangle",
+      "start_us": 3784967113,
+      "end_us": 3786051113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "triangle",
+      "start_us": 3786783113,
+      "end_us": 3787753113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "triangle",
+      "start_us": 3788495113,
+      "end_us": 3789569113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "triangle",
+      "start_us": 3790263113,
+      "end_us": 3791465113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "triangle",
+      "start_us": 3793681113,
+      "end_us": 3794761113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "triangle",
+      "start_us": 3798071113,
+      "end_us": 3799739113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "triangle",
+      "start_us": 3800917113,
+      "end_us": 3802637113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "triangle",
+      "start_us": 3803697113,
+      "end_us": 3805313113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "triangle",
+      "start_us": 3806179113,
+      "end_us": 3807005113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "triangle",
+      "start_us": 3807813113,
+      "end_us": 3808639113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "triangle",
+      "start_us": 3809405113,
+      "end_us": 3810241113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "triangle",
+      "start_us": 3811745113,
+      "end_us": 3812381113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "triangle",
+      "start_us": 3813389113,
+      "end_us": 3814019113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "triangle",
+      "start_us": 3815007113,
+      "end_us": 3815651113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "triangle",
+      "start_us": 3816761113,
+      "end_us": 3817585113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "triangle",
+      "start_us": 3818749113,
+      "end_us": 3819569113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "triangle",
+      "start_us": 3820439113,
+      "end_us": 3821293113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "triangle",
+      "start_us": 3822867113,
+      "end_us": 3823699113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "triangle",
+      "start_us": 3826161113,
+      "end_us": 3826919113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "triangle",
+      "start_us": 3827597113,
+      "end_us": 3828335113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "triangle",
+      "start_us": 3829045113,
+      "end_us": 3829881113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    }
+  ]
+}

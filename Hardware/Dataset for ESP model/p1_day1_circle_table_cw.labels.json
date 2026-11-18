@@ -1,0 +1,199 @@
+{
+  "reviewed": true,
+  "annotation_method": "live_keyboard",
+  "boundary_basis": "latest received sensor sample; USB latency not corrected",
+  "intervals": [
+    {
+      "label": "circle",
+      "start_us": 57077118,
+      "end_us": 59061118,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "circle",
+      "start_us": 67077118,
+      "end_us": 68655118,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "circle",
+      "start_us": 74181118,
+      "end_us": 75467118,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "circle",
+      "start_us": 79811118,
+      "end_us": 81133118,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "circle",
+      "start_us": 84495118,
+      "end_us": 85543118,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "circle",
+      "start_us": 89239118,
+      "end_us": 90297118,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "circle",
+      "start_us": 94423118,
+      "end_us": 95417118,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "circle",
+      "start_us": 98457118,
+      "end_us": 100067118,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "circle",
+      "start_us": 107755118,
+      "end_us": 109243118,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "circle",
+      "start_us": 112399118,
+      "end_us": 113701118,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "circle",
+      "start_us": 116429118,
+      "end_us": 117963118,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "circle",
+      "start_us": 128531118,
+      "end_us": 129771118,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "circle",
+      "start_us": 135329118,
+      "end_us": 136509118,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "circle",
+      "start_us": 141567118,
+      "end_us": 142709118,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "circle",
+      "start_us": 146785118,
+      "end_us": 147467118,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "circle",
+      "start_us": 149909118,
+      "end_us": 150735118,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "circle",
+      "start_us": 153657118,
+      "end_us": 154263118,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "circle",
+      "start_us": 159109118,
+      "end_us": 159737118,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "circle",
+      "start_us": 162533118,
+      "end_us": 163567118,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "circle",
+      "start_us": 167309118,
+      "end_us": 168549118,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "circle",
+      "start_us": 175183118,
+      "end_us": 176643118,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "circle",
+      "start_us": 196885118,
+      "end_us": 197895118,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "circle",
+      "start_us": 201511118,
+      "end_us": 202555118,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "circle",
+      "start_us": 210587118,
+      "end_us": 211403118,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    }
+  ]
+}

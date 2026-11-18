@@ -1,0 +1,183 @@
+{
+  "reviewed": true,
+  "annotation_method": "live_keyboard",
+  "boundary_basis": "latest received sensor sample; USB latency not corrected",
+  "intervals": [
+    {
+      "label": "star",
+      "start_us": 699627114,
+      "end_us": 701087114,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "star",
+      "start_us": 702913114,
+      "end_us": 705129114,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "star",
+      "start_us": 705927114,
+      "end_us": 707675114,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "star",
+      "start_us": 708545114,
+      "end_us": 710847114,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "star",
+      "start_us": 712593114,
+      "end_us": 714235114,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "star",
+      "start_us": 714991114,
+      "end_us": 717181114,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "star",
+      "start_us": 719589114,
+      "end_us": 721079114,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "star",
+      "start_us": 721849114,
+      "end_us": 723967114,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "star",
+      "start_us": 725531114,
+      "end_us": 727137114,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "star",
+      "start_us": 727941114,
+      "end_us": 729963114,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "star",
+      "start_us": 730969114,
+      "end_us": 732813114,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "star",
+      "start_us": 733407114,
+      "end_us": 735341114,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "star",
+      "start_us": 736043114,
+      "end_us": 737903114,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "star",
+      "start_us": 738443114,
+      "end_us": 740235114,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "star",
+      "start_us": 740755114,
+      "end_us": 742567114,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "star",
+      "start_us": 743797114,
+      "end_us": 745567114,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "star",
+      "start_us": 746099114,
+      "end_us": 747877114,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "star",
+      "start_us": 748347114,
+      "end_us": 750287114,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "star",
+      "start_us": 754477114,
+      "end_us": 755811114,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "star",
+      "start_us": 756695114,
+      "end_us": 759865114,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "star",
+      "start_us": 761439114,
+      "end_us": 764869114,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "star",
+      "start_us": 768005114,
+      "end_us": 769897114,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "standing"
+    }
+  ]
+}

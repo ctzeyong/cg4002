@@ -1,0 +1,201 @@
+{
+  "reviewed": true,
+  "annotation_method": "live_keyboard",
+  "boundary_basis": "latest received sensor sample; USB latency not corrected",
+  "intervals": [
+    {
+      "label": "infinity",
+      "start_us": 112750426,
+      "end_us": 114738426,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 116348426,
+      "end_us": 118178426,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 121296426,
+      "end_us": 123064426,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "ignore",
+      "start_us": 124982426,
+      "end_us": 130998426,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "seated",
+      "ignore_reason": "discarded"
+    },
+    {
+      "label": "infinity",
+      "start_us": 141528426,
+      "end_us": 142958426,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "ignore",
+      "start_us": 149532426,
+      "end_us": 151064426,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "seated",
+      "ignore_reason": "sensor_gap"
+    },
+    {
+      "label": "infinity",
+      "start_us": 155600426,
+      "end_us": 157070426,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 164490426,
+      "end_us": 166360426,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 170682426,
+      "end_us": 172300426,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 176966426,
+      "end_us": 179514426,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 182862426,
+      "end_us": 187436426,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 193840426,
+      "end_us": 196194426,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 202252426,
+      "end_us": 203878426,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 205826426,
+      "end_us": 207374426,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 222666426,
+      "end_us": 224196426,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 231962426,
+      "end_us": 233402426,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 235346426,
+      "end_us": 237146426,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 238098426,
+      "end_us": 239918426,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 242376426,
+      "end_us": 243868426,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 249204426,
+      "end_us": 250964426,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 255832426,
+      "end_us": 257544426,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 260878426,
+      "end_us": 262736426,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 264302426,
+      "end_us": 266016426,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 270098426,
+      "end_us": 272298426,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "seated"
+    }
+  ]
+}

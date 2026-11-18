@@ -1,0 +1,273 @@
+{
+  "reviewed": true,
+  "annotation_method": "live_keyboard",
+  "boundary_basis": "latest received sensor sample; USB latency not corrected",
+  "intervals": [
+    {
+      "label": "ignore",
+      "start_us": 141649112,
+      "end_us": 142449112,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated",
+      "ignore_reason": "sensor_gap"
+    },
+    {
+      "label": "arc",
+      "start_us": 144009112,
+      "end_us": 144745112,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "arc",
+      "start_us": 146169112,
+      "end_us": 146915112,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "arc",
+      "start_us": 148353112,
+      "end_us": 149229112,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "arc",
+      "start_us": 150919112,
+      "end_us": 151869112,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "arc",
+      "start_us": 153771112,
+      "end_us": 154383112,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "arc",
+      "start_us": 155729112,
+      "end_us": 156439112,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "arc",
+      "start_us": 158079112,
+      "end_us": 158841112,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "arc",
+      "start_us": 160523112,
+      "end_us": 161197112,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "arc",
+      "start_us": 162687112,
+      "end_us": 163909112,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "arc",
+      "start_us": 166409112,
+      "end_us": 167851112,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "ignore",
+      "start_us": 169133112,
+      "end_us": 170071112,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated",
+      "ignore_reason": "sensor_gap"
+    },
+    {
+      "label": "arc",
+      "start_us": 170959112,
+      "end_us": 172145112,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "arc",
+      "start_us": 174605112,
+      "end_us": 175683112,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "arc",
+      "start_us": 177739112,
+      "end_us": 178871112,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "arc",
+      "start_us": 181059112,
+      "end_us": 182311112,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "arc",
+      "start_us": 184079112,
+      "end_us": 185399112,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "arc",
+      "start_us": 187497112,
+      "end_us": 188715112,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "arc",
+      "start_us": 191773112,
+      "end_us": 192955112,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "arc",
+      "start_us": 195719112,
+      "end_us": 196775112,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "arc",
+      "start_us": 199159112,
+      "end_us": 200247112,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "arc",
+      "start_us": 202839112,
+      "end_us": 203883112,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "arc",
+      "start_us": 205975112,
+      "end_us": 207091112,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "arc",
+      "start_us": 209345112,
+      "end_us": 210353112,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "arc",
+      "start_us": 212475112,
+      "end_us": 213205112,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "arc",
+      "start_us": 215247112,
+      "end_us": 216017112,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "arc",
+      "start_us": 217801112,
+      "end_us": 218837112,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "arc",
+      "start_us": 220977112,
+      "end_us": 221713112,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "arc",
+      "start_us": 224101112,
+      "end_us": 224749112,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "arc",
+      "start_us": 227041112,
+      "end_us": 228045112,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "arc",
+      "start_us": 229605112,
+      "end_us": 230773112,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "arc",
+      "start_us": 232305112,
+      "end_us": 233847112,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "arc",
+      "start_us": 235629112,
+      "end_us": 236823112,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    }
+  ]
+}

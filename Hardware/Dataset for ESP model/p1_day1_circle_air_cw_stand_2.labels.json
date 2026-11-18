@@ -1,0 +1,104 @@
+{
+  "reviewed": true,
+  "annotation_method": "live_keyboard",
+  "boundary_basis": "latest received sensor sample; USB latency not corrected",
+  "intervals": [
+    {
+      "label": "circle",
+      "start_us": 22351115,
+      "end_us": 24361115,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "circle",
+      "start_us": 29035115,
+      "end_us": 30271115,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "circle",
+      "start_us": 33609115,
+      "end_us": 34607115,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "circle",
+      "start_us": 39615115,
+      "end_us": 41941115,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "circle",
+      "start_us": 43947115,
+      "end_us": 44667115,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "circle",
+      "start_us": 46553115,
+      "end_us": 47353115,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "circle",
+      "start_us": 54363115,
+      "end_us": 55053115,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "ignore",
+      "start_us": 56847115,
+      "end_us": 58811115,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing",
+      "ignore_reason": "sensor_gap"
+    },
+    {
+      "label": "circle",
+      "start_us": 67647115,
+      "end_us": 69515115,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "circle",
+      "start_us": 72681115,
+      "end_us": 73415115,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "circle",
+      "start_us": 76055115,
+      "end_us": 77337115,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "circle",
+      "start_us": 80451115,
+      "end_us": 81445115,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    }
+  ]
+}

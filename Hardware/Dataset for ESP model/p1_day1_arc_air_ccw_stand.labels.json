@@ -1,0 +1,282 @@
+{
+  "reviewed": true,
+  "annotation_method": "live_keyboard",
+  "boundary_basis": "latest received sensor sample; USB latency not corrected",
+  "intervals": [
+    {
+      "label": "arc",
+      "start_us": 723177112,
+      "end_us": 724137112,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "arc",
+      "start_us": 725881112,
+      "end_us": 727073112,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "arc",
+      "start_us": 728563112,
+      "end_us": 729839112,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "arc",
+      "start_us": 731441112,
+      "end_us": 732471112,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "arc",
+      "start_us": 734093112,
+      "end_us": 735191112,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "arc",
+      "start_us": 736535112,
+      "end_us": 737569112,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "arc",
+      "start_us": 738995112,
+      "end_us": 740251112,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "arc",
+      "start_us": 742473112,
+      "end_us": 743865112,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "arc",
+      "start_us": 745389112,
+      "end_us": 746733112,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "arc",
+      "start_us": 748105112,
+      "end_us": 749753112,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "arc",
+      "start_us": 750953112,
+      "end_us": 751831112,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "arc",
+      "start_us": 753555112,
+      "end_us": 754771112,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "arc",
+      "start_us": 756321112,
+      "end_us": 757061112,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "arc",
+      "start_us": 760401112,
+      "end_us": 761201112,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "arc",
+      "start_us": 762985112,
+      "end_us": 764363112,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "arc",
+      "start_us": 767529112,
+      "end_us": 768799112,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "arc",
+      "start_us": 771985112,
+      "end_us": 772933112,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "arc",
+      "start_us": 775301112,
+      "end_us": 776293112,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "arc",
+      "start_us": 782927112,
+      "end_us": 784159112,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "arc",
+      "start_us": 786503112,
+      "end_us": 787419112,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "arc",
+      "start_us": 789993112,
+      "end_us": 791053112,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "arc",
+      "start_us": 793227112,
+      "end_us": 794291112,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "arc",
+      "start_us": 796523112,
+      "end_us": 797993112,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "arc",
+      "start_us": 801729112,
+      "end_us": 802763112,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "arc",
+      "start_us": 804523112,
+      "end_us": 805221112,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "arc",
+      "start_us": 807163112,
+      "end_us": 807911112,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "arc",
+      "start_us": 810729112,
+      "end_us": 811503112,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "ignore",
+      "start_us": 824927112,
+      "end_us": 826025112,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing",
+      "ignore_reason": "sensor_gap"
+    },
+    {
+      "label": "ignore",
+      "start_us": 829423112,
+      "end_us": 830473112,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing",
+      "ignore_reason": "discarded"
+    },
+    {
+      "label": "arc",
+      "start_us": 838389112,
+      "end_us": 839449112,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "arc",
+      "start_us": 842569112,
+      "end_us": 843407112,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "arc",
+      "start_us": 845569112,
+      "end_us": 846433112,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "ignore",
+      "start_us": 853543112,
+      "end_us": 854673112,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing",
+      "ignore_reason": "sensor_gap"
+    },
+    {
+      "label": "arc",
+      "start_us": 856299112,
+      "end_us": 857805112,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    }
+  ]
+}

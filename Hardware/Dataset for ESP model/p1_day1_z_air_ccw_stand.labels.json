@@ -1,0 +1,264 @@
+{
+  "reviewed": true,
+  "annotation_method": "live_keyboard",
+  "boundary_basis": "latest received sensor sample; USB latency not corrected",
+  "intervals": [
+    {
+      "label": "z",
+      "start_us": 2271349113,
+      "end_us": 2272363113,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "z",
+      "start_us": 2273057113,
+      "end_us": 2274025113,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "z",
+      "start_us": 2275619113,
+      "end_us": 2276665113,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "z",
+      "start_us": 2277339113,
+      "end_us": 2278339113,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "z",
+      "start_us": 2279049113,
+      "end_us": 2280023113,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "z",
+      "start_us": 2280875113,
+      "end_us": 2281735113,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "z",
+      "start_us": 2282645113,
+      "end_us": 2283823113,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "z",
+      "start_us": 2285771113,
+      "end_us": 2287255113,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "z",
+      "start_us": 2288391113,
+      "end_us": 2289711113,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "z",
+      "start_us": 2290607113,
+      "end_us": 2291631113,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "z",
+      "start_us": 2292539113,
+      "end_us": 2293635113,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "z",
+      "start_us": 2294417113,
+      "end_us": 2295409113,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "z",
+      "start_us": 2296179113,
+      "end_us": 2297407113,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "z",
+      "start_us": 2298571113,
+      "end_us": 2299619113,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "z",
+      "start_us": 2300615113,
+      "end_us": 2301759113,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "z",
+      "start_us": 2302757113,
+      "end_us": 2303847113,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "z",
+      "start_us": 2307399113,
+      "end_us": 2308109113,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "z",
+      "start_us": 2308953113,
+      "end_us": 2309511113,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "z",
+      "start_us": 2310333113,
+      "end_us": 2310995113,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "z",
+      "start_us": 2311807113,
+      "end_us": 2312553113,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "z",
+      "start_us": 2315187113,
+      "end_us": 2315957113,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "z",
+      "start_us": 2317369113,
+      "end_us": 2317989113,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "z",
+      "start_us": 2319425113,
+      "end_us": 2320169113,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "ignore",
+      "start_us": 2330861113,
+      "end_us": 2333265113,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing",
+      "ignore_reason": "discarded"
+    },
+    {
+      "label": "z",
+      "start_us": 2334281113,
+      "end_us": 2334909113,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "z",
+      "start_us": 2336981113,
+      "end_us": 2337685113,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "z",
+      "start_us": 2338685113,
+      "end_us": 2339399113,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "z",
+      "start_us": 2341277113,
+      "end_us": 2341903113,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "z",
+      "start_us": 2343807113,
+      "end_us": 2344453113,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "z",
+      "start_us": 2347167113,
+      "end_us": 2347815113,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "z",
+      "start_us": 2350429113,
+      "end_us": 2351071113,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "z",
+      "start_us": 2351957113,
+      "end_us": 2352949113,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    }
+  ]
+}

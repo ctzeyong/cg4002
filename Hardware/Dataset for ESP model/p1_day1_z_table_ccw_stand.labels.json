@@ -1,0 +1,183 @@
+{
+  "reviewed": true,
+  "annotation_method": "live_keyboard",
+  "boundary_basis": "latest received sensor sample; USB latency not corrected",
+  "intervals": [
+    {
+      "label": "z",
+      "start_us": 2176859113,
+      "end_us": 2177843113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "z",
+      "start_us": 2178501113,
+      "end_us": 2179257113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "z",
+      "start_us": 2179899113,
+      "end_us": 2180703113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "z",
+      "start_us": 2181303113,
+      "end_us": 2182031113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "z",
+      "start_us": 2182717113,
+      "end_us": 2183451113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "z",
+      "start_us": 2184101113,
+      "end_us": 2184849113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "z",
+      "start_us": 2185447113,
+      "end_us": 2186173113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "z",
+      "start_us": 2186847113,
+      "end_us": 2187517113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "z",
+      "start_us": 2188173113,
+      "end_us": 2189073113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "z",
+      "start_us": 2189731113,
+      "end_us": 2190383113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "z",
+      "start_us": 2191069113,
+      "end_us": 2191827113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "z",
+      "start_us": 2192473113,
+      "end_us": 2193187113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "z",
+      "start_us": 2193905113,
+      "end_us": 2194547113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "z",
+      "start_us": 2195413113,
+      "end_us": 2196453113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "z",
+      "start_us": 2197061113,
+      "end_us": 2197633113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "z",
+      "start_us": 2198329113,
+      "end_us": 2199631113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "z",
+      "start_us": 2200379113,
+      "end_us": 2202237113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "z",
+      "start_us": 2203057113,
+      "end_us": 2204561113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "z",
+      "start_us": 2205299113,
+      "end_us": 2206197113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "z",
+      "start_us": 2206919113,
+      "end_us": 2207825113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "z",
+      "start_us": 2208703113,
+      "end_us": 2209433113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "z",
+      "start_us": 2210291113,
+      "end_us": 2211023113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "standing"
+    }
+  ]
+}

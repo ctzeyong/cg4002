@@ -1,0 +1,264 @@
+{
+  "reviewed": true,
+  "annotation_method": "live_keyboard",
+  "boundary_basis": "latest received sensor sample; USB latency not corrected",
+  "intervals": [
+    {
+      "label": "infinity",
+      "start_us": 34000427,
+      "end_us": 35584427,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 37020427,
+      "end_us": 38938427,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 41320427,
+      "end_us": 42876427,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 44018427,
+      "end_us": 45750427,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 47188427,
+      "end_us": 48640427,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 52194427,
+      "end_us": 53496427,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 54958427,
+      "end_us": 56958427,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 59554427,
+      "end_us": 61288427,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 63708427,
+      "end_us": 66076427,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 70498427,
+      "end_us": 72276427,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 75128427,
+      "end_us": 77328427,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 79558427,
+      "end_us": 81702427,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "ignore",
+      "start_us": 85632427,
+      "end_us": 88812427,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated",
+      "ignore_reason": "discarded"
+    },
+    {
+      "label": "infinity",
+      "start_us": 120000427,
+      "end_us": 121648427,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 122734427,
+      "end_us": 124710427,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 125882427,
+      "end_us": 126928427,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 128356427,
+      "end_us": 129560427,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 132744427,
+      "end_us": 134272427,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 136230427,
+      "end_us": 138366427,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 139176427,
+      "end_us": 140132427,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 141952427,
+      "end_us": 144052427,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 144874427,
+      "end_us": 146878427,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 148366427,
+      "end_us": 150190427,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 151636427,
+      "end_us": 153346427,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 155322427,
+      "end_us": 156996427,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 158324427,
+      "end_us": 160066427,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 161036427,
+      "end_us": 162938427,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 164078427,
+      "end_us": 165912427,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 166848427,
+      "end_us": 168626427,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 170306427,
+      "end_us": 171978427,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 174672427,
+      "end_us": 176518427,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 178220427,
+      "end_us": 179518427,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    }
+  ]
+}

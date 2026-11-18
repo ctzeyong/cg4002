@@ -1,0 +1,291 @@
+{
+  "reviewed": true,
+  "annotation_method": "live_keyboard",
+  "boundary_basis": "latest received sensor sample; USB latency not corrected",
+  "intervals": [
+    {
+      "label": "arc",
+      "start_us": 2025112,
+      "end_us": 3255112,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "arc",
+      "start_us": 5559112,
+      "end_us": 6769112,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "arc",
+      "start_us": 8577112,
+      "end_us": 9831112,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "arc",
+      "start_us": 11341112,
+      "end_us": 12347112,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "arc",
+      "start_us": 13629112,
+      "end_us": 14659112,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "arc",
+      "start_us": 15793112,
+      "end_us": 16897112,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "ignore",
+      "start_us": 18569112,
+      "end_us": 19981112,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated",
+      "ignore_reason": "sensor_gap"
+    },
+    {
+      "label": "arc",
+      "start_us": 21261112,
+      "end_us": 22221112,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "ignore",
+      "start_us": 23991112,
+      "end_us": 25233112,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated",
+      "ignore_reason": "sensor_gap"
+    },
+    {
+      "label": "arc",
+      "start_us": 28881112,
+      "end_us": 30105112,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "arc",
+      "start_us": 39359112,
+      "end_us": 40747112,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "arc",
+      "start_us": 41703112,
+      "end_us": 42775112,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "ignore",
+      "start_us": 43725112,
+      "end_us": 44827112,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated",
+      "ignore_reason": "sensor_gap"
+    },
+    {
+      "label": "arc",
+      "start_us": 45795112,
+      "end_us": 46799112,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "arc",
+      "start_us": 47589112,
+      "end_us": 48701112,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "arc",
+      "start_us": 49459112,
+      "end_us": 50913112,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "arc",
+      "start_us": 52707112,
+      "end_us": 53945112,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "arc",
+      "start_us": 54795112,
+      "end_us": 55993112,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "arc",
+      "start_us": 59497112,
+      "end_us": 61017112,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "arc",
+      "start_us": 62413112,
+      "end_us": 63945112,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "arc",
+      "start_us": 65255112,
+      "end_us": 66447112,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "arc",
+      "start_us": 67829112,
+      "end_us": 68601112,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "arc",
+      "start_us": 70613112,
+      "end_us": 71371112,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "arc",
+      "start_us": 73657112,
+      "end_us": 74345112,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "arc",
+      "start_us": 75823112,
+      "end_us": 76527112,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "arc",
+      "start_us": 78027112,
+      "end_us": 78689112,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "arc",
+      "start_us": 80131112,
+      "end_us": 80933112,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "arc",
+      "start_us": 84117112,
+      "end_us": 84931112,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "ignore",
+      "start_us": 87517112,
+      "end_us": 88161112,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated",
+      "ignore_reason": "sensor_gap"
+    },
+    {
+      "label": "arc",
+      "start_us": 89931112,
+      "end_us": 90653112,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "arc",
+      "start_us": 93183112,
+      "end_us": 93923112,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "arc",
+      "start_us": 95507112,
+      "end_us": 96469112,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "arc",
+      "start_us": 97963112,
+      "end_us": 98847112,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "arc",
+      "start_us": 100783112,
+      "end_us": 101561112,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "arc",
+      "start_us": 103375112,
+      "end_us": 104179112,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    }
+  ]
+}

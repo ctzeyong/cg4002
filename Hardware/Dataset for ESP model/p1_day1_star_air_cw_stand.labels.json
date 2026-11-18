@@ -1,0 +1,273 @@
+{
+  "reviewed": true,
+  "annotation_method": "live_keyboard",
+  "boundary_basis": "latest received sensor sample; USB latency not corrected",
+  "intervals": [
+    {
+      "label": "star",
+      "start_us": 519687114,
+      "end_us": 521641114,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "star",
+      "start_us": 522659114,
+      "end_us": 523363114,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "star",
+      "start_us": 526023114,
+      "end_us": 527801114,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "star",
+      "start_us": 528373114,
+      "end_us": 530223114,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "star",
+      "start_us": 532469114,
+      "end_us": 534199114,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "star",
+      "start_us": 534957114,
+      "end_us": 536751114,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "star",
+      "start_us": 538057114,
+      "end_us": 539793114,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "ignore",
+      "start_us": 543169114,
+      "end_us": 545615114,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing",
+      "ignore_reason": "discarded"
+    },
+    {
+      "label": "star",
+      "start_us": 547005114,
+      "end_us": 548697114,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "star",
+      "start_us": 551333114,
+      "end_us": 552857114,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "star",
+      "start_us": 554191114,
+      "end_us": 555805114,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "star",
+      "start_us": 559821114,
+      "end_us": 562423114,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "star",
+      "start_us": 566995114,
+      "end_us": 569101114,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "star",
+      "start_us": 572749114,
+      "end_us": 574591114,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "star",
+      "start_us": 575477114,
+      "end_us": 577443114,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "star",
+      "start_us": 578551114,
+      "end_us": 580199114,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "star",
+      "start_us": 580817114,
+      "end_us": 582875114,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "ignore",
+      "start_us": 599293114,
+      "end_us": 602559114,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing",
+      "ignore_reason": "discarded"
+    },
+    {
+      "label": "star",
+      "start_us": 604783114,
+      "end_us": 606401114,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "star",
+      "start_us": 609083114,
+      "end_us": 610909114,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "star",
+      "start_us": 613095114,
+      "end_us": 614755114,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "star",
+      "start_us": 616923114,
+      "end_us": 618905114,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "star",
+      "start_us": 622601114,
+      "end_us": 624733114,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "star",
+      "start_us": 625777114,
+      "end_us": 628251114,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "star",
+      "start_us": 630631114,
+      "end_us": 632849114,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "star",
+      "start_us": 635457114,
+      "end_us": 637673114,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "star",
+      "start_us": 640009114,
+      "end_us": 642145114,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "star",
+      "start_us": 643337114,
+      "end_us": 645247114,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "star",
+      "start_us": 645945114,
+      "end_us": 647507114,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "star",
+      "start_us": 648319114,
+      "end_us": 650007114,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "star",
+      "start_us": 650915114,
+      "end_us": 652431114,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "star",
+      "start_us": 654495114,
+      "end_us": 656171114,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "star",
+      "start_us": 658051114,
+      "end_us": 659713114,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    }
+  ]
+}

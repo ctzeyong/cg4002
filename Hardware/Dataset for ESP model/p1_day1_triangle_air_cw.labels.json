@@ -1,0 +1,183 @@
+{
+  "reviewed": true,
+  "annotation_method": "live_keyboard",
+  "boundary_basis": "latest received sensor sample; USB latency not corrected",
+  "intervals": [
+    {
+      "label": "triangle",
+      "start_us": 4514451113,
+      "end_us": 4515669113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "triangle",
+      "start_us": 4516379113,
+      "end_us": 4517645113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "triangle",
+      "start_us": 4518459113,
+      "end_us": 4519683113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "triangle",
+      "start_us": 4520647113,
+      "end_us": 4521617113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "triangle",
+      "start_us": 4522661113,
+      "end_us": 4523809113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "triangle",
+      "start_us": 4524449113,
+      "end_us": 4525531113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "triangle",
+      "start_us": 4526557113,
+      "end_us": 4527237113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "triangle",
+      "start_us": 4528035113,
+      "end_us": 4528757113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "triangle",
+      "start_us": 4529405113,
+      "end_us": 4530133113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "triangle",
+      "start_us": 4530983113,
+      "end_us": 4531719113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "triangle",
+      "start_us": 4532351113,
+      "end_us": 4533191113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "triangle",
+      "start_us": 4534025113,
+      "end_us": 4534759113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "triangle",
+      "start_us": 4536607113,
+      "end_us": 4537769113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "triangle",
+      "start_us": 4539057113,
+      "end_us": 4540359113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "triangle",
+      "start_us": 4541217113,
+      "end_us": 4542495113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "triangle",
+      "start_us": 4546585113,
+      "end_us": 4547625113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "triangle",
+      "start_us": 4548835113,
+      "end_us": 4550001113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "triangle",
+      "start_us": 4551129113,
+      "end_us": 4552247113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "triangle",
+      "start_us": 4554433113,
+      "end_us": 4555237113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "triangle",
+      "start_us": 4555963113,
+      "end_us": 4556925113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "triangle",
+      "start_us": 4557433113,
+      "end_us": 4558191113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "triangle",
+      "start_us": 4559941113,
+      "end_us": 4561947113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "seated"
+    }
+  ]
+}

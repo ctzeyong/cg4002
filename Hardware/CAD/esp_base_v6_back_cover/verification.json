@@ -1,0 +1,19 @@
+{
+  "watertight": true,
+  "single_solid": true,
+  "face_x_mm": 0,
+  "plate_mm": [
+    46,
+    14.95,
+    2.8
+  ],
+  "clip_projection_mm": 3.0,
+  "ring_opening_width_mm": 17.65,
+  "ring_opening_top_z_mm": 6.35,
+  "ring_side_fully_open": true,
+  "rail_clearance_mm": 0.25,
+  "hard_collision_mm3": 0.0,
+  "fit_validation": "Rear structural envelopes and conservative full ring disk; electronics not supplied",
+  "intentional_clip_interference_mm3": 0.3518182933330536,
+  "source_unchanged": true
+}

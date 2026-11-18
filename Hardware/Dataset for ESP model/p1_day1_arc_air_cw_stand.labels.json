@@ -1,0 +1,264 @@
+{
+  "reviewed": true,
+  "annotation_method": "live_keyboard",
+  "boundary_basis": "latest received sensor sample; USB latency not corrected",
+  "intervals": [
+    {
+      "label": "arc",
+      "start_us": 581155112,
+      "end_us": 582245112,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "ignore",
+      "start_us": 583941112,
+      "end_us": 584905112,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing",
+      "ignore_reason": "sensor_gap"
+    },
+    {
+      "label": "arc",
+      "start_us": 586603112,
+      "end_us": 587561112,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "arc",
+      "start_us": 588653112,
+      "end_us": 589799112,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "arc",
+      "start_us": 591087112,
+      "end_us": 592317112,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "arc",
+      "start_us": 594655112,
+      "end_us": 595761112,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "arc",
+      "start_us": 597687112,
+      "end_us": 598969112,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "arc",
+      "start_us": 600789112,
+      "end_us": 601703112,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "arc",
+      "start_us": 603173112,
+      "end_us": 604035112,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "arc",
+      "start_us": 605719112,
+      "end_us": 606953112,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "arc",
+      "start_us": 608739112,
+      "end_us": 609999112,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "arc",
+      "start_us": 611631112,
+      "end_us": 612799112,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "arc",
+      "start_us": 616513112,
+      "end_us": 617833112,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "arc",
+      "start_us": 620557112,
+      "end_us": 621795112,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "arc",
+      "start_us": 624191112,
+      "end_us": 625657112,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "arc",
+      "start_us": 627621112,
+      "end_us": 628685112,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "arc",
+      "start_us": 630891112,
+      "end_us": 632293112,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "arc",
+      "start_us": 634775112,
+      "end_us": 636347112,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "arc",
+      "start_us": 639171112,
+      "end_us": 640287112,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "arc",
+      "start_us": 642407112,
+      "end_us": 643629112,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "arc",
+      "start_us": 647281112,
+      "end_us": 648615112,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "arc",
+      "start_us": 650737112,
+      "end_us": 652095112,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "arc",
+      "start_us": 655671112,
+      "end_us": 656839112,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "arc",
+      "start_us": 659409112,
+      "end_us": 660491112,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "arc",
+      "start_us": 663965112,
+      "end_us": 665095112,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "arc",
+      "start_us": 667593112,
+      "end_us": 668701112,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "arc",
+      "start_us": 670517112,
+      "end_us": 671611112,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "arc",
+      "start_us": 672945112,
+      "end_us": 673863112,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "arc",
+      "start_us": 674859112,
+      "end_us": 675969112,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "arc",
+      "start_us": 677279112,
+      "end_us": 678139112,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "arc",
+      "start_us": 680273112,
+      "end_us": 681153112,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "arc",
+      "start_us": 682901112,
+      "end_us": 683965112,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    }
+  ]
+}

@@ -1,0 +1,300 @@
+{
+  "reviewed": true,
+  "annotation_method": "live_keyboard",
+  "boundary_basis": "latest received sensor sample; USB latency not corrected",
+  "intervals": [
+    {
+      "label": "infinity",
+      "start_us": 211996427,
+      "end_us": 213774427,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 215116427,
+      "end_us": 216844427,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 219042427,
+      "end_us": 220812427,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 221866427,
+      "end_us": 223420427,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 224320427,
+      "end_us": 226130427,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 227802427,
+      "end_us": 229278427,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "ignore",
+      "start_us": 232830427,
+      "end_us": 234576427,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated",
+      "ignore_reason": "sensor_gap"
+    },
+    {
+      "label": "infinity",
+      "start_us": 237378427,
+      "end_us": 238842427,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 241656427,
+      "end_us": 243284427,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 244968427,
+      "end_us": 246528427,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 252836427,
+      "end_us": 254336427,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 255690427,
+      "end_us": 257378427,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 258494427,
+      "end_us": 260216427,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 261868427,
+      "end_us": 264162427,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 265432427,
+      "end_us": 267606427,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 268686427,
+      "end_us": 271276427,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 272206427,
+      "end_us": 273946427,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "ignore",
+      "start_us": 275456427,
+      "end_us": 277398427,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated",
+      "ignore_reason": "discarded"
+    },
+    {
+      "label": "infinity",
+      "start_us": 282544427,
+      "end_us": 284532427,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 285600427,
+      "end_us": 287588427,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 288610427,
+      "end_us": 290496427,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "ignore",
+      "start_us": 292880427,
+      "end_us": 294048427,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated",
+      "ignore_reason": "discarded"
+    },
+    {
+      "label": "infinity",
+      "start_us": 296828427,
+      "end_us": 298022427,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 299732427,
+      "end_us": 300980427,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 322718427,
+      "end_us": 323840427,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 326282427,
+      "end_us": 327360427,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "ignore",
+      "start_us": 328620427,
+      "end_us": 329782427,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated",
+      "ignore_reason": "sensor_gap"
+    },
+    {
+      "label": "infinity",
+      "start_us": 330712427,
+      "end_us": 331832427,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 334940427,
+      "end_us": 337256427,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 342656427,
+      "end_us": 344692427,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 346798427,
+      "end_us": 348698427,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 352720427,
+      "end_us": 354702427,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "ignore",
+      "start_us": 358170427,
+      "end_us": 360210427,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated",
+      "ignore_reason": "sensor_gap"
+    },
+    {
+      "label": "infinity",
+      "start_us": 360854427,
+      "end_us": 362528427,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 369492427,
+      "end_us": 372040427,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "infinity",
+      "start_us": 373588427,
+      "end_us": 374968427,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    }
+  ]
+}

@@ -1,0 +1,87 @@
+{
+  "reviewed": true,
+  "annotation_method": "live_keyboard",
+  "boundary_basis": "latest received sensor sample; USB latency not corrected",
+  "intervals": [
+    {
+      "label": "triangle",
+      "start_us": 536477115,
+      "end_us": 537523115,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "triangle",
+      "start_us": 538105115,
+      "end_us": 539099115,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "triangle",
+      "start_us": 539653115,
+      "end_us": 540631115,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "triangle",
+      "start_us": 542139115,
+      "end_us": 543077115,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "triangle",
+      "start_us": 543871115,
+      "end_us": 544801115,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "triangle",
+      "start_us": 546873115,
+      "end_us": 547887115,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "triangle",
+      "start_us": 548461115,
+      "end_us": 549475115,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "triangle",
+      "start_us": 550653115,
+      "end_us": 551915115,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "triangle",
+      "start_us": 552541115,
+      "end_us": 553589115,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "triangle",
+      "start_us": 555387115,
+      "end_us": 556623115,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    }
+  ]
+}

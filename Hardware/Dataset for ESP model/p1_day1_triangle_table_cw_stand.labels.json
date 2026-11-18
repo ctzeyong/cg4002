@@ -1,0 +1,183 @@
+{
+  "reviewed": true,
+  "annotation_method": "live_keyboard",
+  "boundary_basis": "latest received sensor sample; USB latency not corrected",
+  "intervals": [
+    {
+      "label": "triangle",
+      "start_us": 4002887113,
+      "end_us": 4003857113,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "triangle",
+      "start_us": 4004617113,
+      "end_us": 4005479113,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "triangle",
+      "start_us": 4006057113,
+      "end_us": 4006915113,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "triangle",
+      "start_us": 4007839113,
+      "end_us": 4008877113,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "triangle",
+      "start_us": 4009459113,
+      "end_us": 4010557113,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "triangle",
+      "start_us": 4011149113,
+      "end_us": 4012189113,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "triangle",
+      "start_us": 4012953113,
+      "end_us": 4013573113,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "triangle",
+      "start_us": 4014571113,
+      "end_us": 4015259113,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "triangle",
+      "start_us": 4016031113,
+      "end_us": 4016725113,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "triangle",
+      "start_us": 4017539113,
+      "end_us": 4018287113,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "triangle",
+      "start_us": 4018929113,
+      "end_us": 4019695113,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "triangle",
+      "start_us": 4020323113,
+      "end_us": 4021043113,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "triangle",
+      "start_us": 4021689113,
+      "end_us": 4022535113,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "triangle",
+      "start_us": 4023121113,
+      "end_us": 4023845113,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "triangle",
+      "start_us": 4025333113,
+      "end_us": 4026115113,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "triangle",
+      "start_us": 4026893113,
+      "end_us": 4027921113,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "triangle",
+      "start_us": 4029019113,
+      "end_us": 4030073113,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "triangle",
+      "start_us": 4030843113,
+      "end_us": 4031817113,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "triangle",
+      "start_us": 4032983113,
+      "end_us": 4034309113,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "triangle",
+      "start_us": 4034979113,
+      "end_us": 4036269113,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "triangle",
+      "start_us": 4037047113,
+      "end_us": 4038265113,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "triangle",
+      "start_us": 4039731113,
+      "end_us": 4040919113,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "standing"
+    }
+  ]
+}
