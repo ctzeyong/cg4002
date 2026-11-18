@@ -35,9 +35,30 @@ session, source recording, boundaries, encoding) and `skipped.json`.
 
 The **background** is not part of a dataset. It is the unlabelled time of the same recordings, read
 by `train.data.load_background` for the window filler, the `noise` class and the `slide_bg` /
-false-accept tests, and cached here as `background_v2_m200_<hash>.npz` (one per set of recordings).
-So training takes its own `--sessions`, which can differ from the export's: see
-[train/README.md](../train/README.md).
+false-accept tests, and cached here as `background_v2_m200_<hash>.npz` (one per set of recordings;
+the hash is of the `--sessions` paths relative to the repo, so the same on every clone). Without the
+recordings, training uses the cache as is. So training takes its own `--sessions`, which can differ
+from the export's: see [train/README.md](../train/README.md).
+
+## Sharing a dataset (reproducing the deployed model without the recordings)
+
+The recordings are git-ignored, so a fresh clone can't rebuild a dataset or its background.
+`pack_dataset.py` zips everything a model's results depend on, with paths relative to `AI/`:
+
+```bash
+python -m data_collection.pack_dataset --data mage_noise_robust --tag mage_noise_robust --model train/results/models/mage_noise_robust_s2.h5 --test-windows train/results/test_windows_mage_noise_robust.npz
+```
+
+This writes `datasets/mage_noise_robust_release.zip` (37 MB): the dataset folder, the background
+cache for `--sessions`, the `.h5`, its `run_<tag>.json`, the test windows the HLS check used,
+`ultra96/gesture_model.xsa`, and a `REPRODUCE.txt` with the check commands. `--sessions` must be the
+recordings the model was trained with (the default, for the deployed model).
+
+To use it, extract it into `AI/` of a clone and follow `REPRODUCE.txt`. In a clean clone with no
+recordings, `train.export_test_windows` on the zip gives the training run's figures exactly
+(jitter 0.9430, slide_bg 0.9673, noise 0.9635), and `hls4ml/convert.py` on the result produces
+firmware identical to the deployed project's, with HLS accuracy equal to Keras on every test set.
+The `index.csv` files name the participants, so check with them before publishing a zip.
 
 ## Where the datasets live
 

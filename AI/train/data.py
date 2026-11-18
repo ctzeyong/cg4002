@@ -128,17 +128,38 @@ def recording_labels(dirs):
     return sorted(f for f in found if os.path.exists(f))
 
 
+REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+
+
+def _repo_rel(path):
+    """`path` relative to the repo root with forward slashes (the same on every clone and OS);
+    absolute if it is outside the repo or on another drive."""
+    try:
+        rel = os.path.relpath(path, REPO_ROOT)
+    except ValueError:                                               # another Windows drive
+        return path.replace("\\", "/")
+    return path.replace("\\", "/") if rel.startswith("..") else rel.replace("\\", "/")
+
+
+def background_cache_path(data_cfg: DataConfig):
+    """Where load_background caches the background for data_cfg.sessions_dir and bg_margin_us."""
+    import hashlib
+    dirs = session_dirs(data_cfg.sessions_dir)
+    # v2: noise-labelled intervals are excluded (v1 counted them as background)
+    key = hashlib.md5("|".join(_repo_rel(d) for d in dirs).lower().encode()).hexdigest()[:8]
+    return os.path.join(DATA_ROOT, f"background_v2_m{data_cfg.bg_margin_us // 1000}_{key}.npz")
+
+
 def load_background(data_cfg: DataConfig):
     """Background runs (list of (T,6) SI arrays): the unlabelled time of every reviewed
     recording under sessions_dir (one folder or a list; subfolders included; gesture AND noise
     recordings), or None if there are none. Unreviewed recordings are skipped: they may hide
     unmarked gestures. Cached in DATA_ROOT per set of folders (reading the 500 Hz CSVs is slow);
-    rebuilt when the set of recordings changes, used as-is if the recordings are absent."""
-    import hashlib
+    rebuilt when the set of recordings changes, used as-is if the recordings are absent.
+    The cache name is keyed on the folders relative to the repo, so a cache copied into
+    another clone (data_collection/pack_dataset.py) is found there without the recordings."""
     dirs = session_dirs(data_cfg.sessions_dir)
-    # v2: noise-labelled intervals are excluded (v1 counted them as background)
-    key = hashlib.md5("|".join(dirs).lower().encode()).hexdigest()[:8]
-    cache = os.path.join(DATA_ROOT, f"background_v2_m{data_cfg.bg_margin_us // 1000}_{key}.npz")
+    cache = background_cache_path(data_cfg)
     labels = recording_labels(dirs)
     names = [p.lower() for p in labels]
     if os.path.exists(cache):

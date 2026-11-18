@@ -6,7 +6,7 @@ command here and a link to its details.
 
 | Folder | What is in it |
 |---|---|
-| [`data_collection/`](data_collection/README.md) | Turns labelled recordings into a training dataset (`export_dataset.py`), and holds the datasets |
+| [`data_collection/`](data_collection/README.md) | Turns labelled recordings into a training dataset (`export_dataset.py`), holds the datasets, and zips one for sharing (`pack_dataset.py`) |
 | [`train/`](train/README.md) | The model, augmentation, training, evaluation, and the test-window export for conversion |
 | [`hls4ml/`](hls4ml/README.md) | Converts a trained `.h5` to a Vitis HLS project, in WSL, and checks it against training |
 | [`ultra96/`](ultra96/README.md) | The classifier that runs on the board (`wk10_integration.py`), the deployed overlay (`gesture_model.xsa`), and the laptop Keras stand-in |
@@ -56,6 +56,8 @@ Details: [hls4ml/README.md](hls4ml/README.md).
 8 classes (`chop circle fireball jabs lightning star tank noise`, sent as
 `warrior mage fireball rogue lightning hero shield` + no event), trained on 3,097 gestures from
 8 participant IDs. Its numbers and how it compares are in [docs/results.md](../docs/results.md).
+To reproduce its accuracy without the recordings, pack its dataset and background into one zip:
+[data_collection/README.md](data_collection/README.md#sharing-a-dataset-reproducing-the-deployed-model-without-the-recordings).
 
 ## Other guides
 
