@@ -157,7 +157,8 @@ def load_background(data_cfg: DataConfig):
     unmarked gestures. Cached in DATA_ROOT per set of folders (reading the 500 Hz CSVs is slow);
     rebuilt when the set of recordings changes, used as-is if the recordings are absent.
     The cache name is keyed on the folders relative to the repo, so a cache copied into
-    another clone (data_collection/pack_dataset.py) is found there without the recordings."""
+    another clone (the release zip, data_collection/README.md) is found there without the
+    recordings."""
     dirs = session_dirs(data_cfg.sessions_dir)
     cache = background_cache_path(data_cfg)
     labels = recording_labels(dirs)

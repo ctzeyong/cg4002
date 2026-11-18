@@ -40,25 +40,54 @@ the hash is of the `--sessions` paths relative to the repo, so the same on every
 recordings, training uses the cache as is. So training takes its own `--sessions`, which can differ
 from the export's: see [train/README.md](../train/README.md).
 
-## Sharing a dataset (reproducing the deployed model without the recordings)
+## Reproducing the deployed model from the release zip
 
-The recordings are git-ignored, so a fresh clone can't rebuild a dataset or its background.
-`pack_dataset.py` zips everything a model's results depend on, with paths relative to `AI/`:
+The recordings are git-ignored, so a fresh clone can't rebuild `mage_noise_robust` or its
+background. `mage_noise_robust_release.zip` (37 MB) holds everything the deployed model's results
+depend on, with paths relative to `AI/`:
 
-```bash
-python -m data_collection.pack_dataset --data mage_noise_robust --tag mage_noise_robust --model train/results/models/mage_noise_robust_s2.h5 --test-windows train/results/test_windows_mage_noise_robust.npz
+| In the zip | What it is |
+|---|---|
+| `data_collection/datasets/mage_noise_robust/` | The exported gestures and `index.csv` |
+| `data_collection/datasets/background_v2_m200_4a064b05.npz` | The background cache for the default `--sessions`, which the noise class and `slide_bg` are cut from |
+| `train/results/models/mage_noise_robust_s2.h5` | The trained model |
+| `train/results/run_mage_noise_robust.json` | Its accuracy as recorded at training time |
+| `train/results/test_windows_mage_noise_robust.npz` | The windows the HLS check in [hls4ml/README.md](../hls4ml/README.md) used |
+| `ultra96/gesture_model.xsa` | The deployed overlay (the same file as in git) |
+| `REPRODUCE.txt` | The commands below |
+
+**1. Import it.** Clone the repo, then extract the zip into its `AI/` folder. From the repo root,
+in PowerShell (`-Force` because `gesture_model.xsa` is already there):
+```powershell
+Expand-Archive mage_noise_robust_release.zip -DestinationPath AI -Force
 ```
+or in Git Bash / WSL: `unzip -o mage_noise_robust_release.zip -d AI`. Nothing else needs moving:
+training looks for datasets and the background in `data_collection/datasets/`, and the cache name
+is the same on every clone, so it is used without the recordings.
 
-This writes `datasets/mage_noise_robust_release.zip` (37 MB): the dataset folder, the background
-cache for `--sessions`, the `.h5`, its `run_<tag>.json`, the test windows the HLS check used,
-`ultra96/gesture_model.xsa`, and a `REPRODUCE.txt` with the check commands. `--sessions` must be the
-recordings the model was trained with (the default, for the deployed model).
+**2. Build the venv** as in [Setup](../README.md#setup).
 
-To use it, extract it into `AI/` of a clone and follow `REPRODUCE.txt`. In a clean clone with no
-recordings, `train.export_test_windows` on the zip gives the training run's figures exactly
-(jitter 0.9430, slide_bg 0.9673, noise 0.9635), and `hls4ml/convert.py` on the result produces
-firmware identical to the deployed project's, with HLS accuracy equal to Keras on every test set.
-The `index.csv` files name the participants, so check with them before publishing a zip.
+**3. Check the accuracy.** From `AI/`:
+```powershell
+.venv\Scripts\python -m train.export_test_windows --data mage_noise_robust --noise --model train/results/models/mage_noise_robust_s2.h5 --out train/results/test_windows_check.npz
+```
+"acc (as trained)" equals `run_mage_noise_robust.json`: jitter 0.9430, slide_bg 0.9673, noise
+0.9635 (1 − `false_accept`).
+
+**4. Check the converted model** (what `gesture_model.xsa` runs), in WSL as in
+[hls4ml/README.md](../hls4ml/README.md), on `test_windows_check.npz` from step 3 or the zip's
+`test_windows_mage_noise_robust.npz`. Output (3) gives the Keras and HLS accuracy per test set.
+With step 3's windows they are equal on every set (0.9473 / 0.9673 / 0.9635 on the board's input
+grid), and the generated `firmware/` is identical to the project the overlay was built from.
+
+**Retraining** from the zip also works
+(`python -m train.exp_new_vocab --noise --data mage_noise_robust --tag <new tag>`); expect figures
+close to, not necessarily identical with, step 3.
+
+**Making a zip for another model:** zip the same kinds of files with paths relative to `AI/`. Take
+the background cache named by `train.data.background_cache_path(DataConfig(dir=<dataset>,
+sessions_dir=<the training run's --sessions>))`. The `index.csv` files name the participants, so
+check with them before publishing a zip.
 
 ## Where the datasets live
 
