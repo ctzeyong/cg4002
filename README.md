@@ -36,7 +36,7 @@ setup. Each subsystem has its own README for further details, linked below.
  Ultra96
    board client  (Comms/ultra96/tcp_client_mqtt.py)
      | per-player window of IMU samples
-     | AI's classifier on the FPGA  (AI/board/wk10_integration.py + .xsa overlay)
+     | AI's classifier on the FPGA  (AI/ultra96/wk10_integration.py + gesture_model.xsa)
      | publishes each gesture on game/gesture/N, and each glove's state on status/gloves
      v
    Mosquitto broker  (loopback only, 127.0.0.1:1883)
@@ -59,7 +59,7 @@ setup. Each subsystem has its own README for further details, linked below.
 | Glove firmware | Hardware, Comms | `Comms/firebeetle/` | Reads the IMU, detects gestures, streams packets over BLE, buzzes the motor |
 | Laptop relay | Comms | `Comms/laptop/` | BLE to both gloves, TCP to the board, the SSH tunnel |
 | Board client | Comms | `Comms/ultra96/` | Receives packets, runs AI, publishes gestures and glove status |
-| Gesture classifier | AI | `AI/board/` | Turns a window of IMU samples into one of the gesture names, on the FPGA |
+| Gesture classifier | AI | `AI/ultra96/` | Turns a window of IMU samples into one of the gesture names, on the FPGA |
 | Game engine | Comms (shell), Vis (rules) | `Comms/ultra96/game_engine.py`, `SW_Visualiser/engine/` | Runs the match |
 | Phone app | Vis | `SW_Visualiser/script/` | AR tracking, drawing, the HUD and menus |
 | Phone link | Comms | `Comms/phone/comms-visualiser/` | The SSH tunnel and MQTT hook that Vis copies into the app |
@@ -116,7 +116,7 @@ Do the [one-time setup](#3-one-time-setup) first.
 In PowerShell, from `team\Comms`:
 
 ```powershell
-.\scripts\run_all.ps1 --sync --gesture-flag --vocab new --bitstream new_gestures_all.xsa
+.\scripts\run_all.ps1 --sync --gesture-flag --vocab new --bitstream gesture_model.xsa
 ```
 
 This opens one Windows Terminal window with three panes. The **Relay** pane (top right) connects to
@@ -128,7 +128,7 @@ game engine on the Ultra96. The **Dashboard** (left) sums up both. If `.env` has
   both programs. Use it on the first run after any change. Without it, the board keeps running
   what it already has.
 - `--gesture-flag` turns classification on.
-- `--vocab new --bitstream new_gestures_all.xsa` load AI's current model, which gives the gesture
+- `--vocab new --bitstream gesture_model.xsa` load AI's current model, which gives the gesture
   names above.
 
 Every launcher's flags are in [Appendix A](#appendix-a-every-command-and-flag).
@@ -335,8 +335,8 @@ A healthy glove prints this on the Serial Monitor (115200 baud):
 
 ### AI model
 
-Nothing to install by hand. `AI/board/` holds the classifier (`wk10_integration.py`) and the FPGA
-overlays. `run_board.ps1 --sync` copies the classifier and the overlay named by `--bitstream` to the
+Nothing to install by hand. `AI/ultra96/` holds the classifier (`wk10_integration.py`) and the FPGA
+overlay (`gesture_model.xsa`). `run_board.ps1 --sync` copies the classifier and the overlay named by `--bitstream` to the
 board. The board client feeds each glove's samples to it through `Comms/ultra96/gesture.py`.
 
 ### Phone app (iPhone)
@@ -358,16 +358,16 @@ board. The board client feeds each glove's samples to it through `Comms/ultra96/
 
 | Folder | What is in it |
 |---|---|
-| `AI/` | Training pipeline (`gesture_pipeline/`), and the board classifier and FPGA overlays (`board/`) |
+| `AI/` | The gesture classifier: dataset export (`data_collection/`), training (`train/`), FPGA conversion (`hls4ml/`) and the board classifier and overlay (`ultra96/`) ([AI README](AI/README.md)) |
 | `Comms/firebeetle/` | Glove firmware, including Hardware's gesture detector |
 | `Comms/laptop/` | Laptop relay, its tests (`tests/`) and `requirements.txt` |
 | `Comms/ultra96/` | Board client, game engine shell, and their helpers |
 | `Comms/scripts/` | Launchers: `run_all.ps1`, `run_pipeline.ps1`, `run_board.ps1`, and the dashboard |
 | `Comms/phone/comms-visualiser/` | The drop-in for the phone app: SSH tunnel and MQTT hook |
-| `Hardware/` | Glove CAD, data collection, and sensor test sketches |
+| `Hardware/` | Glove CAD, recording gesture data, the on-glove detector, and sensor test sketches ([Hardware README](Hardware/README.md)) |
 | `SW_Visualiser/script/` | The phone app's scripts |
 | `SW_Visualiser/engine/` | The game rules (`match.py`, `rules.json`) that run on the Ultra96, and their tests |
-| `docs/` | The documentation index, the system diagram, and the power and model-development guides ([index](docs/README.md)) |
+| `docs/` | The documentation index, the system diagram, the power and latency guides, and the model results ([index](docs/README.md)) |
 
 ## 5. Tests
 
@@ -392,7 +392,7 @@ install. Add `--ignore=tests/test_record_ble.py`, or install `numpy`.
 | Board pane says `WARN: nothing listening` | The laptop's tunnel isn't up. Check the Relay pane |
 | Board pane says `WARN: no broker on 1883` | Start Mosquitto on the board: `sudo systemctl start mosquitto` |
 | A phone stays connected but nothing updates | Its tunnel has stalled. It drops the link after 5 s without a snapshot and rebuilds the tunnel by itself, usually within about 30 s. If not, use the debug menu's Comms Disconnect and Connect, or relaunch the app |
-| Gestures arrive but the game ignores them | The board has the old model, whose names the game doesn't know. Run again with `--sync --vocab new --bitstream new_gestures_all.xsa` |
+| Gestures arrive but the game ignores them | The board has the old model, whose names the game doesn't know. Run again with `--sync --vocab new --bitstream gesture_model.xsa` |
 
 In a healthy run, the Relay pane shows `node N: subscribed` for each glove, then a rate line
 about once a second with `rate` near 100 Hz and `missed=0`. The Board pane shows
@@ -430,8 +430,8 @@ Dashboard stops all three.
 
 | Run | Command |
 |---|---|
-| Normal run, after any change | `.\scripts\run_all.ps1 --sync --gesture-flag --vocab new --bitstream new_gestures_all.xsa` |
-| Normal run, nothing changed | `.\scripts\run_all.ps1 --gesture-flag --vocab new --bitstream new_gestures_all.xsa` |
+| Normal run, after any change | `.\scripts\run_all.ps1 --sync --gesture-flag --vocab new --bitstream gesture_model.xsa` |
+| Normal run, nothing changed | `.\scripts\run_all.ps1 --gesture-flag --vocab new --bitstream gesture_model.xsa` |
 
 ### A.2 `scripts\run_pipeline.ps1`: the laptop relay
 
@@ -472,7 +472,7 @@ Board client flags, passed on to `Comms/ultra96/tcp_client_mqtt.py`:
 | Flag | Effect |
 |---|---|
 | `--gesture-flag` | Classify the glove's flagged gestures with AI. Without it, no gesture is classified |
-| `--bitstream NAME` | The FPGA overlay to load, from `AI/board/`. Required with `--gesture-flag`. Current: `new_gestures_all.xsa` |
+| `--bitstream NAME` | The FPGA overlay to load, from `AI/ultra96/`. Required with `--gesture-flag`. Current: `gesture_model.xsa` |
 | `--vocab old` or `--vocab new` | The model's labels. Must match the overlay. `new` gives the seven game names. Default: `old` |
 | `-v`, `--verbose` | Log every packet |
 | `--event-every N` | Publish a dummy gesture every `N` seconds, with no glove. Tests only the MQTT part |
@@ -541,7 +541,7 @@ A spell can be aimed anywhere along the island.
 | Zig-zag | `lightning` | Cast Lightning | 5 | Strikes the aim point 0.5 s later. Within 0.2 m: 180 damage to units, half at the edge, 60 to a tower |
 | Forward punch | `fireball` | Cast Fireball | 6 | Flies from your tower at 1.2 m/s (at least 0.4 s). Within 0.12 m: 120 damage to units, half at the edge, 40 to a tower. Then the spot burns for 4 s, 12 damage a second to units in it |
 
-The moves are AI's training set: [README_new_gestures.md](AI/gesture_pipeline/README_new_gestures.md).
+How AI recognises the moves, and how well: [docs/results.md](docs/results.md).
 Any other movement should come out as `noise`, which the engine refuses as an unknown gesture.
 
 ### B.2 Other actions

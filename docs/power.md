@@ -8,7 +8,7 @@ This supports the AI subsystem's power evaluation. Start the system as in the
 Add `--power` to the usual command:
 
 ```powershell
-.\scripts\run_all.ps1 --sync --gesture-flag --vocab new --bitstream new_gestures_all.xsa --power
+.\scripts\run_all.ps1 --sync --gesture-flag --vocab new --bitstream gesture_model.xsa --power
 ```
 
 This also starts `Comms/ultra96/power_monitor.py` on the board. It reads the board's power rails
@@ -53,7 +53,7 @@ runs the match, and in VS CPU it only classifies gestures.
 Add any of three flags to tune the board for the session. Each one also turns on `--power`:
 
 ```powershell
-.\scripts\run_all.ps1 --sync --gesture-flag --vocab new --bitstream new_gestures_all.xsa --cpu-mhz 300 --cores 1 --pl-mhz 25
+.\scripts\run_all.ps1 --sync --gesture-flag --vocab new --bitstream gesture_model.xsa --cpu-mhz 300 --cores 1 --pl-mhz 25
 ```
 
 | Flag | Values | Set by |
@@ -92,7 +92,8 @@ game, since it loads its own overlay; it refuses to start while the board client
 sudo -n env HOME="$HOME" XILINX_XRT=/usr ~/comms-venv/bin/python ~/comms/power_sweep.py [khz=399999+cores=1 ...]
 ```
 
-Results from 13 Nov (`new_gestures_all.xsa`; no answer changed under any setting):
+Results from 13 Nov (`new_gestures_all.xsa`, the overlay deployed before `gesture_model.xsa`; no
+answer changed under any setting):
 
 | Setting | Idle W | Inferring W | Inference median / p95 ms |
 |---|---|---|---|

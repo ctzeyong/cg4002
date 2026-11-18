@@ -9,8 +9,10 @@ How to run the game, and the game engine's topics, are in the
 The code is in this folder: the glove firmware (`firebeetle/`), the laptop relay (`laptop/`), the
 Ultra96 programs (`ultra96/`), the phone code (`phone/`: the Unity app's drop-in Comms scripts and two test clients) and
 the start-up scripts (`scripts/`).
-Testing a model on the laptop and recording training data over BLE are in
-[docs/model-development.md](../docs/model-development.md). How latency is measured is in
+Testing a model on the laptop is in
+[AI/ultra96/README.md](../AI/ultra96/README.md#testing-a-model-on-the-laptop), and recording
+training data over BLE in [Hardware/Data Collection/README.md](../Hardware/Data%20Collection/README.md).
+How latency is measured is in
 [docs/latency.md](../docs/latency.md).
 
 ## Table of contents
