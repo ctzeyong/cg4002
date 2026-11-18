@@ -223,8 +223,9 @@ The final system runs on these versions. Newer ones may work but were not tested
 | Ultra96, `pynq-venv` | Python; pynq, numpy, pandas. Every package: [`Comms/ultra96/requirements.txt`](Comms/ultra96/requirements.txt) | 3.10.4; 3.0.1, 1.21.5, 1.3.5 |
 | Ultra96, `~/comms-venv` | Python; aiomqtt, paho-mqtt | 3.10.4; 2.5.1, 2.1.0 |
 | Ultra96 | Mosquitto | 2.0.11 |
-| AI training and bitstream | TensorFlow, QKeras, Vivado/Vitis | To confirm with AI |
-| Phone app | Unity; MQTTnet; SSH.NET; Xcode. Every package: [`SW_Visualiser/README.md`](SW_Visualiser/README.md#requirements) | 6000.5.9f1; 4.3.7; DLLs in `Comms/phone/comms-visualiser/Transport/Plugins/SshNet/`; to confirm with Vis |
+| AI training (laptop) | Python; TensorFlow, tf_keras, QKeras. Every package: [`AI/requirements.txt`](AI/requirements.txt) | 3.12; 2.21.0, 2.21.0, 0.9.0 |
+| AI conversion to the FPGA (WSL Ubuntu 22.04) | Python; hls4ml, TensorFlow, QKeras; Vitis HLS and Vivado. Every package: [`AI/hls4ml/README.md`](AI/hls4ml/README.md#the-environment) | 3.10.16; 1.3.0, 2.14.1, 0.9.0; 2024.1 |
+| Phone app | Unity; MQTTnet; SSH.NET; Xcode. Every package: [`SW_Visualiser/README.md`](SW_Visualiser/README.md#requirements) | 6000.5.9f1; 4.3.7; 2026.0.0 |
 
 ### Network rule
 
