@@ -6,10 +6,9 @@ also runs on the Ultra96, and each player's iPhone draws the match on the table 
 
 | Resource | Link |
 |---|---|
-| Demo video | [youtu.be/f6eO1ZZI9ZA](https://youtu.be/f6eO1ZZI9ZA) |
+| Demo video | [YouTube](https://youtu.be/f6eO1ZZI9ZA) |
 | Gestures demo (with videos) | [Canva](https://canva.link/elqqsc8sswq4so6) |
-| Poster | [CG4002 Poster Digital.pdf](https://drive.google.com/file/d/1LLHhvsxJgjdckBzvWG0irFMn-bvVTPqd/view?usp=sharing) |
-| Code | [github.com/ctzeyong/cg4002](https://github.com/ctzeyong/cg4002/tree/main) |
+| Poster | [Drive](https://drive.google.com/file/d/1LLHhvsxJgjdckBzvWG0irFMn-bvVTPqd/view?usp=sharing) |
 | Dataset export | [Release v1.0](https://github.com/ctzeyong/cg4002/releases/tag/v1.0): the gesture dataset and trained model, to reproduce the classifier's accuracy ([how](AI/data_collection/README.md#reproducing-the-deployed-model-from-the-release-zip)) |
 
 This covers the system as a whole, how to run it, and the one-time
