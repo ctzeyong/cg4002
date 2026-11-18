@@ -6,8 +6,9 @@ import pytest
 
 COMMS = pathlib.Path(__file__).resolve().parents[2]
 FIRMWARE = COMMS / "firebeetle"
-HARDWARE = COMMS.parent / "Hardware" / "Data Collection" / "esp32_continuous_pipeline_test"
-COPIED = ("gesture_core.h", "segments.h", "model_data.h")
+HARDWARE = COMMS.parent / "Hardware" / "Data Collection" / "esp32_continuous"
+# hardware's model_data.h is only a placeholder, so the trained-model test below checks ours
+COPIED = ("gesture_core.h", "segments.h")
 
 
 def lines(path):
