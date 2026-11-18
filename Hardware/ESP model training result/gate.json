@@ -1,0 +1,5 @@
+{
+  "start_threshold": 0.5,
+  "stop_threshold": 0.2,
+  "stop_hold_us": 200000
+}

@@ -1,0 +1,336 @@
+{
+  "reviewed": true,
+  "annotation_method": "live_keyboard",
+  "boundary_basis": "latest received sensor sample; USB latency not corrected",
+  "intervals": [
+    {
+      "label": "ignore",
+      "start_us": 335603119,
+      "end_us": 337657119,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing",
+      "ignore_reason": "discarded"
+    },
+    {
+      "label": "infinity",
+      "start_us": 343565119,
+      "end_us": 345401119,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "infinity",
+      "start_us": 347907119,
+      "end_us": 350187119,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "ignore",
+      "start_us": 353927119,
+      "end_us": 356253119,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing",
+      "ignore_reason": "discarded"
+    },
+    {
+      "label": "infinity",
+      "start_us": 359639119,
+      "end_us": 361465119,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "infinity",
+      "start_us": 362435119,
+      "end_us": 364149119,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "infinity",
+      "start_us": 372401119,
+      "end_us": 374627119,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "infinity",
+      "start_us": 378425119,
+      "end_us": 380299119,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "infinity",
+      "start_us": 382545119,
+      "end_us": 384547119,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "infinity",
+      "start_us": 393175119,
+      "end_us": 395013119,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "infinity",
+      "start_us": 398865119,
+      "end_us": 401219119,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "ignore",
+      "start_us": 402795119,
+      "end_us": 404797119,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing",
+      "ignore_reason": "discarded"
+    },
+    {
+      "label": "infinity",
+      "start_us": 406671119,
+      "end_us": 408411119,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "infinity",
+      "start_us": 412151119,
+      "end_us": 414403119,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "infinity",
+      "start_us": 415797119,
+      "end_us": 417945119,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "ignore",
+      "start_us": 420597119,
+      "end_us": 422389119,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing",
+      "ignore_reason": "discarded"
+    },
+    {
+      "label": "infinity",
+      "start_us": 426359119,
+      "end_us": 428219119,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "ignore",
+      "start_us": 431043119,
+      "end_us": 433097119,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing",
+      "ignore_reason": "discarded"
+    },
+    {
+      "label": "infinity",
+      "start_us": 437897119,
+      "end_us": 439913119,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "ignore",
+      "start_us": 443229119,
+      "end_us": 447489119,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing",
+      "ignore_reason": "discarded"
+    },
+    {
+      "label": "infinity",
+      "start_us": 458185119,
+      "end_us": 460373119,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "infinity",
+      "start_us": 464071119,
+      "end_us": 466087119,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "infinity",
+      "start_us": 470063119,
+      "end_us": 472169119,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "infinity",
+      "start_us": 474551119,
+      "end_us": 476587119,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "ignore",
+      "start_us": 479097119,
+      "end_us": 481301119,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing",
+      "ignore_reason": "discarded"
+    },
+    {
+      "label": "infinity",
+      "start_us": 482335119,
+      "end_us": 484205119,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "infinity",
+      "start_us": 486009119,
+      "end_us": 488037119,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "ignore",
+      "start_us": 489741119,
+      "end_us": 494563119,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing",
+      "ignore_reason": "discarded"
+    },
+    {
+      "label": "infinity",
+      "start_us": 496535119,
+      "end_us": 498357119,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "infinity",
+      "start_us": 499989119,
+      "end_us": 502017119,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "infinity",
+      "start_us": 505321119,
+      "end_us": 507063119,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "infinity",
+      "start_us": 508285119,
+      "end_us": 509959119,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "ignore",
+      "start_us": 510973119,
+      "end_us": 513669119,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing",
+      "ignore_reason": "discarded"
+    },
+    {
+      "label": "infinity",
+      "start_us": 514697119,
+      "end_us": 516349119,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "infinity",
+      "start_us": 517105119,
+      "end_us": 519179119,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "infinity",
+      "start_us": 532165119,
+      "end_us": 533973119,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "infinity",
+      "start_us": 537641119,
+      "end_us": 539487119,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "infinity",
+      "start_us": 544079119,
+      "end_us": 546187119,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "infinity",
+      "start_us": 574407119,
+      "end_us": 576177119,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "infinity",
+      "start_us": 583117119,
+      "end_us": 584879119,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "standing"
+    }
+  ]
+}

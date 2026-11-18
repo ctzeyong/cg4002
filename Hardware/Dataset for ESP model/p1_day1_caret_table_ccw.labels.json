@@ -1,0 +1,282 @@
+{
+  "reviewed": true,
+  "annotation_method": "live_keyboard",
+  "boundary_basis": "latest received sensor sample; USB latency not corrected",
+  "intervals": [
+    {
+      "label": "caret",
+      "start_us": 215629113,
+      "end_us": 216253113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "caret",
+      "start_us": 217337113,
+      "end_us": 217927113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "caret",
+      "start_us": 218767113,
+      "end_us": 219217113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "caret",
+      "start_us": 221741113,
+      "end_us": 222223113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "caret",
+      "start_us": 223093113,
+      "end_us": 223497113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "caret",
+      "start_us": 224539113,
+      "end_us": 225453113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "caret",
+      "start_us": 226253113,
+      "end_us": 227127113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "caret",
+      "start_us": 228053113,
+      "end_us": 228547113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "caret",
+      "start_us": 229405113,
+      "end_us": 229905113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "caret",
+      "start_us": 230797113,
+      "end_us": 231207113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "caret",
+      "start_us": 231977113,
+      "end_us": 232357113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "caret",
+      "start_us": 233085113,
+      "end_us": 233461113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "caret",
+      "start_us": 234205113,
+      "end_us": 234569113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "ignore",
+      "start_us": 241983113,
+      "end_us": 245893113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated",
+      "ignore_reason": "discarded"
+    },
+    {
+      "label": "caret",
+      "start_us": 247259113,
+      "end_us": 247597113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "caret",
+      "start_us": 248553113,
+      "end_us": 248925113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "caret",
+      "start_us": 249965113,
+      "end_us": 250331113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "caret",
+      "start_us": 251415113,
+      "end_us": 251785113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "caret",
+      "start_us": 255481113,
+      "end_us": 255881113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "ignore",
+      "start_us": 256787113,
+      "end_us": 257277113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated",
+      "ignore_reason": "discarded"
+    },
+    {
+      "label": "caret",
+      "start_us": 259171113,
+      "end_us": 259551113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "caret",
+      "start_us": 260547113,
+      "end_us": 260933113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "caret",
+      "start_us": 261829113,
+      "end_us": 262199113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "caret",
+      "start_us": 264779113,
+      "end_us": 265319113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "caret",
+      "start_us": 266225113,
+      "end_us": 266795113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "caret",
+      "start_us": 267731113,
+      "end_us": 268091113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "caret",
+      "start_us": 268963113,
+      "end_us": 269319113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "caret",
+      "start_us": 270207113,
+      "end_us": 270577113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "caret",
+      "start_us": 271415113,
+      "end_us": 271741113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "caret",
+      "start_us": 272605113,
+      "end_us": 273879113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "ignore",
+      "start_us": 274235113,
+      "end_us": 277453113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated",
+      "ignore_reason": "discarded"
+    },
+    {
+      "label": "caret",
+      "start_us": 291283113,
+      "end_us": 291647113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "caret",
+      "start_us": 292587113,
+      "end_us": 293015113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "caret",
+      "start_us": 293897113,
+      "end_us": 294683113,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "seated"
+    }
+  ]
+}

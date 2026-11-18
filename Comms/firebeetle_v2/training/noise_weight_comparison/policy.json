@@ -1,8 +1,0 @@
-{
-  "overall_recall_max_drop": 0.01,
-  "per_gesture_sample_recall_max_drop": 0.02,
-  "gesture_detection_rate_max_drop": 0.01,
-  "background_min_reduction": 0.02,
-  "selection_data": "Juven validation only",
-  "test_data": "TY; selected weight only"
-}

@@ -1,0 +1,21 @@
+{
+  "watertight": true,
+  "single_solid": true,
+  "top_notch_width_mm": 11.0,
+  "top_notch_depth_mm": 2.0,
+  "top_notch_right_edge_margin_mm": 9.5,
+  "clip_extension_mm": 3.0,
+  "clip_interference_per_side_mm": 0.1,
+  "hole_center_y_mm": -35.85,
+  "hole_diameter_mm": 8,
+  "clip_height_range_mm": [
+    15.5,
+    18
+  ],
+  "rail_clearance_mm": 0.25,
+  "hard_collision_proxy_mm3": 0.0,
+  "intentional_friction_interference_mm3": 0.12599900150280519,
+  "source_mesh_watertight": false,
+  "validation_limit": "Base/side-wall proxy only; installed electronics not supplied",
+  "base_sha256": "9b08ec44eca3d2d67a42e78d0aa8eb15fe4fa67e08622ead37abfa5dc407e523"
+}

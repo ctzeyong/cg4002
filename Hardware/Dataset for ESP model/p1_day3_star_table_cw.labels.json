@@ -1,0 +1,47 @@
+{
+  "reviewed": true,
+  "annotation_method": "live_keyboard",
+  "boundary_basis": "latest received sensor sample; USB latency not corrected",
+  "intervals": [
+    {
+      "label": "star",
+      "start_us": 76087112,
+      "end_us": 77471112,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "star",
+      "start_us": 78101112,
+      "end_us": 79463112,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "star",
+      "start_us": 79973112,
+      "end_us": 81335112,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "star",
+      "start_us": 82689112,
+      "end_us": 83953112,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "star",
+      "start_us": 87575112,
+      "end_us": 89375112,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    }
+  ]
+}

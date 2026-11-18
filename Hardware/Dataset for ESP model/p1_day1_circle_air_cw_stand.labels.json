@@ -1,0 +1,212 @@
+{
+  "reviewed": true,
+  "annotation_method": "live_keyboard",
+  "boundary_basis": "latest received sensor sample; USB latency not corrected",
+  "intervals": [
+    {
+      "label": "circle",
+      "start_us": 554171113,
+      "end_us": 555709113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "ignore",
+      "start_us": 558157113,
+      "end_us": 559131113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing",
+      "ignore_reason": "sensor_gap"
+    },
+    {
+      "label": "circle",
+      "start_us": 560297113,
+      "end_us": 561241113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "circle",
+      "start_us": 563971113,
+      "end_us": 565783113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "circle",
+      "start_us": 568261113,
+      "end_us": 569803113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "circle",
+      "start_us": 597597113,
+      "end_us": 598603113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "circle",
+      "start_us": 601359113,
+      "end_us": 602649113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "circle",
+      "start_us": 606879113,
+      "end_us": 608291113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "circle",
+      "start_us": 614655113,
+      "end_us": 615817113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "circle",
+      "start_us": 618035113,
+      "end_us": 619319113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "circle",
+      "start_us": 621755113,
+      "end_us": 623281113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "circle",
+      "start_us": 625945113,
+      "end_us": 627307113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "circle",
+      "start_us": 631575113,
+      "end_us": 632727113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "circle",
+      "start_us": 635849113,
+      "end_us": 638029113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "circle",
+      "start_us": 643477113,
+      "end_us": 645213113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "ignore",
+      "start_us": 648509113,
+      "end_us": 650399113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing",
+      "ignore_reason": "sensor_gap"
+    },
+    {
+      "label": "circle",
+      "start_us": 662597113,
+      "end_us": 664017113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "circle",
+      "start_us": 667263113,
+      "end_us": 668223113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "circle",
+      "start_us": 669909113,
+      "end_us": 670617113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "circle",
+      "start_us": 671905113,
+      "end_us": 672419113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "circle",
+      "start_us": 673879113,
+      "end_us": 674985113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "circle",
+      "start_us": 676835113,
+      "end_us": 678187113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "ignore",
+      "start_us": 679753113,
+      "end_us": 681973113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing",
+      "ignore_reason": "sensor_gap"
+    },
+    {
+      "label": "ignore",
+      "start_us": 682955113,
+      "end_us": 686513113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing",
+      "ignore_reason": "discarded"
+    },
+    {
+      "label": "ignore",
+      "start_us": 692329113,
+      "end_us": 696797113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing",
+      "ignore_reason": "discarded"
+    }
+  ]
+}

@@ -1,0 +1,255 @@
+{
+  "reviewed": true,
+  "annotation_method": "live_keyboard",
+  "boundary_basis": "latest received sensor sample; USB latency not corrected",
+  "intervals": [
+    {
+      "label": "z",
+      "start_us": 1996831113,
+      "end_us": 1998093113,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "z",
+      "start_us": 1999073113,
+      "end_us": 2000273113,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "z",
+      "start_us": 2001173113,
+      "end_us": 2002045113,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "z",
+      "start_us": 2002877113,
+      "end_us": 2003497113,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "z",
+      "start_us": 2004355113,
+      "end_us": 2005031113,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "z",
+      "start_us": 2006007113,
+      "end_us": 2006661113,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "z",
+      "start_us": 2007661113,
+      "end_us": 2008247113,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "z",
+      "start_us": 2009289113,
+      "end_us": 2009843113,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "z",
+      "start_us": 2010909113,
+      "end_us": 2011575113,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "z",
+      "start_us": 2012607113,
+      "end_us": 2013247113,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "z",
+      "start_us": 2014271113,
+      "end_us": 2014903113,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "z",
+      "start_us": 2015867113,
+      "end_us": 2016639113,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "z",
+      "start_us": 2017557113,
+      "end_us": 2018563113,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "z",
+      "start_us": 2019379113,
+      "end_us": 2020389113,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "z",
+      "start_us": 2021239113,
+      "end_us": 2022521113,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "z",
+      "start_us": 2023417113,
+      "end_us": 2024461113,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "z",
+      "start_us": 2025257113,
+      "end_us": 2026203113,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "z",
+      "start_us": 2027073113,
+      "end_us": 2027899113,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "z",
+      "start_us": 2028693113,
+      "end_us": 2029569113,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "z",
+      "start_us": 2030385113,
+      "end_us": 2031401113,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "z",
+      "start_us": 2032217113,
+      "end_us": 2033117113,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "z",
+      "start_us": 2033913113,
+      "end_us": 2034727113,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "z",
+      "start_us": 2035589113,
+      "end_us": 2036195113,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "z",
+      "start_us": 2036877113,
+      "end_us": 2037447113,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "z",
+      "start_us": 2038065113,
+      "end_us": 2038691113,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "z",
+      "start_us": 2039271113,
+      "end_us": 2039881113,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "z",
+      "start_us": 2040461113,
+      "end_us": 2041047113,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "z",
+      "start_us": 2041881113,
+      "end_us": 2043075113,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "z",
+      "start_us": 2044109113,
+      "end_us": 2045953113,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "z",
+      "start_us": 2047157113,
+      "end_us": 2049313113,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "z",
+      "start_us": 2050353113,
+      "end_us": 2051783113,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    }
+  ]
+}

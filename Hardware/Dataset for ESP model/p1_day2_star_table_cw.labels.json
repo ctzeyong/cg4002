@@ -1,0 +1,96 @@
+{
+  "reviewed": true,
+  "annotation_method": "live_keyboard",
+  "boundary_basis": "latest received sensor sample; USB latency not corrected",
+  "intervals": [
+    {
+      "label": "star",
+      "start_us": 119767115,
+      "end_us": 121805115,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "star",
+      "start_us": 122523115,
+      "end_us": 124325115,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "star",
+      "start_us": 125109115,
+      "end_us": 126839115,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "star",
+      "start_us": 127487115,
+      "end_us": 129205115,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "star",
+      "start_us": 130069115,
+      "end_us": 131905115,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "star",
+      "start_us": 132717115,
+      "end_us": 134475115,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "ignore",
+      "start_us": 135135115,
+      "end_us": 136707115,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated",
+      "ignore_reason": "sensor_gap"
+    },
+    {
+      "label": "star",
+      "start_us": 137347115,
+      "end_us": 138683115,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "star",
+      "start_us": 139645115,
+      "end_us": 140873115,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "star",
+      "start_us": 142393115,
+      "end_us": 143899115,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "star",
+      "start_us": 144543115,
+      "end_us": 146379115,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    }
+  ]
+}

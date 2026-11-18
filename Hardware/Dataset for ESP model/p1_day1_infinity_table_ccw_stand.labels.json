@@ -1,0 +1,187 @@
+{
+  "reviewed": true,
+  "annotation_method": "live_keyboard",
+  "boundary_basis": "latest received sensor sample; USB latency not corrected",
+  "intervals": [
+    {
+      "label": "infinity",
+      "start_us": 446452427,
+      "end_us": 447932427,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "infinity",
+      "start_us": 448822427,
+      "end_us": 450250427,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "infinity",
+      "start_us": 451908427,
+      "end_us": 453310427,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "ignore",
+      "start_us": 455242427,
+      "end_us": 457292427,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "standing",
+      "ignore_reason": "discarded"
+    },
+    {
+      "label": "infinity",
+      "start_us": 459256427,
+      "end_us": 460920427,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "infinity",
+      "start_us": 461610427,
+      "end_us": 463306427,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "ignore",
+      "start_us": 465388427,
+      "end_us": 467870427,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "standing",
+      "ignore_reason": "discarded"
+    },
+    {
+      "label": "infinity",
+      "start_us": 468526427,
+      "end_us": 469740427,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "infinity",
+      "start_us": 470892427,
+      "end_us": 472814427,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "infinity",
+      "start_us": 473764427,
+      "end_us": 475002427,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "infinity",
+      "start_us": 478396427,
+      "end_us": 479950427,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "infinity",
+      "start_us": 481734427,
+      "end_us": 483272427,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "infinity",
+      "start_us": 490294427,
+      "end_us": 492062427,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "infinity",
+      "start_us": 493114427,
+      "end_us": 495180427,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "infinity",
+      "start_us": 496374427,
+      "end_us": 498254427,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "infinity",
+      "start_us": 501238427,
+      "end_us": 503226427,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "infinity",
+      "start_us": 504192427,
+      "end_us": 506194427,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "infinity",
+      "start_us": 507492427,
+      "end_us": 509404427,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "ignore",
+      "start_us": 510088427,
+      "end_us": 511646427,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "standing",
+      "ignore_reason": "sensor_gap"
+    },
+    {
+      "label": "infinity",
+      "start_us": 515154427,
+      "end_us": 516964427,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "ignore",
+      "start_us": 521416427,
+      "end_us": 523622427,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "standing",
+      "ignore_reason": "discarded"
+    },
+    {
+      "label": "infinity",
+      "start_us": 527740427,
+      "end_us": 529180427,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "standing"
+    }
+  ]
+}

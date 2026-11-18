@@ -1,0 +1,192 @@
+{
+  "reviewed": true,
+  "annotation_method": "live_keyboard",
+  "boundary_basis": "latest received sensor sample; USB latency not corrected",
+  "intervals": [
+    {
+      "label": "circle",
+      "start_us": 671225118,
+      "end_us": 672007118,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "circle",
+      "start_us": 676869118,
+      "end_us": 677787118,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "circle",
+      "start_us": 680417118,
+      "end_us": 681395118,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "circle",
+      "start_us": 683409118,
+      "end_us": 684353118,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "circle",
+      "start_us": 686173118,
+      "end_us": 687165118,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "circle",
+      "start_us": 689911118,
+      "end_us": 690507118,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "circle",
+      "start_us": 693855118,
+      "end_us": 694701118,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "ignore",
+      "start_us": 697009118,
+      "end_us": 698379118,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "standing",
+      "ignore_reason": "sensor_gap"
+    },
+    {
+      "label": "circle",
+      "start_us": 700625118,
+      "end_us": 701867118,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "circle",
+      "start_us": 704675118,
+      "end_us": 705967118,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "circle",
+      "start_us": 712699118,
+      "end_us": 714061118,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "circle",
+      "start_us": 717025118,
+      "end_us": 718259118,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "circle",
+      "start_us": 720215118,
+      "end_us": 721387118,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "circle",
+      "start_us": 723295118,
+      "end_us": 724569118,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "circle",
+      "start_us": 736017118,
+      "end_us": 737495118,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "circle",
+      "start_us": 740179118,
+      "end_us": 741469118,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "circle",
+      "start_us": 743425118,
+      "end_us": 744679118,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "circle",
+      "start_us": 747811118,
+      "end_us": 749153118,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "circle",
+      "start_us": 751159118,
+      "end_us": 752195118,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "circle",
+      "start_us": 755065118,
+      "end_us": 756155118,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "circle",
+      "start_us": 759655118,
+      "end_us": 760629118,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "circle",
+      "start_us": 762487118,
+      "end_us": 764013118,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "standing"
+    },
+    {
+      "label": "circle",
+      "start_us": 767651118,
+      "end_us": 768935118,
+      "drawing_mode": "table",
+      "direction": "ccw",
+      "posture": "standing"
+    }
+  ]
+}

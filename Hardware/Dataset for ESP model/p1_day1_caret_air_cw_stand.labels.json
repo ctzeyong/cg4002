@@ -1,0 +1,270 @@
+{
+  "reviewed": true,
+  "annotation_method": "live_keyboard",
+  "boundary_basis": "latest received sensor sample; USB latency not corrected",
+  "intervals": [
+    {
+      "label": "ignore",
+      "start_us": 904623113,
+      "end_us": 906069113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing",
+      "ignore_reason": "sensor_gap"
+    },
+    {
+      "label": "caret",
+      "start_us": 909017113,
+      "end_us": 910241113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "caret",
+      "start_us": 910957113,
+      "end_us": 911649113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "caret",
+      "start_us": 912233113,
+      "end_us": 912815113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "caret",
+      "start_us": 913425113,
+      "end_us": 914059113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "caret",
+      "start_us": 914943113,
+      "end_us": 915319113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "caret",
+      "start_us": 916137113,
+      "end_us": 916477113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "caret",
+      "start_us": 917257113,
+      "end_us": 917621113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "caret",
+      "start_us": 918363113,
+      "end_us": 918713113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "ignore",
+      "start_us": 919401113,
+      "end_us": 920859113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing",
+      "ignore_reason": "discarded"
+    },
+    {
+      "label": "caret",
+      "start_us": 921507113,
+      "end_us": 921825113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "caret",
+      "start_us": 922575113,
+      "end_us": 922969113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "caret",
+      "start_us": 923545113,
+      "end_us": 923929113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "caret",
+      "start_us": 924571113,
+      "end_us": 924927113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "caret",
+      "start_us": 925577113,
+      "end_us": 925949113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "caret",
+      "start_us": 926745113,
+      "end_us": 927455113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "caret",
+      "start_us": 928151113,
+      "end_us": 928663113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "caret",
+      "start_us": 929357113,
+      "end_us": 929995113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "caret",
+      "start_us": 930547113,
+      "end_us": 930889113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "caret",
+      "start_us": 931547113,
+      "end_us": 931973113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "caret",
+      "start_us": 932595113,
+      "end_us": 933619113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "caret",
+      "start_us": 933985113,
+      "end_us": 934781113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "caret",
+      "start_us": 935243113,
+      "end_us": 936325113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "caret",
+      "start_us": 959989113,
+      "end_us": 962173113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "caret",
+      "start_us": 962823113,
+      "end_us": 964935113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "caret",
+      "start_us": 966019113,
+      "end_us": 967051113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "caret",
+      "start_us": 969335113,
+      "end_us": 970191113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "caret",
+      "start_us": 970963113,
+      "end_us": 971831113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "caret",
+      "start_us": 972453113,
+      "end_us": 972763113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "caret",
+      "start_us": 975299113,
+      "end_us": 975989113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "caret",
+      "start_us": 977295113,
+      "end_us": 977771113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "caret",
+      "start_us": 978825113,
+      "end_us": 979163113,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "ignore",
+      "start_us": 936557677,
+      "end_us": 937683984
+    }
+  ]
+}

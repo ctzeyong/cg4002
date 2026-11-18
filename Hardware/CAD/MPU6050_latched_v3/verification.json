@@ -1,0 +1,20 @@
+{
+  "base_valid": true,
+  "lid_valid": true,
+  "seated_overlap_mm3": 0.0,
+  "base_reflection_difference_mm3": 0.0,
+  "latch_center_y_mm": -10,
+  "latch_distance_from_each_cavity_edge_mm": 8,
+  "lid_y_range_mm": [
+    -12,
+    -2
+  ],
+  "pin_opening_mm": 6,
+  "base_height_mm": 7.5,
+  "cavity_mm": [
+    20.5,
+    16
+  ],
+  "stl_meshes_closed": true,
+  "previous_revision_sha256": "9a975bafd448ff1476e6c580418bfa57e136a947c442689f119bed7ab2563b9f"
+}

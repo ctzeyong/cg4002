@@ -1,0 +1,47 @@
+{
+  "reviewed": true,
+  "annotation_method": "live_keyboard",
+  "boundary_basis": "latest received sensor sample; USB latency not corrected",
+  "intervals": [
+    {
+      "label": "triangle",
+      "start_us": 45547112,
+      "end_us": 46713112,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "triangle",
+      "start_us": 47365112,
+      "end_us": 49829112,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "triangle",
+      "start_us": 52009112,
+      "end_us": 53177112,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "triangle",
+      "start_us": 54295112,
+      "end_us": 55395112,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "triangle",
+      "start_us": 55979112,
+      "end_us": 56863112,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    }
+  ]
+}

@@ -1,0 +1,201 @@
+{
+  "reviewed": true,
+  "annotation_method": "live_keyboard",
+  "boundary_basis": "latest received sensor sample; USB latency not corrected",
+  "intervals": [
+    {
+      "label": "infinity",
+      "start_us": 1212380427,
+      "end_us": 1214186427,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "infinity",
+      "start_us": 1215234427,
+      "end_us": 1216852427,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "infinity",
+      "start_us": 1217898427,
+      "end_us": 1220274427,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "infinity",
+      "start_us": 1220934427,
+      "end_us": 1222608427,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "infinity",
+      "start_us": 1223442427,
+      "end_us": 1225366427,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "infinity",
+      "start_us": 1225906427,
+      "end_us": 1227650427,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "infinity",
+      "start_us": 1228468427,
+      "end_us": 1230154427,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "infinity",
+      "start_us": 1231830427,
+      "end_us": 1233930427,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "infinity",
+      "start_us": 1234530427,
+      "end_us": 1236326427,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "infinity",
+      "start_us": 1238314427,
+      "end_us": 1240034427,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "ignore",
+      "start_us": 1241228427,
+      "end_us": 1243096427,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "standing",
+      "ignore_reason": "sensor_gap"
+    },
+    {
+      "label": "infinity",
+      "start_us": 1244334427,
+      "end_us": 1246042427,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "infinity",
+      "start_us": 1246866427,
+      "end_us": 1248574427,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "ignore",
+      "start_us": 1249630427,
+      "end_us": 1252072427,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "standing",
+      "ignore_reason": "discarded"
+    },
+    {
+      "label": "infinity",
+      "start_us": 1253118427,
+      "end_us": 1254490427,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "infinity",
+      "start_us": 1257330427,
+      "end_us": 1258774427,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "infinity",
+      "start_us": 1261420427,
+      "end_us": 1264250427,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "infinity",
+      "start_us": 1266092427,
+      "end_us": 1268342427,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "infinity",
+      "start_us": 1271740427,
+      "end_us": 1273544427,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "infinity",
+      "start_us": 1275114427,
+      "end_us": 1276830427,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "infinity",
+      "start_us": 1277804427,
+      "end_us": 1280100427,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "infinity",
+      "start_us": 1281718427,
+      "end_us": 1283918427,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "infinity",
+      "start_us": 1285558427,
+      "end_us": 1287608427,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "standing"
+    },
+    {
+      "label": "infinity",
+      "start_us": 1291518427,
+      "end_us": 1293736427,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "standing"
+    }
+  ]
+}

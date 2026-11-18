@@ -1,0 +1,96 @@
+{
+  "reviewed": true,
+  "annotation_method": "live_keyboard",
+  "boundary_basis": "latest received sensor sample; USB latency not corrected",
+  "intervals": [
+    {
+      "label": "star",
+      "start_us": 305683115,
+      "end_us": 307273115,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "star",
+      "start_us": 308117115,
+      "end_us": 309925115,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "ignore",
+      "start_us": 311343115,
+      "end_us": 312841115,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "seated",
+      "ignore_reason": "discarded"
+    },
+    {
+      "label": "star",
+      "start_us": 314115115,
+      "end_us": 316029115,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "star",
+      "start_us": 316557115,
+      "end_us": 318343115,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "star",
+      "start_us": 319545115,
+      "end_us": 321371115,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "star",
+      "start_us": 321917115,
+      "end_us": 323737115,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "star",
+      "start_us": 325837115,
+      "end_us": 327715115,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "star",
+      "start_us": 328431115,
+      "end_us": 330439115,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "star",
+      "start_us": 331207115,
+      "end_us": 333013115,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "star",
+      "start_us": 333533115,
+      "end_us": 335375115,
+      "drawing_mode": "air_front",
+      "direction": "cw",
+      "posture": "seated"
+    }
+  ]
+}

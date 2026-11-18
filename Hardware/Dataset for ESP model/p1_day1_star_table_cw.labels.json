@@ -1,0 +1,314 @@
+{
+  "reviewed": true,
+  "annotation_method": "live_keyboard",
+  "boundary_basis": "latest received sensor sample; USB latency not corrected",
+  "intervals": [
+    {
+      "label": "star",
+      "start_us": 114937114,
+      "end_us": 116659114,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "star",
+      "start_us": 118255114,
+      "end_us": 119613114,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "star",
+      "start_us": 120529114,
+      "end_us": 121733114,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "star",
+      "start_us": 123043114,
+      "end_us": 126127114,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "star",
+      "start_us": 128593114,
+      "end_us": 130449114,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "ignore",
+      "start_us": 133991114,
+      "end_us": 136201114,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated",
+      "ignore_reason": "discarded"
+    },
+    {
+      "label": "star",
+      "start_us": 138293114,
+      "end_us": 139775114,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "ignore",
+      "start_us": 142355114,
+      "end_us": 144281114,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated",
+      "ignore_reason": "discarded"
+    },
+    {
+      "label": "star",
+      "start_us": 144911114,
+      "end_us": 146497114,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "star",
+      "start_us": 148565114,
+      "end_us": 150587114,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "star",
+      "start_us": 155889114,
+      "end_us": 157491114,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "star",
+      "start_us": 158765114,
+      "end_us": 160183114,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "star",
+      "start_us": 162135114,
+      "end_us": 163639114,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "star",
+      "start_us": 167007114,
+      "end_us": 168719114,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "ignore",
+      "start_us": 169653114,
+      "end_us": 171427114,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated",
+      "ignore_reason": "sensor_gap"
+    },
+    {
+      "label": "ignore",
+      "start_us": 172807114,
+      "end_us": 175213114,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated",
+      "ignore_reason": "discarded"
+    },
+    {
+      "label": "star",
+      "start_us": 178989114,
+      "end_us": 180993114,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "ignore",
+      "start_us": 182019114,
+      "end_us": 184001114,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated",
+      "ignore_reason": "discarded"
+    },
+    {
+      "label": "star",
+      "start_us": 184919114,
+      "end_us": 186613114,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "star",
+      "start_us": 187327114,
+      "end_us": 188795114,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "star",
+      "start_us": 189533114,
+      "end_us": 191011114,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "star",
+      "start_us": 191643114,
+      "end_us": 193253114,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "star",
+      "start_us": 194475114,
+      "end_us": 196713114,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "star",
+      "start_us": 197455114,
+      "end_us": 199913114,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "star",
+      "start_us": 200839114,
+      "end_us": 202943114,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "star",
+      "start_us": 203631114,
+      "end_us": 205355114,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "star",
+      "start_us": 206201114,
+      "end_us": 208009114,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "star",
+      "start_us": 209715114,
+      "end_us": 211331114,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "star",
+      "start_us": 214517114,
+      "end_us": 216141114,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "star",
+      "start_us": 216865114,
+      "end_us": 219033114,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "star",
+      "start_us": 221341114,
+      "end_us": 223285114,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "star",
+      "start_us": 223907114,
+      "end_us": 225413114,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "star",
+      "start_us": 226731114,
+      "end_us": 228819114,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "ignore",
+      "start_us": 231033114,
+      "end_us": 235811114,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated",
+      "ignore_reason": "discarded"
+    },
+    {
+      "label": "star",
+      "start_us": 236949114,
+      "end_us": 238671114,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "star",
+      "start_us": 239295114,
+      "end_us": 240891114,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "star",
+      "start_us": 246297114,
+      "end_us": 248057114,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "ignore",
+      "start_us": 228890614,
+      "end_us": 230703491
+    }
+  ]
+}

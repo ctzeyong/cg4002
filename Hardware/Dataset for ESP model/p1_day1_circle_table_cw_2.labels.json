@@ -1,0 +1,63 @@
+{
+  "reviewed": true,
+  "annotation_method": "live_keyboard",
+  "boundary_basis": "latest received sensor sample; USB latency not corrected",
+  "intervals": [
+    {
+      "label": "circle",
+      "start_us": 55745113,
+      "end_us": 57225113,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "circle",
+      "start_us": 60917113,
+      "end_us": 62309113,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "circle",
+      "start_us": 64251113,
+      "end_us": 65247113,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "circle",
+      "start_us": 67243113,
+      "end_us": 68371113,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "circle",
+      "start_us": 70819113,
+      "end_us": 71897113,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "circle",
+      "start_us": 75401113,
+      "end_us": 76611113,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    },
+    {
+      "label": "circle",
+      "start_us": 78561113,
+      "end_us": 79757113,
+      "drawing_mode": "table",
+      "direction": "cw",
+      "posture": "seated"
+    }
+  ]
+}

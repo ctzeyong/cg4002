@@ -1,0 +1,30 @@
+{
+  "schema": "gesture-packet-v4",
+  "raw_hz": 500,
+  "default_output_steps": 100,
+  "dlpf": 3,
+  "accel_range_g": 4,
+  "gyro_range_dps": 500,
+  "participant": "p1",
+  "session": "day1",
+  "notes": "",
+  "started_unix": 1792018597.1187043,
+  "channels": [
+    "ax_g",
+    "ay_g",
+    "az_g",
+    "gx_dps",
+    "gy_dps",
+    "gz_dps"
+  ],
+  "timestamp_basis": "nominal 500 Hz sensor FIFO grid, not USB arrival time",
+  "samples": 78583,
+  "gaps": 1,
+  "malformed_rows": 2,
+  "malformed_examples": [
+    "9,-6067,5420,-7137,-2746",
+    "RAW500RAW500,309405,619421114,5291,-3847,-3360,-5882,-3543,-374"
+  ],
+  "stop_reason": null,
+  "finished_unix": 1792018754.4693482
+}

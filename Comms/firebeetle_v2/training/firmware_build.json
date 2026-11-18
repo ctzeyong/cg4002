@@ -1,9 +1,0 @@
-{
-  "target": "esp32:esp32:firebeetle32",
-  "active_run": "ble_juven_val_ty_test",
-  "result": "passed",
-  "program_bytes": 633875,
-  "global_ram_bytes": 38400,
-  "uploaded": false,
-  "model_sha256": "11EA0DCE8A104F2C07C130F7D4B2E384ECEB1A325EDFCE1637871049C472E630"
-}

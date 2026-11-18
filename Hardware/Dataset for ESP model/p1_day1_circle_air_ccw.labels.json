@@ -1,0 +1,201 @@
+{
+  "reviewed": true,
+  "annotation_method": "live_keyboard",
+  "boundary_basis": "latest received sensor sample; USB latency not corrected",
+  "intervals": [
+    {
+      "label": "circle",
+      "start_us": 371567113,
+      "end_us": 372981113,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "circle",
+      "start_us": 375607113,
+      "end_us": 377105113,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "circle",
+      "start_us": 378617113,
+      "end_us": 380065113,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "circle",
+      "start_us": 383269113,
+      "end_us": 384941113,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "circle",
+      "start_us": 386517113,
+      "end_us": 387647113,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "circle",
+      "start_us": 389229113,
+      "end_us": 390085113,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "circle",
+      "start_us": 391521113,
+      "end_us": 392109113,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "circle",
+      "start_us": 393971113,
+      "end_us": 394915113,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "circle",
+      "start_us": 396431113,
+      "end_us": 397185113,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "circle",
+      "start_us": 399205113,
+      "end_us": 400795113,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "circle",
+      "start_us": 403903113,
+      "end_us": 405723113,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "circle",
+      "start_us": 407395113,
+      "end_us": 409675113,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "circle",
+      "start_us": 412307113,
+      "end_us": 413843113,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "circle",
+      "start_us": 416501113,
+      "end_us": 418279113,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "circle",
+      "start_us": 428037113,
+      "end_us": 429423113,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "circle",
+      "start_us": 433187113,
+      "end_us": 435035113,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "circle",
+      "start_us": 437703113,
+      "end_us": 439219113,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "circle",
+      "start_us": 442519113,
+      "end_us": 444153113,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "circle",
+      "start_us": 446569113,
+      "end_us": 448667113,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "ignore",
+      "start_us": 451593113,
+      "end_us": 453565113,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "seated",
+      "ignore_reason": "sensor_gap"
+    },
+    {
+      "label": "circle",
+      "start_us": 458811113,
+      "end_us": 459625113,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "circle",
+      "start_us": 463465113,
+      "end_us": 464883113,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "seated"
+    },
+    {
+      "label": "ignore",
+      "start_us": 471135113,
+      "end_us": 472235113,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "seated",
+      "ignore_reason": "sensor_gap"
+    },
+    {
+      "label": "circle",
+      "start_us": 476941113,
+      "end_us": 478569113,
+      "drawing_mode": "air_front",
+      "direction": "ccw",
+      "posture": "seated"
+    }
+  ]
+}
