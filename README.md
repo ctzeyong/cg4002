@@ -364,7 +364,7 @@ board. The board client feeds each glove's samples to it through `Comms/ultra96/
 | `Comms/ultra96/` | Board client, game engine shell, and their helpers |
 | `Comms/scripts/` | Launchers: `run_all.ps1`, `run_pipeline.ps1`, `run_board.ps1`, and the dashboard |
 | `Comms/phone/comms-visualiser/` | The drop-in for the phone app: SSH tunnel and MQTT hook |
-| `Hardware/` | Glove CAD, recording gesture data, the on-glove detector, and sensor test sketches ([Hardware README](Hardware/README.md)) |
+| `Hardware/` | Glove CAD, recording gesture data, and the on-glove detector's training data and model ([Hardware README](Hardware/README.md)) |
 | `SW_Visualiser/script/` | The phone app's scripts |
 | `SW_Visualiser/engine/` | The game rules (`match.py`, `rules.json`) that run on the Ultra96, and their tests |
 | `docs/` | The documentation index, the system diagram, the power and latency guides, and the model results ([index](docs/README.md)) |

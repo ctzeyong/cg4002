@@ -8,7 +8,7 @@ Each subsystem keeps its documentation in its own folder.
 
 | Subsystem | Documentation |
 |---|---|
-| Hardware | [The glove and the on-glove detector](../Hardware/README.md), and [recording and labelling gesture data](../Hardware/Data%20Collection/README.md) |
+| Hardware | [Overview](../Hardware/README.md), and [wiring, recording and labelling gesture data, and the on-glove detector](../Hardware/Data%20Collection/README.md) |
 | Communications | [Comms subsystem guide](../Comms/README.md) |
 | AI | [The gesture classifier pipeline](../AI/README.md) |
 | Software visualiser | [The Unity AR app](../SW_Visualiser/README.md) |
