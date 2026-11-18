@@ -2,8 +2,9 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 .ipynb_checkpoints/
-AI/gesture_pipeline/dataset/*
-AI/gesture_pipeline/results/*
+AI/data_collection/datasets/*
+!AI/data_collection/datasets/cloud_manual_day1_raw100hz_int16/
+AI/train/results/*
 Hardware/Data Collection/old gestures/*
 # virtual environments
 .venv/
@@ -16,3 +17,7 @@ venv/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+Reports/*
+poster_assets/*
+.ai_pipeline_build/*
