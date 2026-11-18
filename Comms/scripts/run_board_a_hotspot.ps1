@@ -1,5 +1,5 @@
-# Configuration A on a phone-hotspot uplink, board half. Pane 2 of two; pane 1 is
-# run_pipeline_a_hotspot.ps1.
+# Laptop-broker setup on a phone-hotspot uplink, board half. Pane 2 of two; pane 1 is
+# run_pipeline_a_hotspot.ps1. This setup was evaluated but is not used in the final system.
 #
 # A wrapper, so both panes start the same way. The work is in run_board_a_hotspot.py,
 # which reaches the board over Tailscale with the laptop's key: no VPN, no password.
@@ -9,7 +9,7 @@
 #   .\run_board_a_hotspot.ps1 --stop           # kill it and exit
 #   .\run_board_a_hotspot.ps1 --fetch-logs     # copy today's (UTC) board logs to logs\board\
 #
-# Starting it stops configuration B's board client first: the laptop keeps one client.
+# Starting it stops the final system's board client first: the laptop keeps one client.
 # Ctrl-C here stops the board client.
 
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path

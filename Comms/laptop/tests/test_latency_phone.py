@@ -1,6 +1,6 @@
-"""Latency measurement, stage 2: the phone's clock offset over adb, and the phone hop.
+"""Latency measurement on the phone: its clock offset over adb, and the phone hop.
 
-notes/latency.md 3.3 and 3.7. Nothing here runs adb or Unity: the clock maths is fed fake
+Nothing here runs adb or Unity: the clock maths is fed fake
 exchanges, and the C# is checked as source against the report's parser, because the APK
 cannot be built from here.
 """

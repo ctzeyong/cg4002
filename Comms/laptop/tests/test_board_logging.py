@@ -9,9 +9,8 @@ evidence, and it was a link-recovery test that finally made that obvious.
 These tests pin the two decisions that are easy to undo by accident:
 
   - the file handler exists at all, and actually receives records;
-  - it lands under ``~``, never ``/tmp``, which the board wipes on reboot
-    (``notes/ultra96_setup.md``);
-  - configuration A and configuration B write to *different* files. Both clients now
+  - it lands under ``~``, never ``/tmp``, which the board wipes on reboot;
+  - the two board clients write to *different* files. Both clients now
     live on the board, and running the wrong one is a documented failure whose only
     symptom is a silent phone -- separate logs make "which client was actually
     running" answerable after the fact rather than a guess.
@@ -52,7 +51,7 @@ def _stop(listener):
 def call_setup_logging():
     """Call `setup_logging` against a clean root logger, then restore pytest's.
 
-    Two traps, both of which made an earlier version of this file pass vacuously:
+    Two mistakes, both of which made an earlier version of this file pass vacuously:
 
     - `setup_logging` is a no-op once the root logger has handlers (the basicConfig
       rule), and **pytest's logging plugin adds its capture handler during the call
@@ -173,7 +172,7 @@ def test_default_is_under_home_and_not_tmp():
 
 
 def test_the_two_clients_do_not_share_a_log_file():
-    """Configuration A and configuration B must be tellable apart afterwards."""
+    """The two board clients must be tellable apart afterwards."""
     assert tcp_client_mqtt.LOG_FILE != board_logging.DEFAULT_LOG_FILE
     assert tcp_client_mqtt.LOG_FILE.parent == board_logging.DEFAULT_LOG_FILE.parent
 
@@ -205,9 +204,9 @@ def test_the_boards_colour_scheme_matches_the_laptops():
     board = board_logging.ConsoleColourFormatter("%(message)s", enabled=True)
     laptop = logging_setup.ConsoleColourFormatter("%(message)s", enabled=True)
 
-    # Every logger the board actually emits under either configuration.
+    # Every logger the board actually emits, from either client.
     # `tcp_client_mqtt` was absent from the board's map until 2026-09-22, so
-    # configuration B's AI event lines -- hop 4 of the chain -- rendered uncoloured.
+    # its AI event lines -- hop 4 of the chain -- rendered uncoloured.
     for name in ("tcp_client", "tcp_client_mqtt", "mqtt_publisher"):
         for level in (logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR):
             for progress in (False, True):
@@ -225,7 +224,7 @@ def test_the_boards_colour_scheme_matches_the_laptops():
 
 
 def test_the_board_dims_its_periodic_counter_and_brightens_its_events():
-    """The board runs one leg, so the weight axis is what earns its place here."""
+    """The board has one link, so brightness is what tells its counters from its events."""
     fmt = board_logging.ConsoleColourFormatter("%(message)s", enabled=True)
 
     counter = logging.LogRecord("tcp_client", logging.INFO, "f.py", 1, "m", None, None)

@@ -10,7 +10,6 @@ reaches the phone as "unknown gesture" and spawns nothing.
 That drift raises no error on the board or the laptop, so it is caught here. This reads each
 side's published names, not its internals: the enum's members, and AI's label map without the
 labels its `wk10_integration.REJECT_LABELS` turns into no result.
-notes/integration/vis_integration.md section 4.6.
 
 These are source-parsing tests, so they need no numpy. If one fails because AI or Vis renamed
 or added a gesture, change `GESTURES` and `KEY_GESTURES` to match; don't edit their files.

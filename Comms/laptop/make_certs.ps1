@@ -1,19 +1,18 @@
 <#
 .SYNOPSIS
     Issue the mTLS material for the MQTT leg, and the broker fragment that uses it.
+    Not used in the final system (broker on Ultra96). See "Mutual TLS" in Comms/README.md.
 
 .DESCRIPTION
-    Rubric criterion 6 asks for a walk-through of encryption in each channel, and the
-    examiner may ask how identity is issued -- so this is a script rather than a
-    shell-history exercise. Read notes/mtls.md first; the key inventory there is the
-    thing most people get wrong.
+    A script rather than a shell-history exercise, so how each identity is issued can
+    be read and re-run.
 
     Four keypairs, each private key staying on the machine that owns it:
 
         ca                  signs the other three            (this laptop, issuing only)
         broker              proves the broker to clients     (whichever host runs it)
         laptop-relay        proves the relay to the broker   (this laptop)
-        ultra96-relay       configuration B's publisher      (the board)
+        ultra96-relay       proves the board to the broker   (the board)
         phone-visualiser    proves the phone to the broker   (the phone)
 
     Only ca.crt is distributed. No private key is ever copied to another machine
@@ -27,9 +26,9 @@
 
 .PARAMETER ApAddress
     The laptop's SoftAP address, which the broker cert must cover as an IP SAN.
-    Both configurations connect by address, and a cert carrying only DNS names
+    Clients connect by address, and a cert carrying only DNS names
     fails hostname validation in MQTTnet and paho alike with a generic handshake
-    error -- see notes/mtls.md.
+    error.
 
 .PARAMETER Days
     Certificate lifetime. One year by default so nothing expires mid-semester.
@@ -87,7 +86,7 @@ function Write-TextFile {
     <#
         Always LF, never the BOM-and-CRLF that Set-Content produces. openssl reads
         these config files, and mosquitto reads tls.conf; both are happier without
-        a BOM. Same family as the write_text CRLF trap in CLAUDE.md.
+        a BOM.
     #>
     param([string] $Path, [string] $Content)
     [System.IO.File]::WriteAllText($Path, ($Content -replace "`r`n", "`n"), (New-Object System.Text.UTF8Encoding($false)))
@@ -132,9 +131,9 @@ keyUsage               = critical,keyCertSign,cRLSign
 subjectKeyIdentifier   = hash
 "@
 
-# IP SANs, not DNS. Both configurations dial an address: the laptop's AP under A,
-# loopback under B. A DNS-only cert fails hostname validation with a generic
-# handshake error, which is the single most likely thing here to burn an evening.
+# IP SANs, not DNS. Clients dial an address: loopback on the board, or the laptop's
+# AP when the broker is on the laptop. A DNS-only cert fails hostname validation with a generic
+# handshake error that gives no hint of the cause.
 Write-TextFile (Join-Path $CnfDir "broker.cnf") @"
 [req]
 distinguished_name = dn
@@ -217,15 +216,14 @@ foreach ($role in $ClientRoles) {
 # and never packaged in the APK, so a passphrase compiled into the app would add a
 # secret to ship without adding protection.
 #
-# Two variants, and Stage A settled which is needed: Unity's Mono refuses the modern
+# Two variants, and testing on the phone settled which is needed: Unity's Mono refuses the modern
 # bundle with "ArgumentException unsupported HMAC". The blocker is the MAC digest, not
 # the encryption -- OpenSSL 3 MACs with SHA-256 and Mono's PKCS#12 reader supports only
-# SHA-1. So `-macalg sha1` below is the load-bearing flag; -certpbe/-keypbe were
+# SHA-1. So `-macalg sha1` below is the flag that matters; -certpbe/-keypbe were
 # changed at the same time and may not have been necessary.
 #
 # The modern bundle is still issued: it costs one call, and a future runtime that reads
 # it is picked up by the loader's fallback order with no code change.
-# 2026-09-17, notes/mtls.md.
 
 Write-Host "[4/5] PKCS#12 bundle for the phone"
 Invoke-OpenSsl pkcs12 -export `
@@ -254,8 +252,7 @@ Invoke-OpenSsl pkcs12 -export `
 # defined first".
 #
 # Two named listeners, mirroring the plaintext pair, NOT 0.0.0.0: the laptop must
-# accept no inbound connection on any NUS-assigned address. That is the
-# demonstration the data-broker argument in notes/risks.md rests on.
+# accept no inbound connection on any NUS-assigned address.
 
 Write-Host "[5/5] broker fragment -> local\tls.conf"
 

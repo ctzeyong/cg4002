@@ -4,7 +4,7 @@ bleak>=0.22,<1.0
 # so the major version is pinned.
 aiomqtt>=2.0,<3.0
 # The SSH tunnel runs in-process (laptop/tunnel.py) rather than under ssh.exe,
-# which cannot be given a password non-interactively — see notes/ultra96_setup.md.
+# which cannot be given a password non-interactively.
 asyncssh>=2.14,<3.0
 pytest>=8.0
 pytest-asyncio>=0.23

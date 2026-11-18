@@ -29,6 +29,7 @@ namespace Comms.Visualiser
         private const int ReleaseWaitMs = 3000;
         private const int MaxLogLines = 15;
         private const float RebuildAfterPauseSeconds = 2f;
+        private const int ProbesBeforeRebuild = 2;
         private const float LabelWidth = 240f;
 
         [SerializeField] private MqttConnection mqttConnection;
@@ -199,6 +200,7 @@ namespace Comms.Visualiser
         /// Inner loop, while the nest is up: whenever his client is down and not mid-connect,
         /// probe the broker and only then call his Connect(), on the same backoff ladder.
         /// His Connect() re-subscribes every topic, so the hook's topic comes back with it.
+        /// Returns after two failed probes in a row, so the outer loop builds a new nest.
         /// </summary>
         private async Task KeepMqttUpAsync(SshMqttTunnel tunnel, int localPort, CancellationToken ct)
         {
@@ -209,6 +211,7 @@ namespace Comms.Visualiser
             var nextAttempt = DateTime.UtcNow;
             DateTime? connectedAt = null;
             var attempting = false;
+            var failedProbes = 0;
             Status = "nest up";
 
             while (!ct.IsCancellationRequested && tunnel.IsReady)
@@ -246,10 +249,17 @@ namespace Comms.Visualiser
                     {
                         if (await ProbeBrokerAsync(localPort, ct) && tunnel.IsReady)
                         {
+                            failedProbes = 0;
                             AddLine("MQTT_CONNECTING");
                             Status = "connecting MQTT";
                             mqttConnection.Connect();
                             attempting = true;
+                        }
+                        else if (++failedProbes >= ProbesBeforeRebuild && tunnel.IsReady)
+                        {
+                            // the nest can look up while carrying nothing, so build a new one
+                            AddLine($"NEST_REBUILD: {failedProbes} probes failed in a row");
+                            return;
                         }
                         else
                         {

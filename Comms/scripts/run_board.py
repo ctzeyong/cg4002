@@ -1,27 +1,31 @@
-"""Start configuration B's board client over asyncssh, with no password prompt.
+"""Start the board client and game engine over asyncssh, with no password prompt.
 
-Opens both SSH hops, starts tcp_client_mqtt.py on the Ultra96 (or re-attaches to
-it), then shows its log here. Pane 2 of two; pane 1 is run_pipeline.ps1, and
-run_board.ps1 wraps this file. Design: notes/tunnelled_visualiser.md.
+Opens both SSH hops, starts tcp_client_mqtt.py and the game engine on the Ultra96
+(or re-attaches to them), then shows the client's log here. Pane 2 of two; pane 1 is
+run_pipeline.ps1, and run_board.ps1 wraps this file.
 
-    python run_board.py                  # start it, or re-attach if running
-    python run_board.py --sync           # re-copy ultra96/*.py, then restart it
-    python run_board.py --stop           # kill it and exit
+    python run_board.py                  # start both, or re-attach if running
+    python run_board.py --sync           # re-copy ultra96/*.py and the engine, then restart both
+    python run_board.py --stop           # kill both and exit
     python run_board.py --fetch-logs     # copy today's (UTC) board logs here, then exit
     python run_board.py -v --event-every 2
+    python run_board.py --power          # also record the board's power, idle vs playing
+    python run_board.py --cpu-mhz 300 --cores 1 --pl-mhz 25   # tune the board, with --power
 
-Ctrl-C stops the board client. It runs detached, so a dropped SSH connection does
-not stop it; to stop watching but leave it running, close the window.
+Ctrl-C stops the board client and the engine. They run detached, so a dropped SSH
+connection does not stop them; to stop watching but leave them running, close the window.
 """
 
 import argparse
 import asyncio
+import calendar
+import csv
 import logging
 import re
 import signal
 import sys
 import time
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 REPO = Path(__file__).resolve().parent.parent
 # This script lives in scripts/ but the laptop modules use flat imports.
@@ -35,6 +39,8 @@ from logging_setup import LINK_COLOURS, setup_logging  # noqa: E402
 LOG_FILE = REPO / "logs" / "run_board.log"
 # Where --fetch-logs puts the board's own log files, one folder per UTC day.
 FETCHED_LOGS = REPO / "logs" / "board"
+# The logs, and the power monitor's readings and summary.
+FETCHED_TYPES = (".log", ".csv")
 BOARD_SOURCES = REPO / "ultra96"
 # AI's model and overlays live here. The model is always synced; the overlay named by
 # --bitstream is synced beside it (must match gesture.AI_MODULE).
@@ -55,12 +61,80 @@ PKILL = "sudo -n pkill"
 CLIENT = "~/comms/tcp_client_mqtt.py"
 # Must start at "python", or pgrep/pkill would also match our own remote shell.
 PROCESS_PATTERN = r"^[^ ]*python[0-9.]*[ ]+[^ ]*tcp_client_mqtt\.py"
-# Configuration A's client, stopped before B's starts. A copy of run_board_a.PROCESS_PATTERN,
+# The laptop-broker client, stopped before this one starts. A copy of run_board_a.PROCESS_PATTERN,
 # because that file imports this one; tests/test_run_board_a.py keeps the two equal.
 A_PROCESS_PATTERN = r"^[^ ]*python[0-9.]*[ ]+[^ ]*tcp_client\.py"
 # Today's (UTC) log folder, made here as xilinx before the launch.
 # Same name as board_logging.run_log_path.
 DAY_FOLDER = 'mkdir -p ~/comms/logs/"$(date -u +%Y-%m-%d)"'
+
+# The game engine runs as the normal user, under the restart loop in ultra96/run_engine.sh.
+ENGINE_LAUNCHER = BOARD_SOURCES / "run_engine.sh"
+ENGINE_LOOP = "~/comms/run_engine.sh"
+# The engine's core and rules.json, which Vis writes, copied to ~/comms/engine/.
+ENGINE_CORE = REPO.parent / "SW_Visualiser" / "engine"
+# Anchored at the interpreter like PROCESS_PATTERN, so neither matches our own remote shell.
+ENGINE_LOOP_PATTERN = r"^[^ ]*bash[ ]+[^ ]*run_engine\.sh"
+ENGINE_PATTERN = r"^[^ ]*python[0-9.]*[ ]+[^ ]*game_engine\.py"
+# The loop first, or it would start the engine again.
+ENGINE_KILL = (
+    f'{PKILL} -f "{ENGINE_LOOP_PATTERN}" && echo "STOPPED: engine restart loop"; '
+    f'{PKILL} -f "{ENGINE_PATTERN}" && echo "STOPPED: engine"'
+)
+# Starts the loop unless it's running, with its output in the day folder so --fetch-logs
+# brings it back. If the loop has already stopped a second later, show why.
+ENGINE_START = (
+    f'if pgrep -f "{ENGINE_LOOP_PATTERN}" >/dev/null; then echo "ENGINE: already running"; '
+    f"elif [ -f {ENGINE_LOOP} ]; then "
+    'ecap=~/comms/logs/"$(date -u +%Y-%m-%d)"/run_engine_$(date -u +%Y%m%dT%H%M%SZ).log; '
+    f'nohup setsid bash {ENGINE_LOOP} > "$ecap" 2>&1 & sleep 1; '
+    f'if pgrep -f "{ENGINE_LOOP_PATTERN}" >/dev/null; then echo "ENGINE: started, log $ecap"; '
+    'else echo "WARN: the engine stopped at once:"; cat "$ecap"; fi; '
+    "else echo 'WARN: no run_engine.sh on the board, so no engine (--sync copies it)'; fi"
+)
+
+# The power monitor (ultra96/power_monitor.py), as root like the client, since pynq needs it.
+POWER_SCRIPT = "~/comms/power_monitor.py"
+POWER_PATTERN = r"^[^ ]*python[0-9.]*[ ]+[^ ]*power_monitor\.py"
+POWER_KILL = f'{PKILL} -f "{POWER_PATTERN}" && echo "STOPPED: power monitor"'
+# The tuning flags: which process applies each on the board, and the values offered here
+CPU_MHZ = (300, 400, 600, 1200)  # the board's scaling_available_frequencies, in MHz
+CORES = (1, 2, 3, 4)
+PL_MHZ_RANGE = (10.0, 100.0)  # never above the 100 MHz the overlays set
+
+
+def power_start(monitor_args=""):
+    """Start the monitor with `monitor_args` (its tuning flags), with its output in the day folder
+    so --fetch-logs brings it back.
+
+    One already running with the same flags is left alone, so a rerun does not split a session;
+    one with other flags is stopped first, which puts its settings back, then started again.
+    """
+    same = f"{POWER_PATTERN}{monitor_args}$"
+    return (
+        f'if pgrep -f "{same}" >/dev/null; then echo "POWER: already running"; else '
+        f'if pgrep -f "{POWER_PATTERN}" >/dev/null; then {PKILL} -f "{POWER_PATTERN}"; '
+        'echo "POWER: restarting the monitor with the new settings"; '
+        f'for i in $(seq 20); do pgrep -f "{POWER_PATTERN}" >/dev/null || break; sleep 0.5; '
+        "done; fi; "
+        'pcap=~/comms/logs/"$(date -u +%Y-%m-%d)"/power_console_$(date -u +%Y%m%dT%H%M%SZ).log; '
+        f'nohup {AS_ROOT} {VENV_PYTHON} {POWER_SCRIPT}{monitor_args} > "$pcap" 2>&1 & sleep 2; '
+        f'if pgrep -f "{POWER_PATTERN}" >/dev/null; then echo "POWER: recording, log $pcap"; '
+        'else echo "WARN: the power monitor stopped at once:"; cat "$pcap"; fi; fi'
+    )
+
+
+POWER_START = power_start()
+# After the stop: wait (up to 10 s) for the monitor to write its summary row, then print the
+# newest power_summary.csv's path, header and last row.
+POWER_REPORT = (
+    f'for i in $(seq 20); do pgrep -f "{POWER_PATTERN}" >/dev/null || break; sleep 0.5; done; '
+    "f=$(ls -t ~/comms/logs/*/power_summary.csv 2>/dev/null | head -1); "
+    '[ -n "$f" ] && echo "$f" && head -n 1 "$f" && tail -n 1 "$f"'
+)
+POWER_REPORT_TIMEOUT_S = 20.0
+POWER_FRESH_S = 120.0  # a summary row older than this is not the session just stopped
+FETCH_TIMEOUT_S = 60.0
 
 # A board log line, so its time/name prefix can be stripped before re-logging here.
 # (The format has no level, so board warnings show here as INFO.)
@@ -72,11 +146,15 @@ log = logging.getLogger("run_board")
 remote_log = logging.getLogger("board")
 
 
-def remote_command(port, client_args, restart):
+def remote_command(port, client_args, restart, power=False, monitor_args=""):
     """Build one shell command for the board: checks, start or attach, then tail the log.
 
     The checks warn if the tunnel port or the broker is missing, or the broker is not loopback-only.
+    `power` also starts the power monitor, with `monitor_args` (its tuning flags).
     """
+    # the client sets the PL clock as it loads the overlay, so not when we only attach to it
+    pl_note = ('echo "WARN: --pl-mhz only applies as the client starts; '
+               'add --sync to restart it"; ' if "--pl-mhz" in client_args else "")
     extra = (" " + " ".join(client_args)) if client_args else ""
     launch = (
         f"cap=~/comms/logs/console_$(date -u +%Y%m%dT%H%M%SZ).log; "
@@ -84,12 +162,14 @@ def remote_command(port, client_args, restart):
         f'> "$cap" 2>&1 &'
     )
     steps = [
-        # tcp_server keeps the newest client, so a leftover A client and this one would
+        # tcp_server keeps the newest client, so a leftover laptop-broker client and this one would
         # evict each other every 2 s, with no error. Mirror of run_board_a.py.
         f'{PKILL} -f "{A_PROCESS_PATTERN}" && echo "STOPPED: configuration A client killed"',
     ]
     if restart:
         steps.append(f'{PKILL} -f "{PROCESS_PATTERN}" && echo "STOPPED: previous client killed"')
+        steps.append(ENGINE_KILL)
+        steps.append(POWER_KILL)
         steps.append("sleep 1")
     steps += [
         f"if ! ss -ltn | grep -q '127.0.0.1:{port} '; then "
@@ -101,9 +181,12 @@ def remote_command(port, client_args, restart):
         DAY_FOLDER,
         # Tail the file this launch created, not just the newest (maybe an old run's).
         f'if pgrep -f "{PROCESS_PATTERN}" >/dev/null; then echo "ATTACH: client already running"; '
-        f'pgrep -af "{PROCESS_PATTERN}"; '
+        f'{pl_note}pgrep -af "{PROCESS_PATTERN}"; '
         "latest=$(ls -t ~/comms/logs/console_*.log 2>/dev/null | head -1); "
         f'else {launch} sleep 2; echo "STARTED"; latest="$cap"; fi',
+        # After the client's if, so the engine starts whether the client was running or not.
+        ENGINE_START,
+        *([power_start(monitor_args)] if power else []),
         # A client started by hand has no console capture; tail its own log file instead.
         'if [ -z "$latest" ]; then '
         "latest=$(ls -t ~/comms/logs/*/tcp_client_mqtt_*.log 2>/dev/null | head -1); "
@@ -116,10 +199,13 @@ def remote_command(port, client_args, restart):
 
 
 def stop_command():
-    """Kill the client and say whether there was one."""
+    """Kill the client, the engine and the power monitor, and say which were running."""
     return (
         f'{PKILL} -f "{PROCESS_PATTERN}" && echo "STOPPED" '
-        '|| echo "nothing to stop: no client was running"'
+        '|| echo "nothing to stop: no client was running"; '
+        + ENGINE_KILL
+        + "; "
+        + POWER_KILL
     )
 
 
@@ -159,11 +245,27 @@ async def sync_sources(conn, bitstream=None):
     log.info("synced %d files to ~/comms/", len(files))
 
 
+async def sync_engine(conn):
+    """Copy run_engine.sh to ~/comms/ and the engine's core folder to ~/comms/engine/.
+
+    The script goes with LF line endings, since bash on the board fails on a CRLF checkout.
+    """
+    if not ENGINE_CORE.is_dir():
+        raise SystemExit(f"missing {ENGINE_CORE}, which the engine needs on the board")
+    core = sorted(path for path in ENGINE_CORE.iterdir() if path.is_file())
+    async with conn.start_sftp_client() as sftp:
+        async with sftp.open("comms/run_engine.sh", "wb") as remote:
+            await remote.write(ENGINE_LAUNCHER.read_bytes().replace(b"\r\n", b"\n"))
+        await sftp.makedirs("comms/engine", exist_ok=True)
+        await sftp.put([str(path) for path in core], "comms/engine/")
+    log.info("synced run_engine.sh, and %d file(s) to ~/comms/engine/", len(core))
+
+
 async def fetch_logs(conn, day):
     """Copy one UTC day's board logs into logs/board/<day>/. Only reads the board.
 
     The board's own files, not this script's relay of them: the relay re-stamps lines
-    and delivers them in bunches. notes/latency.md 3.5.
+    and delivers them in bunches.
     """
     remote = f"comms/logs/{day}"
     local = FETCHED_LOGS / day
@@ -171,7 +273,7 @@ async def fetch_logs(conn, day):
         if not await sftp.isdir(remote):
             log.warning("no board logs for %s", day)
             return
-        names = sorted(n for n in await sftp.listdir(remote) if n.endswith(".log"))
+        names = sorted(n for n in await sftp.listdir(remote) if n.endswith(FETCHED_TYPES))
         local.mkdir(parents=True, exist_ok=True)
         await sftp.get([f"{remote}/{name}" for name in names], str(local))
     log.info("fetched %d board log(s) to %s", len(names), local)
@@ -202,22 +304,25 @@ def install_interrupt_handler(stop):
 
 
 async def stop_client(board):
-    """Stop the board client over the open connection and log the result."""
-    log.info("stopping the board client ...")
+    """Stop the board client and the engine over the open connection and log the result."""
+    log.info("stopping the board client and the engine ...")
     try:
         result = await asyncio.wait_for(
             board.run(stop_command(), check=False), timeout=STOP_TIMEOUT_S
         )
     except (asyncio.TimeoutError, asyncssh.Error, OSError) as exc:
-        log.warning("could not stop the board client (%s); --stop ends it", exc)
+        log.warning("could not stop the board client and the engine (%s); --stop ends them", exc)
         return
     log.info("%s", result.stdout.strip() or "no output")
+    # pkill prints nothing when there was nothing to kill, any stderr means the stop failed
+    if (result.stderr or "").strip():
+        log.warning("the board said: %s", result.stderr.strip())
 
 
 async def attach(board, command):
-    """Show the client's log until Ctrl-C, then stop the client.
+    """Show the client's log until Ctrl-C, then stop the client and the engine.
 
-    If the log stream ends by itself (e.g. nothing to tail), the client keeps running.
+    If the log stream ends by itself (e.g. nothing to tail), both keep running.
     """
     process = await board.create_process(command, term_type="xterm")
     stop = asyncio.Event()
@@ -233,6 +338,58 @@ async def attach(board, command):
         await asyncio.gather(streaming, stopping, return_exceptions=True)
     if stop.is_set():
         await stop_client(board)
+    return stop.is_set()
+
+
+def power_report(output, now=None):
+    """(day folder, one-line summary) from POWER_REPORT's output, or None if it found no summary.
+
+    The line warns when the newest row is not this session's, e.g. because the monitor died.
+    """
+    lines = output.strip().splitlines()
+    if len(lines) < 3:
+        return None
+    path, header, last = lines[0], lines[1], lines[-1]
+    row = next(csv.DictReader([header, last]))
+    day = PurePosixPath(path).parent.name
+
+    def part(state):
+        seconds = float(row.get(f"{state}_s") or 0)
+        total = row.get(f"{state}_TOTAL")
+        return f"{state} {float(total):.3f} W over {seconds:.0f} s" if total else f"no {state} readings"
+
+    line = f"power this session: {part('idle')}, {part('playing')}"
+    if row.get("playing_minus_idle_W"):
+        line += f", playing uses {float(row['playing_minus_idle_W']):+.3f} W"
+    line += f", {row.get('gestures', '?')} gesture(s)"
+    if row.get("cpu_mhz"):
+        pl = f", PL {float(row['pl_mhz']):g} MHz" if row.get("pl_mhz") else ""
+        line += f", at CPU {row['cpu_mhz']} MHz, {row.get('cores', '?')} core(s){pl}"
+    ended = calendar.timegm(time.strptime(row["end_utc"][:19], "%Y-%m-%dT%H:%M:%S"))
+    if (time.time() if now is None else now) - ended > POWER_FRESH_S:
+        line += f" -- this is the newest summary, from {row['end_utc']}, not this session's"
+    return day, line
+
+
+async def report_power(board):
+    """After Ctrl-C with --power: show the session's totals, then copy its day's files here."""
+    try:
+        result = await asyncio.wait_for(
+            board.run(POWER_REPORT, check=False), timeout=POWER_REPORT_TIMEOUT_S
+        )
+    except (asyncio.TimeoutError, asyncssh.Error, OSError) as exc:
+        log.warning("could not read the power summary (%s); --fetch-logs copies it", exc)
+        return
+    report = power_report(result.stdout or "")
+    if report is None:
+        log.warning("no power summary on the board; is power_monitor.py there (--sync)?")
+        return
+    day, line = report
+    log.info("%s", line)
+    try:
+        await asyncio.wait_for(fetch_logs(board, day), timeout=FETCH_TIMEOUT_S)
+    except (asyncio.TimeoutError, asyncssh.Error, OSError) as exc:
+        log.warning("could not copy the power files (%s); --fetch-logs %s copies them", exc, day)
 
 
 async def run(config, password, args):
@@ -257,7 +414,13 @@ async def run(config, password, args):
                 return
             if args.sync:
                 await sync_sources(board, args.bitstream)
-            await attach(board, remote_command(args.port, args.client_args, restart=args.sync))
+                await sync_engine(board)
+            command = remote_command(
+                args.port, args.client_args, restart=args.sync, power=args.power,
+                monitor_args=args.monitor_args,
+            )
+            if await attach(board, command) and args.power:
+                await report_power(board)
 
 
 def bitstream_from_args(client_args):
@@ -273,14 +436,25 @@ def bitstream_from_args(client_args):
     return None
 
 
+def pl_mhz(text):
+    """argparse type for --pl-mhz: a number in PL_MHZ_RANGE."""
+    value = float(text)
+    low, high = PL_MHZ_RANGE
+    if not low <= value <= high:
+        raise argparse.ArgumentTypeError(f"{text}: choose {low:g} to {high:g} MHz")
+    return value
+
+
 def parse_args(argv=None):
     """Our flags; every other argument (e.g. -v, --bitstream) is passed on to the board client."""
     parser = argparse.ArgumentParser(
         description=__doc__.splitlines()[0],
         epilog="Any other argument is passed to tcp_client_mqtt.py, e.g. -v --event-every 2",
     )
-    parser.add_argument("--sync", action="store_true", help="re-copy ultra96/*.py, then restart")
-    parser.add_argument("--stop", action="store_true", help="kill the client and exit")
+    parser.add_argument(
+        "--sync", action="store_true", help="re-copy ultra96/*.py and the engine, then restart both"
+    )
+    parser.add_argument("--stop", action="store_true", help="kill the client and the engine")
     parser.add_argument("--port", type=int, default=None, help="override TUNNEL_PORT")
     parser.add_argument(
         "--fetch-logs",
@@ -289,7 +463,26 @@ def parse_args(argv=None):
         metavar="YYYY-MM-DD",
         help="copy that UTC day's board logs to logs/board/ and exit (default: today)",
     )
+    parser.add_argument(
+        "--power",
+        action="store_true",
+        help="also record the board's power, split into idle and playing (power_monitor.py)",
+    )
+    tuning = parser.add_argument_group(
+        "tuning the board for the session (each implies --power; all put back on Ctrl-C)")
+    tuning.add_argument("--cpu-mhz", type=int, choices=CPU_MHZ, help="CPU clock")
+    tuning.add_argument("--cores", type=int, choices=CORES, help="CPU cores left on (cpu0 stays)")
+    tuning.add_argument("--pl-mhz", type=pl_mhz, metavar="MHZ",
+                        help="FPGA clock, %g to %g; the client sets it as it loads the overlay"
+                        % PL_MHZ_RANGE)
     args, client_args = parser.parse_known_args(argv)
+    args.monitor_args = "".join(f" --{flag} {value}" for flag, value in
+                                (("cpu-mhz", args.cpu_mhz), ("cores", args.cores))
+                                if value is not None)
+    if args.pl_mhz is not None:
+        client_args += ["--pl-mhz", f"{args.pl_mhz:g}"]
+    if args.monitor_args or args.pl_mhz is not None:
+        args.power = True  # so the dashboard shows what the tuning saves
     args.client_args = client_args
     # --bitstream is forwarded to the client; read (not consumed) here to sync that overlay too
     args.bitstream = bitstream_from_args(client_args)

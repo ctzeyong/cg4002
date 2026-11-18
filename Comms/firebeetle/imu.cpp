@@ -24,7 +24,6 @@ static_assert(MODEL_READY,
 
 // --- wiring and chip settings -------------------------------------------------------------
 
-// ASSUMED until Hardware confirms them (docs/integration/hardware-comms.md, "Undecided for now")
 static constexpr uint8_t IMU_ADDRESS = 0x68;    // AD0 on GND
 static constexpr int SDA_PIN = 21;
 static constexpr int SCL_PIN = 22;

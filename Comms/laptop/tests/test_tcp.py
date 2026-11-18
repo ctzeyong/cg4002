@@ -88,10 +88,10 @@ async def test_receiver_excludes_heartbeat_acks_from_the_reported_rate(monkeypat
     The bug this pins: `count += 1` fired on every frame, so the ~1/s
     HEARTBEAT_ACK was folded into the measurement. On 2026-09-13 that made the
     receiver report `total=197,507` against the 196,872 packets BLE actually
-    delivered — a receiver claiming more messages than were ever sent. Criterion
-    4 quotes this number, so it has to mean one thing.
+    delivered — a receiver claiming more messages than were ever sent. Reported
+    figures quote this number, so it has to mean one thing.
 
-    Acks only, so the honest count is zero. This also pins the decision not to
+    Acks only, so the correct count is zero. This also pins the decision not to
     `continue` past them: the report still fires once a second while they
     arrive, which is what distinguishes "link alive, data stopped" from a dead
     process. With the bug it reported a steady ~1 msg/s of pure self-traffic.

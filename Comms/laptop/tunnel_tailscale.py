@@ -3,9 +3,9 @@
     laptop --ssh over the tailnet--> Ultra96
     Ultra96 localhost:8888  --forwarded back to-->  laptop 127.0.0.1:8888 (tcp_server)
 
-No jump host and no password: the board accepts the laptop's SSH key. Used for A on a
-phone-hotspot uplink, where the NUS VPN is off. Reconnects through tunnel.run_tunnel.
-Decisions: notes/ultra96_setup.md -> "Fallback D"; notes/tcp_leg.md -> "The tunnel".
+No jump host and no password: the board accepts the laptop's SSH key. Used for the
+laptop-broker setup on a phone-hotspot uplink, where the NUS VPN is off. That setup was
+evaluated but is not used in the final system. Reconnects through tunnel.run_tunnel.
 
     python tunnel_tailscale.py     # run_pipeline_a_hotspot.ps1 starts this beside the relay
 """

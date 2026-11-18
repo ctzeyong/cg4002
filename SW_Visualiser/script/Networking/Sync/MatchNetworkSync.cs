@@ -15,6 +15,14 @@ namespace BridgeRush.Networking
         [SerializeField] private MatchSetup matchSetup;
         [SerializeField] private MatchState matchState;
         [SerializeField] private MqttConnection mqttConnection;
+        [Tooltip("VS PLAYER always runs on the Ultra96 engine. Wire EngineLink here and in MatchState's Engine Link (left empty, it is found by type). Without one VS PLAYER does not start: a phone never hosts the game.")]
+        [SerializeField] private EngineLink engineLink;
+
+        // VS PLAYER always uses the Ultra96 engine. There is no switch and no phone-hosted fallback.
+        private bool UseBoardEngine => engineLink != null && matchState.BoardEngineAvailable;
+
+        // VS PLAYER was chosen and this build has no EngineLink, so no role was assigned and the match cannot start.
+        public bool BoardMissing { get; private set; }
 
         private bool roleAssigned;
         private bool subscribed;
@@ -25,7 +33,9 @@ namespace BridgeRush.Networking
             {
                 Debug.LogError($"{nameof(MatchNetworkSync)}: needs a Match Setup, a Match State and an Mqtt Connection.", this);
                 enabled = false;
+                return;
             }
+            if (engineLink == null) engineLink = FindAnyObjectByType<EngineLink>();
         }
 
         private void OnEnable()
@@ -49,8 +59,17 @@ namespace BridgeRush.Networking
             if (!matchSetup.HasChosenMode || matchSetup.Mode != MatchSetup.GameMode.VsPlayer) return;
             if (!matchSetup.HasSelected) return;
 
-            bool isPlayer1 = matchSetup.Selected == MatchSetup.SelectedPlayer.Player1;
-            matchState.SetNetworkRole(isPlayer1 ? MatchState.NetworkRole.Host : MatchState.NetworkRole.Client);
+            // Never Host or Client: the phone does not run the game. Without the board's engine, VS PLAYER just waits.
+            if (!UseBoardEngine)
+            {
+                if (!BoardMissing) Debug.LogError($"{nameof(MatchNetworkSync)}: VS PLAYER needs the board engine, but there is no EngineLink in the scene. Add one (integration_update.md section 6). The phone will not host the game.", this);
+                BoardMissing = true;
+                return;
+            }
+
+            BoardMissing = false;
+            matchState.SetNetworkRole(MatchState.NetworkRole.BoardClient);
+            engineLink.Activate();
             roleAssigned = true;
         }
 
@@ -58,6 +77,8 @@ namespace BridgeRush.Networking
         {
             roleAssigned = false;
             subscribed = false;
+            BoardMissing = false;
+            if (engineLink != null) engineLink.Deactivate();
             matchState.SetNetworkRole(MatchState.NetworkRole.Local);
         }
 
@@ -72,6 +93,9 @@ namespace BridgeRush.Networking
                 case MatchState.NetworkRole.Client:
                     mqttConnection.Subscribe(StateTopic, OnStateMessage, 0);
                     subscribed = true;
+                    break;
+                case MatchState.NetworkRole.BoardClient:
+                    subscribed = true; // EngineLink has game/state, game/match and game/event
                     break;
             }
         }

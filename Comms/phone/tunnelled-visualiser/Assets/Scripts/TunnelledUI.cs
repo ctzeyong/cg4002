@@ -110,7 +110,7 @@ namespace Comms.Visualiser
             GUILayout.Label("Payload");
             var probe = GUILayout.Toggle(
                 _visualiser.Mode == PayloadMode.Probe,
-                "T1 staging: echo probe instead of MQTT (no broker needed on the board)");
+                "Echo probe instead of MQTT (no broker needed on the board)");
             _visualiser.Mode = probe ? PayloadMode.Probe : PayloadMode.Mqtt;
 
             // The board port follows the mode, so MQTT can never be pointed at the test port.

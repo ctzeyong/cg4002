@@ -10,8 +10,7 @@ Two jobs:
   1. **Bring-up.** Point it at 127.0.0.1 before anything else exists. If this
      fails, nothing further on this leg is worth debugging.
   2. **The broker-location comparison.** `--count 100` against a laptop broker
-     and against an Ultra96 broker gives the median and p95 that decision needs
-     (comms/notes/schedule.md, "Ultra96 broker comparison").
+     and against an Ultra96 broker gives the median and p95 that decision needs.
 
 Usage:
 
@@ -174,7 +173,7 @@ def main():
     parser.add_argument("-v", "--verbose", action="store_true")
     parser.add_argument("--host", default=None, help="broker host (default: $MQTT_BROKER_HOST)")
     parser.add_argument("--port", type=port_number, default=None, help="broker port")
-    parser.add_argument("--tls", action="store_true", help="use the mTLS listener (Week 6)")
+    parser.add_argument("--tls", action="store_true", help="use the mTLS listener")
     parser.add_argument("--count", type=positive_int, default=DEFAULT_COUNT)
     parser.add_argument(
         "--interval",

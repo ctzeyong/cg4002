@@ -9,8 +9,7 @@ SSH hops' passwords are treated differently on purpose (2026-09-17):
     `xilinx` password other teams already hold, so persisting it leaks nothing
     that is not already shared and it halves what is typed at bring-up.
   - the **jump-host** password is not, and must not be. It is the operator's NUS
-    account credential, and writing it to disk is the trade `ultra96_setup.md`'s
-    Fallback B was rejected for.
+    account credential, and must never be written to disk.
 
 That asymmetry is a decision, not an accident, and nothing in the C# enforces it —
 adding one more `public string` to a `[Serializable]` class is a one-line change
@@ -90,8 +89,7 @@ def test_no_other_secret_is_persisted(config):
     assert not offenders, (
         f"TunnelConfig would persist {offenders} to tunnel_config.json on the phone. "
         "Only the board password may be stored - the jump-host password is an NUS "
-        "account credential and is held in memory for the process lifetime instead. "
-        "See notes/tunnelled_visualiser.md -> Credentials."
+        "account credential and is held in memory for the process lifetime instead."
     )
 
 
@@ -107,8 +105,7 @@ def test_detector_catches_a_smuggled_secret(line):
     """The regex is the whole test, so prove it matches what it claims to.
 
     Without this, a pattern that silently stopped matching anything would leave
-    `test_no_other_secret_is_persisted` passing forever on an empty field list —
-    the shape of green-while-broken that CLAUDE.md warns the suite has hit twice.
+    `test_no_other_secret_is_persisted` passing forever on an empty field list.
     """
     match = _FIELD.match(line)
     assert match is not None, f"the field detector missed {line!r}"

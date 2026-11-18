@@ -7,7 +7,7 @@ namespace Comms.Visualiser
     /// <summary>
     /// Builds the latency echo, a gesture's seq and timestamp sent back on viz/echo/{player} so the
     /// board can time the trip. The phone's time is the envelope's ts. It has no Unity types, so a
-    /// console check can run it. notes/latency.md 3.13.
+    /// console check can run it.
     /// </summary>
     public static class GestureEcho
     {

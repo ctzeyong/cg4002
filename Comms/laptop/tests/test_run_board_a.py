@@ -1,6 +1,6 @@
-"""Tests for scripts/run_board_a.py: what makes configuration A's board command differ from B's.
+"""Tests for scripts/run_board_a.py: how the laptop-broker board command differs from run_board.py.
 
-The A/B pair is duplicated on purpose (separate files per configuration), so these pin the
+The pair is duplicated on purpose (separate files per setup), so these pin the
 points where the two must not converge or collide on the shared board.
 """
 
@@ -39,7 +39,7 @@ def test_bs_client_is_stopped_before_a_starts():
 
 
 def test_the_two_process_patterns_never_match_each_others_client():
-    """A --stop for one configuration must never kill the other's client."""
+    """A --stop for one setup must never kill the other's client."""
     assert re.search(run_board_a.PROCESS_PATTERN, A_CMDLINE)
     assert not re.search(run_board_a.PROCESS_PATTERN, B_CMDLINE)
     assert re.search(run_board.PROCESS_PATTERN, B_CMDLINE)
@@ -47,8 +47,9 @@ def test_the_two_process_patterns_never_match_each_others_client():
 
 
 def test_a_logs_are_never_picked_up_by_bs_attach():
-    """B's attach tails the newest console_*.log, and its fallback the newest
-    tcp_client_mqtt_*.log; A's must match neither, and A's must not match B's."""
+    """run_board.py's attach tails the newest console_*.log, and its fallback the newest
+    tcp_client_mqtt_*.log. This setup's capture must match neither, and its log pattern
+    must not match the other's log."""
     a_capture = run_board_a.CAPTURE_PREFIX + "20261002T120000Z.log"
     assert not fnmatch.fnmatch(a_capture, "console_*.log")
     assert not fnmatch.fnmatch("tcp_client_mqtt_120000Z.log", "tcp_client_[0-9]*.log")
@@ -57,7 +58,7 @@ def test_a_logs_are_never_picked_up_by_bs_attach():
 
 
 def test_a_has_no_broker_check():
-    """A's broker is on the laptop; a board-broker warning would send you to the wrong machine."""
+    """The broker is on the laptop here; a board-broker warning would send you to the wrong machine."""
     assert "1883" not in run_board_a.remote_command(8888, [], restart=False)
 
 
@@ -70,12 +71,12 @@ def test_flags_are_consumed_and_the_rest_is_forwarded():
 
 
 def test_bs_copy_of_as_pattern_matches_the_original():
-    """run_board.py repeats A's pattern because it cannot import run_board_a.py."""
+    """run_board.py repeats this pattern because it cannot import run_board_a.py."""
     assert run_board.A_PROCESS_PATTERN == run_board_a.PROCESS_PATTERN
 
 
 def test_as_client_is_stopped_before_b_starts():
-    """The mirror of the test above it: B's command stops A's client before launching."""
+    """The mirror of the test above it: run_board.py's command stops this client before launching."""
     for restart in (False, True):
         command = run_board.remote_command(8888, [], restart=restart)
         kill_a = command.index(f'pkill -f "{run_board.A_PROCESS_PATTERN}"')

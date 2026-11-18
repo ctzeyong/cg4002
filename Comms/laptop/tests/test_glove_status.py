@@ -1,4 +1,4 @@
-"""How the board judges each glove ready and publishes it on status/gloves (configuration B).
+"""How the board judges each glove ready and publishes it on status/gloves.
 
 The retained message, the will and the resend after a reconnect are tested against a real
 Mosquitto, since a fake broker would only fake the behaviour being tested.
@@ -8,9 +8,7 @@ import asyncio
 import contextlib
 import json
 import logging
-import shutil
 import signal
-import socket
 import subprocess
 import sys
 import time
@@ -22,7 +20,7 @@ import pytest
 
 import mqtt_client
 from framing import send_message
-from helpers import DEADLINE_S, serving, wait_until
+from helpers import BROKER_DEADLINE_S, DEADLINE_S, on_selector, serving, wait_until
 
 import envelope as board_envelope  # noqa: E402 - ultra96/, on sys.path via conftest
 import gesture  # noqa: E402
@@ -39,12 +37,11 @@ import latency_report  # noqa: E402
 ULTRA96 = Path(__file__).resolve().parents[2] / "ultra96"
 READY_DOWN = {"player1": "ready", "player2": "down"}
 BOTH_OFFLINE = {"player1": "offline", "player2": "offline"}
-BROKER_DEADLINE_S = 8.0  # covers a reconnect's backoff
 
 
 def sensor(node, status=gesture.IMU_OK):
     imu = dict.fromkeys(gesture.CHANNELS, 0)
-    return {"type": "SENSOR", "node": node, "seq": 0, "imu": imu, "reserved": [status, 0, 0, 0, 0]}
+    return {"type": "SENSOR", "node": node, "seq": 0, "imu": imu, "reserved": [status, 0]}
 
 
 def fill(gloves, node, count, now, status=gesture.IMU_OK):
@@ -461,58 +458,6 @@ async def test_the_ctrl_c_handler_is_restored_when_the_relay_ends(monkeypatch):
 # Against a real broker
 # --------------------------------------------------------------------------
 
-MOSQUITTO = shutil.which("mosquitto") or r"C:\Program Files\Mosquitto\mosquitto.exe"
-
-
-class Broker:
-    """A Mosquitto of the test's own, on a free loopback port. Only this process is stopped."""
-
-    def __init__(self):
-        with socket.socket() as probe:
-            probe.bind(("127.0.0.1", 0))
-            self.port = probe.getsockname()[1]
-        self.process = None
-
-    def start(self):
-        self.process = subprocess.Popen(
-            [MOSQUITTO, "-p", str(self.port)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-        )
-        deadline = time.monotonic() + DEADLINE_S
-        while True:
-            try:
-                socket.create_connection(("127.0.0.1", self.port), timeout=0.2).close()
-                return
-            except OSError:
-                if time.monotonic() > deadline:
-                    raise
-                time.sleep(0.05)
-
-    def stop(self):
-        if self.process is not None:
-            self.process.kill()
-            self.process.wait()
-            self.process = None
-
-
-@pytest.fixture
-def broker():
-    if not Path(MOSQUITTO).exists():
-        pytest.skip("needs Mosquitto")
-    broker = Broker()
-    broker.start()
-    yield broker
-    broker.stop()
-
-
-def on_selector(coro, timeout=BROKER_DEADLINE_S * 2):
-    """Run `coro` on a selector loop, which aiomqtt needs and Windows doesn't use by default."""
-    loop = asyncio.SelectorEventLoop()
-    try:
-        return loop.run_until_complete(asyncio.wait_for(coro, timeout))
-    finally:
-        loop.close()
-
-
 async def retained_status(port):
     """Return the retained payload a phone connecting now is told, or None if there is none.
 
@@ -602,6 +547,99 @@ def test_the_state_is_sent_again_after_the_broker_restarts(broker, monkeypatch):
             broker.stop()  # its retained messages go with it
             broker.start()
             await until_retained(broker.port, READY_DOWN)
+
+    on_selector(scenario())
+
+
+def mqtt_packet_size(data):
+    """Return the size of the MQTT packet at the start of `data`, or None if not yet known."""
+    remaining, shift = 0, 0
+    for header_size, byte in enumerate(data[1:5], start=2):
+        remaining += (byte & 0x7F) << shift
+        if not byte & 0x80:
+            return header_size + remaining
+        shift += 7
+    return None
+
+
+class Middleman:
+    """Pass bytes between a client and the broker.
+
+    It can swallow what the client sends, or cut the link.
+    """
+
+    def __init__(self, broker_port):
+        self.broker_port = broker_port
+        self.swallow = False
+        self.held = b""
+        self.swallowed = asyncio.Event()  # set once a whole packet has been swallowed
+        self.writers = []
+
+    async def handle(self, client_reader, client_writer):
+        broker_reader, broker_writer = await asyncio.open_connection("127.0.0.1", self.broker_port)
+        self.writers += [client_writer, broker_writer]
+        await asyncio.gather(
+            self._pipe(client_reader, broker_writer, from_client=True),
+            self._pipe(broker_reader, client_writer, from_client=False),
+            return_exceptions=True,
+        )
+
+    async def _pipe(self, reader, writer, from_client):
+        try:
+            while data := await reader.read(4096):
+                if from_client and self.swallow:
+                    self.held += data
+                    size = mqtt_packet_size(self.held)
+                    if size is not None and len(self.held) >= size:
+                        self.swallowed.set()
+                    continue
+                writer.write(data)
+        finally:
+            writer.close()  # even on a reset, so the other direction sees the end and stops too
+
+    def cut(self):
+        for writer in self.writers:
+            writer.close()
+        self.writers.clear()
+
+
+def test_a_dropped_link_with_an_event_waiting_for_its_ack_reconnects_at_once(broker, monkeypatch):
+    """After a drop, aiomqtt keeps a publish waiting 10 s for its ack, so the session cancels it."""
+    monkeypatch.setattr(mqtt_publisher, "MIN_BACKOFF_S", 0.2)
+    topic = board_envelope.gesture_topic(1)
+    env = board_envelope.build_envelope({}, 0)
+    outbound, stop, stats = asyncio.Queue(), asyncio.Event(), mqtt_publisher.PublishStats()
+    middleman = Middleman(broker.port)
+
+    async def scenario():
+        async with aiomqtt.Client("127.0.0.1", broker.port, identifier="test-phone") as phone:
+            await phone.subscribe(topic, qos=1)
+            async with serving(middleman.handle) as port:
+                publisher = asyncio.create_task(
+                    mqtt_publisher.run_publisher(
+                        "127.0.0.1", port, outbound, stop, stats, mqtt_publisher.GloveSlot()
+                    )
+                )
+                try:
+                    await wait_until(lambda: stats.sessions == 1)
+                    middleman.swallow = True  # so the broker never sees the event or acks it
+                    mqtt_publisher.enqueue_event(outbound, topic, env, stats)
+                    await asyncio.wait_for(middleman.swallowed.wait(), DEADLINE_S)
+                    # the event is fully sent, so no write is in flight when the link is cut
+                    middleman.swallow = False
+                    middleman.cut()
+                    await wait_until(lambda: stats.sessions == 2)
+                    message = await asyncio.wait_for(anext(phone.messages), DEADLINE_S)
+                finally:
+                    stop.set()
+                    stopped, _ = await asyncio.wait({publisher}, timeout=BROKER_DEADLINE_S)
+                    publisher.cancel()  # in case stop didn't end it, so the test's own error shows
+                    await asyncio.gather(publisher, return_exceptions=True)
+
+        assert stopped, "the publisher didn't stop"
+        publisher.result()  # re-raise anything it failed with
+        assert json.loads(message.payload)["event_id"] == env["event_id"]
+        assert stats.published == 1 and stats.stale == 0
 
     on_selector(scenario())
 

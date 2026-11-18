@@ -1,13 +1,13 @@
-"""Configuration B: the Ultra96 as an MQTT publisher.
+"""The Ultra96 as an MQTT publisher.
 
-Under configuration A the laptop publishes game events; under B the board does,
+In the laptop-broker setup the laptop publishes game events; here the board does,
 straight into a broker on its own loopback. That moves the envelope contract's
 producer onto a second machine with its own copy of the code, so the first job
 here is making sure the two producers agree.
 
 `ultra96/envelope.py` is a copy of the laptop's envelope contract for the same
 reason `ultra96/framing.py` is a copy of `laptop/framing.py` -- separate machines,
-separate venvs, no shared import. The two `framing.py` copies are kept honest by
+separate venvs, no shared import. The two `framing.py` copies are kept in step by
 the session tests rather than by being byte-identical, and the same applies here:
 these assert the board's envelopes are **accepted by the laptop's own validator**,
 which is the property that actually matters.
@@ -83,7 +83,7 @@ def test_board_source_is_distinct_from_the_laptop():
 
 
 def test_board_topics_match_the_laptop():
-    """`notes/mqtt_topics.md` is the single source; two producers must not diverge."""
+    """Two producers of the same topics must not diverge."""
     for player in (0, 1, 2):
         assert board_envelope.gesture_topic(player) == mqtt_config.gesture_topic(player)
 
@@ -136,7 +136,7 @@ def test_enqueue_drops_the_oldest_when_full():
 
 @pytest.mark.asyncio
 async def test_unserialisable_event_is_dropped_not_retried():
-    """The poison-pill rule: retry only what can succeed on retry.
+    """Retry only what can succeed on retry.
 
     A json.dumps failure is deterministic. Left in `pending` it blocks the queue
     forever, and every reconnect re-fails on the same message.
@@ -167,7 +167,7 @@ async def test_unserialisable_event_is_dropped_not_retried():
 
     assert stats.undeliverable == 1
     assert stats.published == 1, "the good event must still get through"
-    assert pending == [], "the poison pill must not be left blocking the queue"
+    assert pending == [], "the bad event must not be left blocking the queue"
 
 
 @pytest.mark.asyncio
@@ -175,7 +175,7 @@ async def test_failed_publish_stays_in_pending():
     """The opposite call: an MqttError *can* succeed on retry, so keep the payload.
 
     Held in `pending` rather than requeued, because requeuing puts it behind
-    everything queued since and reorders the stream. See shutdown_and_ordering.md.
+    everything queued since and reorders the stream.
     """
     outbound = asyncio.Queue()
     stats = mqtt_publisher.PublishStats()
@@ -370,7 +370,7 @@ async def test_event_source_publishes_instead_of_writing():
     """MqttEventSource must be duck-compatible with EventSource and ignore `writer`.
 
     That compatibility is what lets tcp_client.receiver and event_ticker be reused
-    verbatim; if the signature drifts, configuration B silently stops emitting.
+    verbatim; if the signature drifts, the board silently stops emitting.
     """
     outbound = asyncio.Queue()
     stats = mqtt_publisher.PublishStats()
@@ -499,7 +499,7 @@ def test_board_and_laptop_agree_on_the_vibrate_pattern():
 
 
 # --------------------------------------------------------------------------
-# The laptop half of configuration B
+# The laptop half
 # --------------------------------------------------------------------------
 
 
@@ -533,6 +533,39 @@ async def test_laptop_warns_when_the_board_is_in_the_wrong_configuration(caplog)
 
     messages = " ".join(record.getMessage() for record in caplog.records)
     assert "tcp_client_mqtt" in messages
+
+
+@pytest.mark.asyncio
+async def test_a_held_event_loop_is_reported_with_how_late_it_was(caplog):
+    """A callback that blocks the loop for 300 ms gives a warning with how late it was."""
+    import pipeline_board_broker
+
+    stop = asyncio.Event()
+    with caplog.at_level(logging.WARNING, logger="pipeline_board_broker"):
+        watch = asyncio.create_task(pipeline_board_broker.watch_loop_lag(stop))
+        await asyncio.sleep(0.05)
+        time.sleep(0.3)  # holds the loop, as a stuck callback would
+        await asyncio.sleep(0.25)
+        stop.set()
+        await asyncio.wait_for(watch, timeout=DEADLINE_S)
+
+    warnings = [r.getMessage() for r in caplog.records if "slow event loop" in r.getMessage()]
+    assert warnings
+    worst_ms = int(warnings[0].rsplit("worst ", 1)[1].split(" ms")[0])
+    assert worst_ms >= 150
+
+
+@pytest.mark.asyncio
+async def test_the_loop_watch_runs_until_stop_and_then_returns_by_itself():
+    """The relay stops when any task ends, so this one must only end on stop."""
+    import pipeline_board_broker
+
+    stop = asyncio.Event()
+    watch = asyncio.create_task(pipeline_board_broker.watch_loop_lag(stop))
+    await asyncio.sleep(0.35)
+    assert not watch.done()
+    stop.set()
+    await asyncio.wait_for(watch, timeout=1.0)
 
 
 async def drain(downlink, outboxes):
@@ -607,9 +640,9 @@ async def test_laptop_drops_a_malformed_vibrate_and_carries_on(msg, caplog):
 
 
 def test_laptop_configuration_b_has_no_mqtt_leg():
-    """The point of configuration B on this side: the laptop publishes nothing.
+    """The point of the board broker on this side: the laptop publishes nothing.
 
-    If an MQTT leg reappears here, B has quietly become B1 -- the board's own
+    If an MQTT leg reappears here, the relay has quietly become a third setup -- the board's own
     events routed down the tunnel and straight back up to a broker on the board.
     """
     import ast

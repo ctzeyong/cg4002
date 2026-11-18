@@ -304,7 +304,7 @@ async def test_successful_publish_clears_the_pending_slot():
 
 @pytest.mark.asyncio
 async def test_unserialisable_envelope_is_dropped_not_retried_forever():
-    """A poison pill must not block every later event.
+    """An event that cannot be encoded must not block every later event.
 
     json.dumps raises on a payload it cannot encode, and that failure is
     deterministic — retrying it across reconnects fails identically forever.
@@ -347,7 +347,7 @@ async def test_unserialisable_envelope_does_not_stall_across_reconnects():
         await asyncio.sleep(0.02)
         # stop before cancel, as every teardown here does: a cancel landing just as
         # wait_for takes the envelope is swallowed, and without stop the loop then
-        # polls the empty queue forever (CLAUDE.md, the wait_for trap).
+        # polls the empty queue forever.
         stop.set()
         task.cancel()
         await asyncio.gather(task, return_exceptions=True)
@@ -620,7 +620,7 @@ def test_describe_shows_scheme_host_and_port():
 
 
 def test_tls_params_reports_missing_certs_by_name(monkeypatch, tmp_path):
-    """TLS before Week 6 must say "no certs", not fail as a handshake error."""
+    """TLS without the cert files must say "no certs", not fail as a handshake error."""
     monkeypatch.setattr(mqtt_config, "CA_CERT", tmp_path / "ca.crt")
     monkeypatch.setattr(mqtt_config, "CLIENT_CERT", tmp_path / "laptop-relay.crt")
     monkeypatch.setattr(mqtt_config, "CLIENT_KEY", tmp_path / "laptop-relay.key")

@@ -1,17 +1,18 @@
-"""Relay for configuration B: broker on the Ultra96, no MQTT leg on this laptop.
+"""Relay with the broker on the Ultra96: no MQTT leg on this laptop.
 
-Alternative to `pipeline.py`, which is configuration A. Run one or the other.
+Alternative to `pipeline.py`, the laptop-broker setup, which was evaluated but is not
+used in the final system. Run one or the other.
 
-    A   BLE -> laptop -> TCP -> Ultra96 -> TCP -> laptop -> MQTT -> phones
-    B   BLE -> laptop -> TCP -> Ultra96 -> MQTT -> phones
-                                          (published on the board's own loopback)
+    laptop broker  BLE -> laptop -> TCP -> Ultra96 -> TCP -> laptop -> MQTT -> phones
+    this relay     BLE -> laptop -> TCP -> Ultra96 -> MQTT -> phones
+                                                     (published on the board's own loopback)
 
-Under B the Ultra96 publishes its own AI events (`ultra96/tcp_client_mqtt.py`), so
+Here the Ultra96 publishes its own AI events (`ultra96/tcp_client_mqtt.py`), so
 this laptop has **no MQTT role at all** -- no relay, no downlink forwarder, no
 inbound drain, no broker address. Three legs instead of six, and this process
 never touches aiomqtt.
 
-The uplink stays TCP, unchanged. `notes/tcp_leg.md` settled that on measurement:
+The uplink stays TCP, unchanged. That was settled on measurement:
 traffic is ~200:1 asymmetric and MQTT would add overhead on the congested
 direction.
 
@@ -22,13 +23,12 @@ there is nothing to forward a broker port for.
 
 Selector loop note: this process runs bleak and asyncssh but **not** aiomqtt, so
 `use_selector_event_loop()` is deliberately not called. See main().
-
-Design decisions for this leg live in `notes/tunnelled_visualiser.md`, not here.
 """
 
 import argparse
 import asyncio
 import logging
+import time
 from pathlib import Path
 
 import ble_client
@@ -50,6 +50,10 @@ LOG_FILE = Path(__file__).resolve().parent.parent / "logs" / "pipeline_board_bro
 log = logging.getLogger("pipeline_board_broker")
 
 VIBRATE = "VIBRATE"  # sent by the board after it classifies a gesture
+
+LOOP_CHECK_S = 0.1
+SLOW_LOOP_MS = 50.0  # an idle loop on Windows wakes up to about 21 ms late, so this stays quiet
+SLOW_LOOP_REPORT_S = 1.0
 
 
 def _is_int(value):
@@ -81,8 +85,8 @@ def post_vibrate(msg, outboxes, seq):
 async def drain_downlink(downlink, outboxes, stop):
     """Pass each VIBRATE from the board on to its glove, and log and discard anything else.
 
-    Under configuration A this queue carried AI events into `forward_downlink` and
-    on to MQTT. Under B the board publishes those itself, so the only thing it sends
+    In the laptop-broker setup this queue carried AI events into `forward_downlink`
+    and on to MQTT. Here the board publishes those itself, so the only thing it sends
     down is a VIBRATE.
 
     HEARTBEATs never reach this queue: `tcp_server` answers them itself and they go
@@ -114,6 +118,34 @@ async def drain_downlink(downlink, outboxes, stop):
             log.warning("%d unexpected downlink messages discarded", seen)
 
 
+async def watch_loop_lag(stop):
+    """Warn when this task wakes up late, which means something held the event loop.
+
+    Late wake-ups are reported at most once a second, with the worst one.
+    """
+    late = 0
+    worst_ms = 0.0
+    last_report = float("-inf")  # so the first late wake-up is reported at once
+    while not stop.is_set():
+        started = time.perf_counter()
+        await asyncio.sleep(LOOP_CHECK_S)
+        lag_ms = (time.perf_counter() - started - LOOP_CHECK_S) * 1000
+        if lag_ms >= SLOW_LOOP_MS:
+            late += 1
+            worst_ms = max(worst_ms, lag_ms)
+        now = time.monotonic()
+        if late and now - last_report >= SLOW_LOOP_REPORT_S:
+            log.warning(
+                "slow event loop: %d wake-up(s) late by %.0f ms or more, worst %.0f ms",
+                late,
+                SLOW_LOOP_MS,
+                worst_ms,
+            )
+            late = 0
+            worst_ms = 0.0
+            last_report = now
+
+
 async def run_pipeline(nodes, tcp_host, tcp_port, tunnel_config=None, tunnel_password=None):
     """Run entire pipline (Firebeetle -> Laptop -> U96 -> Phone) until shutdown."""
     ble_queue = asyncio.Queue(maxsize=ble_client.QUEUE_MAXSIZE)
@@ -129,6 +161,7 @@ async def run_pipeline(nodes, tcp_host, tcp_port, tunnel_config=None, tunnel_pas
         asyncio.create_task(forward_uplink(ble_queue, stop)),
         asyncio.create_task(drain_downlink(downlink, outboxes, stop)),
         asyncio.create_task(keystroke_reader(nodes, outboxes, stop)),
+        asyncio.create_task(watch_loop_lag(stop)),
     ]
     if tunnel_config is not None:
         tasks.append(
@@ -153,7 +186,7 @@ async def run_pipeline(nodes, tcp_host, tcp_port, tunnel_config=None, tunnel_pas
 
 
 def main():
-    """Entry point for configuration B's relay."""
+    """Entry point for the relay."""
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("-v", "--verbose", action="store_true", help="log every packet")
     parser.add_argument(
@@ -206,7 +239,7 @@ def main():
     # No use_selector_event_loop() here, unlike pipeline.py, and that is deliberate:
     # aiomqtt is what needs the selector loop and this process never imports it.
     # bleak works on either. asyncssh's standalone VPN-drop proof was on the default
-    # Proactor loop, so configuration B actually runs --tunnel on the loop that
+    # Proactor loop, so this relay actually runs --tunnel on the loop that
     # proof was taken on, rather than the one it was re-verified on.
 
     try:

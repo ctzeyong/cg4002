@@ -15,7 +15,7 @@ namespace Comms.Visualiser
 
     /// <summary>
     /// The five-field envelope on every MQTT message: event_id, source, seq, ts, payload.
-    /// Matches the Python side (laptop mqtt_client, ultra96 envelope.py); notes/mqtt_topics.md.
+    /// Matches the Python side (laptop mqtt_client, ultra96 envelope.py).
     /// Fields are checked by type, not just presence, the same way the laptop checks them.
     /// </summary>
     public static class Envelope

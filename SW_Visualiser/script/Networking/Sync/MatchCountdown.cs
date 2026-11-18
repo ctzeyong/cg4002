@@ -45,6 +45,21 @@ namespace BridgeRush.Networking
         public void RequestStart()
         {
             if (HasRequestedStart) return;
+
+            // The board engine owns the start: the press goes to it, and it is re-sent until it counts (EngineLink).
+            if (matchState.IsBoardClient)
+            {
+                HasRequestedStart = matchState.BoardPressStart();
+                if (!HasRequestedStart) Debug.LogWarning("MatchCountdown: no game/match from the engine yet, START not sent.");
+                return;
+            }
+
+            // VS PLAYER is the board's game only. A phone must never start or host one on its own.
+            if (matchSetup.Mode == MatchSetup.GameMode.VsPlayer)
+            {
+                Debug.LogWarning("MatchCountdown: VS PLAYER needs the board engine; the phone will not start the match itself.");
+                return;
+            }
             HasRequestedStart = true;
 
             bool isVsCpu = matchSetup.Mode == MatchSetup.GameMode.VsCpu;
@@ -63,7 +78,11 @@ namespace BridgeRush.Networking
             }
         }
 
-        private void OnCountdownMessage(string topic, string payload) => BeginCountdown();
+        private void OnCountdownMessage(string topic, string payload)
+        {
+            if (matchState.IsBoardClient) return; // retired topic: the board's game/match carries the countdown
+            BeginCountdown();
+        }
 
         private void BeginCountdown()
         {
@@ -72,8 +91,27 @@ namespace BridgeRush.Networking
             countdownRemaining = countdownSeconds;
         }
 
+        // The 3-2-1 is drawn from the board's countdown_ms and starts nothing: MatchState starts the match when `running` arrives.
+        private void UpdateBoardCountdown()
+        {
+            if (countdownRoot == null) return;
+            int ms = matchState.BoardCountdownMs;
+            if (ms < 0)
+            {
+                if (countdownRoot.activeSelf) countdownRoot.SetActive(false);
+                return;
+            }
+            countdownRoot.SetActive(true);
+            countdownText.text = ms > 0 ? Mathf.CeilToInt(ms / 1000f).ToString() : "FIGHT!";
+        }
+
         private void Update()
         {
+            if (matchState.IsBoardClient)
+            {
+                UpdateBoardCountdown();
+                return;
+            }
             if (!countingDown) return;
 
             countdownRemaining -= Time.deltaTime;

@@ -7,7 +7,7 @@ import logging
 import warnings
 
 # Report once per second, not every N packets: BLE packets arrive in bursts, so
-# counting packets gives jumpy rates. notes/uplink_capacity.md.
+# counting packets gives jumpy rates.
 PROGRESS_INTERVAL_S = 1.0
 
 
@@ -15,7 +15,7 @@ class RateWindow:
     """Turns packet arrivals into packets/s and kbps, reported once per interval.
 
     The first packet only starts the clock and is not counted, so connect and
-    pairing time never drag the first rate down. notes/uplink_capacity.md.
+    pairing time never drag the first rate down.
     """
 
     def __init__(self, interval=PROGRESS_INTERVAL_S):
@@ -88,7 +88,7 @@ def install_gatt_cancel_error_filter():
     (set_result) or its error (set_exception) to a future that is already cancelled,
     raising InvalidStateError. Seen at shutdown, and mid-run when a board drops during
     a CMD write. Only that exact error is hidden; every other error still reaches the
-    old handler. Returns a function that restores it. notes/two_node_test_plan.md.
+    old handler. Returns a function that restores it.
     """
     loop = asyncio.get_running_loop()
     previous = loop.get_exception_handler()
@@ -112,10 +112,7 @@ def install_gatt_cancel_error_filter():
 
 
 def suppress_queue_get_shutdown_warning():
-    """Hide the harmless "Queue.get was never awaited" warning seen on Ctrl-C.
-
-    notes/two_node_test_plan.md has the shutdown race behind it.
-    """
+    """Hide the harmless "Queue.get was never awaited" warning seen on Ctrl-C."""
     warnings.filterwarnings(
         "ignore",
         message=r"coroutine 'Queue\.get' was never awaited",

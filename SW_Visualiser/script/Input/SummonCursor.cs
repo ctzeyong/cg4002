@@ -19,6 +19,8 @@ namespace BridgeRush.Input
         [SerializeField] private float crosshairSizePixels = 72f;
         [SerializeField] private Color validColor = new(0.3f, 1f, 0.4f, 1f);
         [SerializeField] private Color invalidColor = new(1f, 0.3f, 0.25f, 1f);
+        [SerializeField] private Color scanColor = new(1f, 0.85f, 0.1f, 1f);
+        [SerializeField] private Color scanFullColor = new(1f, 0.25f, 0.1f, 1f);
 
         private static readonly Color SpellAreaColor = new(0.35f, 0.72f, 1f, 0.9f);
         private static readonly Color FireAreaColor = new(1f, 0.22f, 0.18f, 0.95f);
@@ -26,9 +28,13 @@ namespace BridgeRush.Input
         private SpriteRenderer areaMarker;
         private SpriteRenderer fireMarker;
         private Image crosshair;
+        private BubbleCaptureManager bubbles;
 
         public Vector3 AimedWorldPosition { get; private set; }
         public bool IsAimValid { get; private set; }
+        // The crosshair ray hit the floor within reach, whether or not the spot is valid for a summon or a spell. The board engine
+        // joins this with a glove gesture and checks the spot itself.
+        public bool HasAimHit { get; private set; }
 
         // Where a spell would land: the same floor ray as the summon aim, but valid anywhere in the arena,
         // not just in your own territory. SpellCaster sets the radius so the marker shows the area it will hit.
@@ -52,15 +58,19 @@ namespace BridgeRush.Input
             bool playing = matchState.MatchStarted;
             if (!playing)
             {
+                HasAimHit = false;
                 IsAimValid = false;
                 IsSpellAimValid = false;
                 SetVisible(false);
                 return;
             }
 
+            // The screen crosshair stays up for the whole match. Only the ground markers need a floor hit, and the ray misses the
+            // floor when the phone looks at or above the horizon, or past the aim distance.
             if (!Aim())
             {
                 SetVisible(false);
+                ShowCrosshair(invalidColor);
                 return;
             }
             UpdateCursor();
@@ -70,6 +80,7 @@ namespace BridgeRush.Input
         //  check if it is inside the player's territory
         private bool Aim()
         {
+            HasAimHit = false;
             IsAimValid = false;
             IsSpellAimValid = false;
 
@@ -83,6 +94,7 @@ namespace BridgeRush.Input
 
             AimedWorldPosition = hit;
             SpellAimPosition = hit;
+            HasAimHit = true;
             IsSpellAimValid = matchState.IsInsideSpellArea(hit);
             bool inTerritory = matchState.IsInsideOwnTerritory(hit);
             IsAimValid = inTerritory;
@@ -104,7 +116,7 @@ namespace BridgeRush.Input
         {
             SetVisible(true);
             Color color = IsAimValid ? validColor : invalidColor;
-            if (crosshair != null) crosshair.color = color;
+            ShowCrosshair(color);
 
             float pulse = Mathf.Sin(Time.time * 4f) * 0.5f + 0.5f;
             float groundY = matchState.GroundY + 0.012f;
@@ -121,6 +133,16 @@ namespace BridgeRush.Input
                 ReticleArt.Place(areaMarker, SpellAimPosition, groundY - 0.002f, SpellRadiusMeters,
                     new Color(SpellAreaColor.r, SpellAreaColor.g, SpellAreaColor.b, 0.6f + 0.15f * pulse));
             }
+        }
+
+        // The crosshair turns yellow while it is scanning a bubble and shifts to red as the bubble fills, whatever the floor aim says.
+        private void ShowCrosshair(Color aimColor)
+        {
+            if (crosshair == null) return;
+            crosshair.gameObject.SetActive(true);
+            if (bubbles == null) bubbles = FindFirstObjectByType<BubbleCaptureManager>();
+            bool scanning = bubbles != null && bubbles.IsTargeting;
+            crosshair.color = scanning ? Color.Lerp(scanColor, scanFullColor, bubbles.LockProgress) : aimColor;
         }
 
         private void SetVisible(bool visible)

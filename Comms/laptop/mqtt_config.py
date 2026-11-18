@@ -25,11 +25,10 @@ from pathlib import Path
 DEFAULT_HOST = "127.0.0.1"
 
 PLAINTEXT_PORT = 1883
-TLS_PORT = 8883  # mTLS listener, Week 6
+TLS_PORT = 8883  # mTLS listener
 
-# Topic contract with the visualiser. notes/mqtt_topics.md is the one place these
-# are defined and says which have producers today; changing a name is a
-# design-report change, not a local edit.
+# Topic contract with the visualiser. Changing a name is a design-report change,
+# not a local edit.
 #
 # Both carry a player id in the last segment, so each phone can subscribe to its
 # own player and the laptop can tell the two apart without inspecting payloads.
@@ -69,7 +68,7 @@ MIN_BACKOFF_S = 2.0
 MAX_BACKOFF_S = 60.0
 GOOD_RUN_S = 60.0
 
-# mTLS material, Week 6. Named here so the swap to TLS is a config change and
+# mTLS material. Named here so the swap to TLS is a config change and
 # not a code change; none of these files exist yet.
 CERT_DIR = Path(__file__).resolve().parent.parent / "certs"
 CA_CERT = CERT_DIR / "ca.crt"
@@ -265,7 +264,7 @@ def tls_params():
     Always returns parameters, so call it only when TLS is wanted. Callers write
     `tls_params() if broker.tls else None`, which supplies the None aiomqtt expects
     for a plaintext connection at the call site rather than here. Kept in this file
-    so the Week 6 mTLS swap touches config and nothing else.
+    so the mTLS swap touches config and nothing else.
 
     Raises:
         FileNotFoundError: TLS was requested before the certs were generated.

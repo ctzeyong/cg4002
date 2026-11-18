@@ -1,8 +1,7 @@
-"""MQTT topic and envelope for the events this board publishes (configuration B).
+"""MQTT topic and envelope for the events this board publishes.
 
 A copy of the laptop's envelope code: the two machines are deployed separately, so
 it cannot be imported. laptop/tests/test_board_mqtt.py checks the two agree.
-The contract itself is defined only in notes/mqtt_topics.md; change it there first.
 """
 
 import time
@@ -17,6 +16,10 @@ SESSION_ID = uuid.uuid4().hex[:8]
 # The board's own broker: plain MQTT on loopback only (reached by the phone over SSH).
 PLAINTEXT_PORT = 1883
 LOOPBACK_HOST = "127.0.0.1"
+
+# The power monitor's latest readings, retained, for the dashboard (power_monitor.py).
+# Plain JSON, not an envelope: nothing in the game reads it.
+POWER_TOPIC = "status/power"
 
 # One retained topic for both gloves, so one last will covers both.
 GLOVES_TOPIC = "status/gloves"

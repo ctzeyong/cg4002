@@ -1,4 +1,4 @@
-"""How the board turns packets into AI events, in both configurations.
+"""How the board turns packets into AI events, in both board clients.
 
 An ECHO always makes a dummy event. With --gesture-flag every SENSOR sample goes to AI, and
 each gesture it classifies makes one event. The transport rules are tested in test_gesture.py.
@@ -32,7 +32,7 @@ PREFIX = "2026-10-02 12:00:00,000Z [x] "
 
 def sensor(node, seq, t=50.0, status=gesture.IMU_OK, flag=0):
     imu = dict(zip(gesture.CHANNELS, (seq * 100, 1, 2, 3, 4, 5)))
-    reserved = [status, flag, 0, 0, 0]
+    reserved = [status, flag]
     return {"type": "SENSOR", "node": node, "seq": seq & 0xFF, "timestamp": t, "imu": imu, "reserved": reserved}
 
 
@@ -93,7 +93,7 @@ async def test_sensor_packets_trigger_nothing_by_default(caplog):
 @pytest.mark.asyncio
 async def test_a_sensor_without_an_integer_node_is_skipped_not_fatal(caplog):
     frames = [
-        {"type": "SENSOR", "node": "1", "seq": 0, "timestamp": 1.0, "reserved": [1, 1, 0, 0, 0]},
+        {"type": "SENSOR", "node": "1", "seq": 0, "timestamp": 1.0, "reserved": [1, 1]},
         {"type": "SENSOR", "seq": 1, "timestamp": 1.0},
         *flagged_gesture(2, 2, 30, 10.0),
     ]

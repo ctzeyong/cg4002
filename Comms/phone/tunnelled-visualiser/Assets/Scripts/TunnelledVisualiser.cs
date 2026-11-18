@@ -22,13 +22,13 @@ namespace Comms.Visualiser
     }
 
     /// <summary>
-    /// Phone visualiser for configuration B (broker on the Ultra96). Opens a two-hop SSH
+    /// Phone visualiser for the broker on the Ultra96. Opens a two-hop SSH
     /// tunnel to the board, then runs MQTT through it: subscribes to game/gesture/+, drops
     /// repeated event_ids, and shows each event.
     ///
     /// Two supervised loops, one inside the other: the tunnel (RunAsync) and MQTT
     /// (RunMqttSessionsAsync). MQTT runs only while the tunnel is up, and is always stopped
-    /// before the tunnel is closed. Why: notes/tunnelled_visualiser.md.
+    /// before the tunnel is closed.
     /// </summary>
     public class TunnelledVisualiser : MonoBehaviour
     {
@@ -294,8 +294,7 @@ namespace Comms.Visualiser
                     if (!ct.IsCancellationRequested)
                     {
                         // Tunnel still up means the board refused: most likely no broker there.
-                        // (MQTTnet calls this "Error while authenticating"; see
-                        // notes/tunnelled_visualiser.md.)
+                        // (MQTTnet calls this "Error while authenticating".)
                         var detail = tunnel.LastForwardError ?? exc.Message;
                         MqttStatus = tunnel.IsReady
                             ? $"no broker on the board? ({detail})"
@@ -334,7 +333,7 @@ namespace Comms.Visualiser
         /// <summary>
         /// One MQTT connection through the tunnel: CONNECT (clean session), SUBSCRIBE to
         /// game/gesture/+ at QoS 1, announce ready, then wait until it drops.
-        /// Same topics, QoS and envelope as the LAN client.
+        /// Same topics, QoS and envelope as demo-visualiser.
         /// </summary>
         private async Task OneSessionAsync(IMqttClient client, int localPort, CancellationToken ct)
         {

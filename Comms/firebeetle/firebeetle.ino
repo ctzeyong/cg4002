@@ -3,8 +3,8 @@
 //   SENSOR (READ | NOTIFY) — uplink. Streams SENSOR packets and returns CMD/file data.
 //   CMD    (WRITE)         — downlink. Accepts CMD packets and streamed file chunks.
 //
-// Every packet starts with type and sequence. SENSOR, CMD and ECHO packets then carry 11
-// int16 fields (six IMU readings, five reserved) and a CRC, 26 bytes in all; file packets
+// Every packet starts with type and sequence. SENSOR, CMD and ECHO packets then carry 8
+// int16 fields (six IMU readings, two reserved) and a CRC, 20 bytes in all; file packets
 // carry a uint64 size/offset followed by raw bytes, and no CRC. In a SENSOR packet the
 // first reserved field carries the IMU status and the second the gesture flag (imu.h).
 //
@@ -53,7 +53,7 @@ static constexpr uint8_t TYPE_FILE_END   = 0x12;
 
 static constexpr size_t HEADER_LEN = 2;
 static constexpr size_t IMU_FIELD_COUNT = 6;
-static constexpr size_t RESERVED_FIELD_COUNT = 5;
+static constexpr size_t RESERVED_FIELD_COUNT = 2;
 static constexpr size_t IMU_STATUS_FIELD = IMU_FIELD_COUNT;  // reserved[0] of a SENSOR packet
 static constexpr size_t GESTURE_FLAG_FIELD = IMU_STATUS_FIELD + 1;
 static constexpr size_t DATA_FIELD_COUNT = IMU_FIELD_COUNT + RESERVED_FIELD_COUNT;
@@ -61,7 +61,7 @@ static constexpr size_t FIELD_LEN = 2;
 static constexpr size_t CRC_LEN = 2;
 static constexpr size_t CRC_OFFSET = HEADER_LEN + DATA_FIELD_COUNT * FIELD_LEN;
 static constexpr size_t PACKET_LEN = CRC_OFFSET + CRC_LEN;
-static_assert(PACKET_LEN == 26, "fixed BLE packet must remain 26 bytes");
+static_assert(PACKET_LEN == 20, "fixed BLE packet must remain 20 bytes");
 static constexpr uint16_t PREFERRED_MTU = 128;
 static constexpr size_t FILE_HEADER_LEN = 10;  // type + seq + uint64 size/offset
 static constexpr size_t FILE_MAX_PACKET_LEN = PREFERRED_MTU - 3;
@@ -492,9 +492,9 @@ void loop() {
 
     const uint32_t now = millis();
 
-    // a notification carries at most MTU-3 bytes, so while the link is still on the
-    // 23-byte default our PACKET_LEN packet goes out truncated and the client throws
-    // it away. poll until the exchange lifts us clear, then stop looking — MTU only
+    // a notification carries at most MTU-3 bytes, so wait until a whole PACKET_LEN
+    // packet fits. a 20-byte packet already fits the 23-byte default and passes at once.
+    // stop checking once it passes, since MTU only
     // grows within a connection. polling rather than keying off onMTUChange: if that
     // callback never arrives we want to wait, not to go silent forever.
     if (g_connected && !g_mtuReady) {

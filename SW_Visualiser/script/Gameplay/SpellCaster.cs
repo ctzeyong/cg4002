@@ -89,6 +89,8 @@ namespace BridgeRush.Gameplay
             if (matchState == null) return;
             matchState.LightningStrikeStarted += OnLightningStrikeStarted;
             matchState.FireballStarted += OnFireballStarted;
+            matchState.BoardSpellCast += OnBoardSpellCast;
+            matchState.BoardSpellRejected += OnBoardSpellRejected;
         }
 
         private void OnDisable()
@@ -96,7 +98,13 @@ namespace BridgeRush.Gameplay
             if (matchState == null) return;
             matchState.LightningStrikeStarted -= OnLightningStrikeStarted;
             matchState.FireballStarted -= OnFireballStarted;
+            matchState.BoardSpellCast -= OnBoardSpellCast;
+            matchState.BoardSpellRejected -= OnBoardSpellRejected;
         }
+
+        // The board's answer to a spell: it decided, so these raise the same events the local cast does.
+        private void OnBoardSpellCast(string spell) => SpellCast?.Invoke(spell);
+        private void OnBoardSpellRejected(string spell, string reason) => SpellRejected?.Invoke(spell, reason);
 
         // Fired when a spell is accepted: "lightning" or "fireball". Drives the card animation.
         public event System.Action<string> SpellCast;
@@ -118,6 +126,7 @@ namespace BridgeRush.Gameplay
 
         public string DescribeCastFailure(string spell)
         {
+            if (matchState.IsBoardClient) return matchState.BoardRefusalText;
             if (!arenaFrame.HasLane) return "No opponent found yet.";
             if (!SpellAimValid) return "Aim the crosshair at the arena floor, on either side.";
             float cost = CostOf(spell);
@@ -127,6 +136,13 @@ namespace BridgeRush.Gameplay
 
         public bool CastLightningStrike()
         {
+            string refusal = matchState.ActionFilter?.Invoke("lightning");
+            if (refusal != null)
+            {
+                SpellRejected?.Invoke("lightning", refusal);
+                return false;
+            }
+            if (matchState.IsBoardClient) return matchState.BoardSendSpell("lightning");
             bool done = CastLightningCore();
             if (!done) SpellRejected?.Invoke("lightning", ShortCastFailure("lightning"));
             return done;
@@ -156,6 +172,13 @@ namespace BridgeRush.Gameplay
 
         public bool CastFireball()
         {
+            string refusal = matchState.ActionFilter?.Invoke("fireball");
+            if (refusal != null)
+            {
+                SpellRejected?.Invoke("fireball", refusal);
+                return false;
+            }
+            if (matchState.IsBoardClient) return matchState.BoardSendSpell("fireball");
             bool done = CastFireballCore();
             if (!done) SpellRejected?.Invoke("fireball", ShortCastFailure("fireball"));
             return done;

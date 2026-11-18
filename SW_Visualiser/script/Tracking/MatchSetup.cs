@@ -17,6 +17,10 @@ namespace BridgeRush.Tracking
         public bool HasChosenMode { get; private set; }
         public GameMode Mode { get; private set; }
 
+        // A tutorial is a VS CPU match (local rules, fake opponent, local countdown) with no enemy bot, free summons and no end.
+        // TutorialCoach runs the lesson. Mode stays VsCpu, so everything that treats VS CPU as a local game still does.
+        public bool IsTutorial { get; private set; }
+
         public SelectedPlayer Selected { get; private set; } = SelectedPlayer.None;
         public bool HasSelected { get; private set; }
         public bool IsSetupComplete => HasChosenMode && HasSelected;
@@ -32,28 +36,70 @@ namespace BridgeRush.Tracking
 
         public void DebugReset()
         {
+            LeaveTutorial();
             HasChosenMode = false;
+            HasSelected = false;
+            Selected = SelectedPlayer.None;
+        }
+
+        // Back from the start screen to the player screen: the mode stays, the player choice is forgotten.
+        public void BackToPlayerSelect()
+        {
             HasSelected = false;
             Selected = SelectedPlayer.None;
         }
 
         public void ChooseVsPlayer()
         {
+            LeaveTutorial();
             Mode = GameMode.VsPlayer;
             HasChosenMode = true;
         }
 
         public void ChooseVsCpu()
         {
+            LeaveTutorial();
             Mode = GameMode.VsCpu;
             HasChosenMode = true;
+        }
+
+        public void ChooseTutorial()
+        {
+            Mode = GameMode.VsCpu;
+            IsTutorial = true;
+            HasChosenMode = true;
+            // The player screen follows, because the glove for this player sends on game/gesture/{player} and the phone only
+            // listens to its own player's topic. SetupScreen calls ActivateCpuOpponent once a player is picked.
         }
 
         public void ActivateCpuOpponent()
         {
             if (Mode != GameMode.VsCpu) return;
             arenaFrame.SetFakeOpponent(cpuOpponentDistanceMeters);
-            matchState.SetEnemyBotEnabled(true);
+            matchState.SetEnemyBotEnabled(!IsTutorial);
+            if (IsTutorial) matchState.GodMode = true;
+        }
+
+        // The lesson is over: the same player goes on to a normal VS CPU match. The caller has already reset the match and
+        // forgotten the old fake opponent; this clears the tutorial's flags (free summons, endless clock, no bot) and puts
+        // the CPU opponent back, with its bot.
+        public void FinishTutorialIntoVsCpu()
+        {
+            if (!IsTutorial) return;
+            LeaveTutorial();
+            Mode = GameMode.VsCpu;
+            HasChosenMode = true;
+            ActivateCpuOpponent();
+        }
+
+        // Back out of a tutorial: its free summons, endless clock and missing bot must not leak into the next mode.
+        private void LeaveTutorial()
+        {
+            if (!IsTutorial) return;
+            IsTutorial = false;
+            matchState.GodMode = false;
+            matchState.EndlessMatch = false;
+            matchState.SetEnemyBotEnabled(false);
         }
 
         public void SelectPlayer1()

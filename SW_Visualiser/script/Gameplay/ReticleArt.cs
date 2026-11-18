@@ -8,6 +8,10 @@ namespace BridgeRush.Gameplay
     {
         private const int Size = 256;
         private const float Edge = 0.012f;
+        // The screen crosshair has a black outline so it stays readable over a bright bubble or a pale wall. The shape is drawn
+        // a little smaller to leave room for the outline inside the texture.
+        private const float ScreenShapeScale = 0.88f;
+        private const int ScreenOutlinePixels = 8;
 
         private static Sprite summon;
         private static Sprite area;
@@ -19,7 +23,7 @@ namespace BridgeRush.Gameplay
         public static Sprite Area => area != null ? area : area = Build(AreaPixel);
         public static Sprite Ring => ring != null ? ring : ring = Build(RingPixel);
         public static Sprite Dotted => dotted != null ? dotted : dotted = Build(DottedPixel);
-        public static Sprite Screen => screen != null ? screen : screen = Build(ScreenPixel);
+        public static Sprite Screen => screen != null ? screen : screen = BuildOutlined(ScreenPixel, ScreenShapeScale, ScreenOutlinePixels);
 
         public static SpriteRenderer CreateGroundMarker(string objectName, Sprite sprite, Transform parent = null)
         {
@@ -95,6 +99,60 @@ namespace BridgeRush.Gameplay
         // 1 inside [low, high], falling to 0 over the soft edge on both sides.
         private static float Band(float v, float low, float high, float edge = Edge) =>
             Smooth(low - edge, low, v) * (1f - Smooth(high, high + edge, v));
+
+        // Like Build, but the white shape gets a black outline `outlinePixels` wide (in texture pixels). The sprite is tinted by
+        // Image.color, which leaves the black as it is, so the outline shows whatever colour the crosshair is.
+        private static Sprite BuildOutlined(System.Func<float, float, float, float> pixel, float shapeScale, int outlinePixels)
+        {
+            var texture = new Texture2D(Size, Size, TextureFormat.RGBA32, false)
+            {
+                wrapMode = TextureWrapMode.Clamp,
+                filterMode = FilterMode.Bilinear
+            };
+            float half = Size * 0.5f;
+            var body = new float[Size * Size];
+            for (int j = 0; j < Size; j++)
+            {
+                for (int i = 0; i < Size; i++)
+                {
+                    float x = (i + 0.5f - half) / half / shapeScale;
+                    float y = (j + 0.5f - half) / half / shapeScale;
+                    body[j * Size + i] = Mathf.Clamp01(pixel(x, y, Mathf.Sqrt(x * x + y * y)));
+                }
+            }
+
+            // The outline is the body grown by a disc: each pixel takes the strongest body pixel within reach, fading at the rim.
+            var pixels = new Color32[Size * Size];
+            for (int j = 0; j < Size; j++)
+            {
+                for (int i = 0; i < Size; i++)
+                {
+                    float grown = 0f;
+                    for (int dj = -outlinePixels; dj <= outlinePixels && grown < 1f; dj++)
+                    {
+                        int jj = j + dj;
+                        if (jj < 0 || jj >= Size) continue;
+                        for (int di = -outlinePixels; di <= outlinePixels; di++)
+                        {
+                            int ii = i + di;
+                            if (ii < 0 || ii >= Size) continue;
+                            float reach = outlinePixels + 0.5f - Mathf.Sqrt(di * di + dj * dj);
+                            if (reach <= 0f) continue;
+                            float value = body[jj * Size + ii] * Mathf.Clamp01(reach);
+                            if (value > grown) grown = value;
+                        }
+                    }
+
+                    float a = body[j * Size + i];
+                    float alpha = a + grown * (1f - a);
+                    byte white = alpha > 0.0001f ? (byte)Mathf.RoundToInt(255f * a / alpha) : (byte)0;
+                    pixels[j * Size + i] = new Color32(white, white, white, (byte)Mathf.RoundToInt(alpha * 255f));
+                }
+            }
+            texture.SetPixels32(pixels);
+            texture.Apply();
+            return Sprite.Create(texture, new Rect(0f, 0f, Size, Size), new Vector2(0.5f, 0.5f), Size);
+        }
 
         private static Sprite Build(System.Func<float, float, float, float> pixel)
         {

@@ -14,13 +14,11 @@ using UnityEngine;
 namespace Comms.Visualiser
 {
     /// <summary>
-    /// The phone half of criterion 2: subscribes to the laptop's gesture events and
-    /// announces itself on viz/ready. A bare scrolling message log, which is all the
-    /// rubric asks for -- see notes/unity_visualiser.md.
+    /// The phone client for the laptop-broker setup: subscribes to the laptop's gesture
+    /// events and announces itself on viz/ready. A bare scrolling message log.
     ///
     /// Supervised the same way as every other link in this project: connect, run, back off,
-    /// retry, forever. A broker that is not up yet must not make start order matter, which
-    /// is what the order-independent bring-up deliverable needs.
+    /// retry, forever. A broker that is not up yet must not make start order matter.
     /// </summary>
     public class MqttVisualiser : MonoBehaviour
     {
@@ -78,8 +76,8 @@ namespace Comms.Visualiser
         private string Scheme => _useTls ? "mqtts" : "mqtt";
 
         /// <summary>
-        /// Build the visualiser at startup so it needs no scene edits, matching the
-        /// tunnel spike's controller. Stage A then runs by pressing Play.
+        /// Build the visualiser at startup so it needs no scene edits. It then runs by
+        /// pressing Play.
         /// </summary>
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Bootstrap()
@@ -105,7 +103,7 @@ namespace Comms.Visualiser
         ///
         /// The client is passed to RunAsync rather than read back out of `_client`: the
         /// session being replaced is still unwinding and would find the replacement
-        /// there and disconnect it. See notes/unity_visualiser.md.
+        /// there and disconnect it.
         /// </summary>
         public void Connect()
         {
@@ -113,18 +111,16 @@ namespace Comms.Visualiser
 
             // The presence of the pushed material is the switch: `adb push` turns mTLS on,
             // deleting the files turns it off. That keeps the plaintext path usable while the
-            // phone leg is being proved -- notes/mtls.md holds the plaintext listener open
-            // until Stage B passes, because a broken phone leg and a broken handshake are
+            // phone leg is being proved. The plaintext listener stays open until TLS works,
+            // because a broken phone leg and a broken handshake are
             // indistinguishable from the phone.
             //
             // Decided HERE rather than in Start so that pushing certificates to a running app
             // and pressing Connect is enough. Deciding it once at startup would mean the
-            // material had to be in place before launch -- an ordering dependency, and
-            // order-independent bring-up is a Week 7 deliverable.
+            // material had to be in place before launch, which is an ordering dependency.
             //
-            // A runtime switch rather than a second copy of this file: the
-            // separate-file-per-configuration rule is about A and B, which coexist
-            // permanently, whereas plaintext here is scaffolding with an end date.
+            // A runtime switch rather than a second copy of this file: separate files are
+            // for setups that coexist permanently, and plaintext here is only temporary.
             _useTls = MqttTls.Available;
 
             // Dropped so replaced material is picked up rather than a stale cached identity.
@@ -214,7 +210,7 @@ namespace Comms.Visualiser
             LogVersion++;
 
             // Also copy to Debug.Log, as tunnelled-visualiser does: logcat's own timestamp on
-            // this line is hop 7 of the latency measurement (notes/latency.md 3.2).
+            // this line is hop 7 of the latency measurement.
             Debug.Log($"{LogTag} {stamped}");
         }
 
@@ -279,8 +275,7 @@ namespace Comms.Visualiser
                 // Captured locally so this session's TLS settings cannot observe fields
                 // cleared by a Disconnect racing it -- the same hazard the `client`
                 // parameter exists to avoid, noted in Connect(). The validation handler is
-                // the one that genuinely outlives this method, so the capture is load-bearing
-                // there rather than merely tidy.
+                // the one that outlives this method, so the capture matters most there.
                 var pinnedCa = _ca;
                 var identity = _clientCertificate;
 
@@ -342,7 +337,7 @@ namespace Comms.Visualiser
             _ca = MqttTls.LoadCa();
             _clientCertificate = MqttTls.LoadClientCertificate(out var bundle, out var attempts);
 
-            // Which bundle loaded is the answer Stage A exists to find: it decides what gets
+            // Which bundle loaded is worth logging: it decides what gets
             // pushed to the phone, and the modern one is not guaranteed to work under Mono.
             Note($"mTLS: identity {_clientCertificate.Subject} (from {bundle})");
 
@@ -355,9 +350,8 @@ namespace Comms.Visualiser
         }
 
         /// <summary>
-        /// Announce this visualiser on viz/ready/{player}. Not required by any rubric line,
-        /// but it shows the link is genuinely two-way and it is the evidence behind the
-        /// order-independent bring-up claim.
+        /// Announce this visualiser on viz/ready/{player}. It shows the link is genuinely
+        /// two-way, and it is the evidence that start order does not matter.
         /// </summary>
         private async Task PublishReadyAsync(IMqttClient client, CancellationToken ct)
         {

@@ -41,13 +41,13 @@ def make_packet(packet_type, seq, fields=None):
     return build_fixed_packet(packet_type, seq, fields)
 
 
-def test_fixed_packet_layout_remains_26_bytes():
+def test_fixed_packet_layout_remains_20_bytes():
     assert IMU_FIELD_COUNT == 6
-    assert RESERVED_FIELD_COUNT == 5
-    assert DATA_FIELD_COUNT == 11
+    assert RESERVED_FIELD_COUNT == 2
+    assert DATA_FIELD_COUNT == 8
     assert CRC_LEN == 2
-    assert CRC_OFFSET == 24
-    assert PACKET_LEN == 26
+    assert CRC_OFFSET == 18
+    assert PACKET_LEN == 20
 
 
 def test_crc_matches_ccitt_false_check_value():
@@ -70,14 +70,14 @@ def test_decode_rejects_short_packet():
 
 
 def test_decode_rejects_truncated_sensor():
-    """The MTU-23 truncation case: 26 bytes sent, 20 arrive."""
-    with pytest.raises(ValueError, match=r"invalid sensor packet length: 20 != 26"):
-        decode(make_packet(TYPE_SENSOR, 1)[:20])
+    """A packet cut short in transit is rejected on its length."""
+    with pytest.raises(ValueError, match=r"invalid sensor packet length: 18 != 20"):
+        decode(make_packet(TYPE_SENSOR, 1)[:18])
 
 
 def test_decode_rejects_wrong_length_echo():
     with pytest.raises(ValueError, match=r"invalid echo packet length"):
-        decode(make_packet(TYPE_ECHO, 1)[:24])
+        decode(make_packet(TYPE_ECHO, 1)[:18])
 
 
 @pytest.mark.parametrize("corrupt_index", [0, 1, HEADER_LEN + 3, PACKET_LEN - 1])
@@ -116,7 +116,7 @@ def test_build_cmd_packet_shape_and_crc_byte_order():
 
 
 def test_build_cmd_packet_is_decodable():
-    fields = [1, -2, 300, -30000, 0, 7, 0, 0, 0, 0, 0]
+    fields = [1, -2, 300, -30000, 0, 7, 0, 0]
     packet_type, seq, payload = decode(build_cmd_packet(200, fields))
 
     assert (packet_type, seq) == (TYPE_CMD, 200)
@@ -128,7 +128,7 @@ def test_build_cmd_packet_wraps_seq():
 
 
 def test_build_cmd_packet_rejects_wrong_field_count():
-    with pytest.raises(ValueError, match="need 11 fields, got 3"):
+    with pytest.raises(ValueError, match="need 8 fields, got 3"):
         build_cmd_packet(1, [1, 2, 3])
 
 
@@ -138,8 +138,8 @@ def test_build_cmd_packet_rejects_out_of_range_field():
 
 
 def test_echo_matches_firmware_transformation_and_crc_refresh():
-    """Firmware negates six active fields, preserves five reserved fields."""
-    fields = [1, -2, 300, -30000, 0, 7, 10, 20, 30, 40, 50]
+    """Firmware negates six active fields, preserves two reserved fields."""
+    fields = [1, -2, 300, -30000, 0, 7, 10, 20]
     echo_fields = [-value for value in fields[:IMU_FIELD_COUNT]] + fields[IMU_FIELD_COUNT:]
     echo = make_packet(TYPE_ECHO, 42, echo_fields)
 
@@ -195,8 +195,19 @@ def test_firmware_and_laptop_agree_on_the_vibrate_command():
     assert firmware["VIBRATE_RECOGNISED"] == VIBRATE_RECOGNISED
 
 
+def test_firmware_and_laptop_agree_on_the_packet_size():
+    """The laptop rejects every packet from a glove that sends a different size."""
+    firmware = firmware_constants()
+    fields = firmware["IMU_FIELD_COUNT"] + firmware["RESERVED_FIELD_COUNT"]
+    firmware_len = firmware["HEADER_LEN"] + fields * firmware["FIELD_LEN"] + firmware["CRC_LEN"]
+
+    assert firmware["IMU_FIELD_COUNT"] == IMU_FIELD_COUNT
+    assert firmware["RESERVED_FIELD_COUNT"] == RESERVED_FIELD_COUNT
+    assert firmware_len == PACKET_LEN
+
+
 def test_format_packet_is_readable_and_shows_named_fields_and_crc():
-    """Guideline 7: log files carry decoded values and a CRC, not raw hex."""
+    """Log files carry decoded values and a CRC, not raw hex."""
     raw = make_packet(TYPE_SENSOR, 9)
     _, _, payload = decode(raw)
 
@@ -204,7 +215,7 @@ def test_format_packet_is_readable_and_shows_named_fields_and_crc():
 
     assert line == (
         "node=2 SENSOR seq=9 ax=0 ay=1 az=2 gx=3 gy=4 gz=5 "
-        "reserved=[6, 7, 8, 9, 10] "
+        "reserved=[6, 7] "
         f"crc=0x{int.from_bytes(raw[CRC_OFFSET:], 'little'):04x}"
     )
     # the defect this replaces: the BlePacket repr rendered the payload as raw bytes
@@ -229,16 +240,15 @@ def test_packet_to_message_names_imu_reserved_fields_and_crc():
         "node": 2,
         "seq": 9,
         "timestamp": 1234.5,
-        "fields": list(range(DATA_FIELD_COUNT)),
         "imu": {"ax": 0, "ay": 1, "az": 2, "gx": 3, "gy": 4, "gz": 5},
-        "reserved": [6, 7, 8, 9, 10],
+        "reserved": [6, 7],
         "crc": int.from_bytes(raw[CRC_OFFSET:], "little"),
     }
 
 
 def test_imu_status_is_read_from_the_first_reserved_field():
     # the fields either side (gz=6, reserved[1]=-1) must not leak in
-    fields = [1, 2, 3, 4, 5, 6, 3, -1, 0, 0, 0]
+    fields = [1, 2, 3, 4, 5, 6, 3, -1]
     _, _, payload = decode(build_fixed_packet(TYPE_SENSOR, 0, fields))
 
     assert imu_status(payload) == 3

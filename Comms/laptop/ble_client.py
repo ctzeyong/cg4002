@@ -7,7 +7,7 @@ Downlink: while connected, a writer task sends queued CMD packets to the CMD
 characteristic. The board's ECHO reply comes back through the normal uplink path.
 
 The player number is not inside the packet. It comes from which connection the
-packet arrived on (NodeConfig). Design notes: notes/two_node_test_plan.md.
+packet arrived on (NodeConfig).
 """
 
 import argparse
@@ -78,7 +78,7 @@ MAX_BACKOFF_S  = 60.0
 GOOD_RUN_S     = 60.0  # a session lasting this long resets the backoff
 
 # Before a board has ever connected, its first three retries stay at 2 s instead of
-# doubling, so a board switched on late is found quickly. notes/two_node_test_plan.md.
+# doubling, so a board switched on late is found quickly.
 STARTUP_FAST_RETRIES = 3
 
 LOG_FILE = Path(__file__).resolve().parent.parent / "logs" / "ble_client.log"
@@ -88,7 +88,7 @@ log = logging.getLogger("ble_client")
 
 class NodeLog(logging.LoggerAdapter):
     """`log`, with each record tagged `node=<id>` so the console can colour the two
-    boards apart (guideline 3). Keeps any `extra` the caller passes, such as PROGRESS."""
+    boards apart. Keeps any `extra` the caller passes, such as PROGRESS."""
 
     def process(self, msg, kwargs):
         kwargs["extra"] = {**self.extra, **(kwargs.get("extra") or {})}
@@ -152,7 +152,7 @@ class NodeStats:
 
 
 def random_cmd_fields():
-    """Six random IMU-style int16 values, then five reserved zeros.
+    """Six random IMU-style int16 values, then two reserved zeros.
 
     Kept within ±30000 so the board's negation is always a clean sign flip
     (-32768 has no positive int16 and would come back unchanged).
@@ -161,13 +161,13 @@ def random_cmd_fields():
     return imu_fields + [0] * RESERVED_FIELD_COUNT
 
 
-KEY_FIELD_MASK = 0x3FFF  # keeps the key code small enough to negate; see notes/tcp_leg.md
+KEY_FIELD_MASK = 0x3FFF  # keeps the key code small enough to negate
 
 
 def key_cmd_fields(key):
     """Random dummy fields, except field 0, which carries the pressed key's code.
 
-    The Ultra96 reads it back from the ECHO to pick the gesture; see notes/tcp_leg.md.
+    The Ultra96 reads it back from the ECHO to pick the gesture.
     """
     fields = random_cmd_fields()
     fields[0] = ord(key) & KEY_FIELD_MASK
@@ -207,7 +207,7 @@ def discard_stale_commands(outbox):
 
 
 def seq_anomaly_suffix(stats, now):
-    """Rate-limit the loss warnings; see notes/logging.md.
+    """Rate-limit the loss warnings.
 
     Returns:
         A suffix naming what was suppressed since the last warning, or None while
@@ -244,7 +244,7 @@ def make_notify_handler(node, queue, stats):
     def on_notify(_char, data):
         try:
             # perf_counter, not time.time(): 0.1 us against 15.6 ms on Windows. It rides
-            # to the board as the frame's `timestamp`; notes/latency.md 3.3.
+            # to the board as the frame's `timestamp`.
             now = time.perf_counter()
 
             try:
@@ -302,7 +302,7 @@ def make_notify_handler(node, queue, stats):
                     # last_seq keeps its highest value so the next packet is not a false gap.
                     stats.duplicates += 1
                     # Only an exact repeat of the previous packet is withheld; other
-                    # backwards packets are still forwarded. notes/two_node_test_plan.md.
+                    # backwards packets are still forwarded.
                     if seq == stats.prev_seq:
                         stats.repeats += 1
                         forward = False
@@ -399,7 +399,7 @@ async def drain_outbox(client, node, outbox, stats):
     nlog = node_log(node)
     while True:
         packet = await outbox.get()
-        # Logged before the write so it prints before the ECHO; see notes/logging.md.
+        # Logged before the write so it prints before the ECHO.
         nlog.info(
             "node %d: CMD seq=%d fields[:3]=%s",
             node.node_id,
@@ -440,7 +440,7 @@ async def setup_connection(node, queue, stats, on_disconnect, setup_lock):
     """Scan, connect and subscribe, holding the shared setup lock.
 
     Only setup is one board at a time; afterwards both boards stream together.
-    Windows was unreliable setting up two connections at once (notes/two_node_test_plan.md).
+    Windows was unreliable setting up two connections at once.
     """
     nlog = node_log(node)
     async with setup_lock:

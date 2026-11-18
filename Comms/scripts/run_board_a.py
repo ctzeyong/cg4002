@@ -1,19 +1,20 @@
-"""Start configuration A's board client (tcp_client.py) over asyncssh, with no password prompt.
+"""Start the laptop-broker board client (tcp_client.py) over asyncssh, with no password prompt.
 
+The laptop-broker setup was evaluated but is not used in the final system.
 Pane 2 of two; pane 1 is run_pipeline_a.ps1, and run_board_a.ps1 wraps this file.
-run_board.py does the same for configuration B, and the SSH plumbing comes from it.
-What differs is what runs on the board, so that part lives here, like every A/B pair:
+run_board.py does the same for the final system, and the SSH plumbing comes from it.
+What differs is what runs on the board, so that part lives here:
 
-- A's client publishes nothing, so there is no broker check.
-- B's client is always stopped first. tcp_server keeps the newest client, so a leftover
-  B client and this one would keep evicting each other, every 2 s, with no error.
+- This client publishes nothing, so there is no broker check.
+- The final system's client is always stopped first. tcp_server keeps the newest client,
+  so a leftover one and this one would keep evicting each other, every 2 s, with no error.
 
     python run_board_a.py                  # start it, or re-attach if running
     python run_board_a.py --sync           # re-copy ultra96/*.py, then restart it
     python run_board_a.py --stop           # kill it and exit
     python run_board_a.py --fetch-logs     # copy today's (UTC) board logs here, then exit
 
-Ctrl-C stops the board client. Full-chain runbook: notes/demo_network.md.
+Ctrl-C stops the board client.
 """
 
 import argparse
@@ -45,7 +46,7 @@ CLIENT = "~/comms/tcp_client.py"
 # Must start at "python", or pgrep/pkill would also match our own remote shell. Does not
 # match tcp_client_mqtt.py.
 PROCESS_PATTERN = r"^[^ ]*python[0-9.]*[ ]+[^ ]*tcp_client\.py"
-# Its own prefix: B's attach picks the newest console_*.log, which must never be A's.
+# Its own prefix: run_board.py's attach picks the newest console_*.log, never this one's.
 CAPTURE_PREFIX = "a_console_"
 
 
@@ -72,7 +73,7 @@ def remote_command(port, client_args, restart):
         f"latest=$(ls -t ~/comms/logs/{CAPTURE_PREFIX}*.log 2>/dev/null | head -1); "
         f'else {launch} sleep 2; echo "STARTED"; latest="$cap"; fi',
         # A client started by hand has no console capture; tail its own log file instead.
-        # tcp_client_[0-9]* so B's tcp_client_mqtt_*.log never matches.
+        # tcp_client_[0-9]* so the final system's tcp_client_mqtt_*.log never matches.
         'if [ -z "$latest" ]; then '
         "latest=$(ls -t ~/comms/logs/*/tcp_client_[0-9]*.log 2>/dev/null | head -1); "
         '[ -n "$latest" ] && echo "no console capture; tailing the per-run client log"; fi',

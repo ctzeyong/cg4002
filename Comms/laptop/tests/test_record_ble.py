@@ -15,7 +15,7 @@ from ble_packet import build_fixed_packet, decode
 
 def packet(seq, t, imu=(0, 0, 0, 0, 0, 0), status=IMU_OK, flag=0, ptype=TYPE_SENSOR):
     """A decoded SENSOR (or other) packet as ble_client puts it on the queue."""
-    fields = [*imu, status, flag, 0, 0, 0]
+    fields = [*imu, status, flag]
     ptype, seq, payload = decode(build_fixed_packet(ptype, seq, fields))
     return BlePacket(node_id=1, type=ptype, seq=seq, payload=payload, t_recv=t)
 
@@ -71,7 +71,7 @@ def test_clock_resyncs_from_arrival_time_after_a_dropout():
 # ---- rows ----
 
 def test_row_is_in_record_py_units_on_the_10ms_grid():
-    fields = [8192, -4096, 0, 655, -131, 0, IMU_OK, 1, 0, 0, 0]
+    fields = [8192, -4096, 0, 655, -131, 0, IMU_OK, 1]
     row = record_ble.sample_row(fields, 7, 123)
     assert row == [7, 70_000, 1.0, -0.5, 0.0, 10.0, -2.0, 0.0, 123, IMU_OK, 1]
 

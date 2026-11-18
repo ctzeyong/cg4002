@@ -1,9 +1,9 @@
-"""Encode and decode the fixed 26-byte BLE packets (SENSOR, CMD, ECHO).
+"""Encode and decode the fixed 20-byte BLE packets (SENSOR, CMD, ECHO).
 
     byte 0      type
     byte 1      seq (0-255, wraps)
-    bytes 2-23  11 x int16 little-endian: ax ay az gx gy gz, then 5 reserved
-    bytes 24-25 CRC-16/CCITT-FALSE of bytes 0-23, little-endian
+    bytes 2-17  8 x int16 little-endian: ax ay az gx gy gz, then 2 reserved
+    bytes 18-19 CRC-16/CCITT-FALSE of bytes 0-17, little-endian
 
 In a SENSOR packet the first reserved field is the IMU status (firebeetle/imu.h),
 which ImuCheck turns into warnings. In a CMD it says what kind of command it is, and a
@@ -29,7 +29,7 @@ TYPE_NAMES = {
 HEADER_LEN = 2
 IMU_FIELD_COUNT = 6
 IMU_FIELD_NAMES = ("ax", "ay", "az", "gx", "gy", "gz")
-RESERVED_FIELD_COUNT = 5
+RESERVED_FIELD_COUNT = 2
 DATA_FIELD_COUNT = IMU_FIELD_COUNT + RESERVED_FIELD_COUNT
 FIELD_LEN = 2
 DATA_LEN = DATA_FIELD_COUNT * FIELD_LEN
@@ -85,7 +85,7 @@ def decode(data):
     Raises:
         PacketLengthError: shorter than ``HEADER_LEN``, or a fixed-length type
             whose length is not ``PACKET_LEN``.
-        PacketCrcError: a 26-byte fixed-shape packet fails its CRC check.
+        PacketCrcError: a 20-byte fixed-shape packet fails its CRC check.
     """
     if len(data) < HEADER_LEN:
         raise PacketLengthError(f"packet too short: {len(data)} < {HEADER_LEN}")
@@ -98,7 +98,7 @@ def decode(data):
             f"invalid {name} packet length: {len(data)} != {PACKET_LEN}"
         )
 
-    # CRC-check every 26-byte packet, whatever its type byte says, so a corrupted
+    # CRC-check every 20-byte packet, whatever its type byte says, so a corrupted
     # type byte cannot skip the check.
     if len(data) == PACKET_LEN:
         received_crc = int.from_bytes(data[CRC_OFFSET:PACKET_LEN], "little")
@@ -121,7 +121,7 @@ def calculate_crc(data):
 
 
 def unpack_fields(payload):
-    """Decode the 11 data fields, excluding a fixed payload's trailing CRC."""
+    """Decode the 8 data fields, excluding a fixed payload's trailing CRC."""
     field_bytes = payload[:DATA_LEN] if len(payload) == DATA_LEN + CRC_LEN else payload
     return [
         int.from_bytes(field_bytes[i : i + FIELD_LEN], "little", signed=True)
@@ -247,8 +247,10 @@ def packet_to_message(packet):
         "node": packet.node_id,
         "seq": packet.seq,
         "timestamp": packet.t_recv,
-        "fields": fields,
     }
+    # the board reads SENSOR values by name, and the pressed key from an ECHO's fields[0]
+    if packet.type != TYPE_SENSOR:
+        message["fields"] = fields
 
     if packet.type in FIXED_LEN_TYPES:
         message["imu"] = dict(zip(IMU_FIELD_NAMES, fields[:IMU_FIELD_COUNT]))

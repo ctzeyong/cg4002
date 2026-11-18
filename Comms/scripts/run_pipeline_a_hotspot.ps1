@@ -1,8 +1,8 @@
-# Configuration A on a phone-hotspot uplink, laptop half: Mosquitto on this laptop's
+# Laptop-broker setup on a phone-hotspot uplink, laptop half: Mosquitto on this laptop's
 # address on the phone's hotspot, the Tailscale tunnel to the board, then the relay.
 # Pane 1 of two; pane 2 is run_board_a_hotspot.ps1. Campus runs use run_pipeline_a.ps1.
-# Why this setup and what it needs: notes/demo_network.md (case 2) and notes/ultra96_setup.md
-# ("Fallback D").
+# This setup was evaluated but is not used in the final system. What it needs is in
+# Comms/README.md, section 2.
 #
 #   .\run_pipeline_a_hotspot.ps1 [-v] [--nodes 1,2] ...
 #
@@ -15,7 +15,7 @@ $python = Join-Path $repo ".venv\Scripts\python.exe"
 $mosquitto = "C:\Program Files\Mosquitto\mosquitto.exe"
 $template = Join-Path $repo "laptop\mosquitto_hotspot.conf"
 $tunnelScript = Join-Path $repo "laptop\tunnel_tailscale.py"
-$firewallRule = "B16 MQTT 1883 local subnet"  # the rule's name in notes/demo_network.md
+$firewallRule = "B16 MQTT 1883 local subnet"  # the rule's name in Comms/README.md
 
 foreach ($file in @($python, $mosquitto, $template, $tunnelScript)) {
     if (-not (Test-Path $file)) {
