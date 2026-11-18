@@ -14,7 +14,7 @@ command here and a link to its details.
 
 ## The pipeline
 
-Run every `python -m ...` command from this `AI/` folder.
+Run every `python -m ...` command from this `AI/` folder, in the venv from [Setup](#setup).
 
 **1. Record and label.** Record gestures with the glove over USB (500 Hz) or BLE (100 Hz), and mark
 each attempt. Recordings land in `Hardware/Data Collection/sessions/`. See
@@ -66,7 +66,19 @@ Details: [hls4ml/README.md](hls4ml/README.md).
 
 ## Setup
 
-Training: `pip install tensorflow tf-keras qkeras numpy pandas`. `train/__init__.py` sets
-`TF_USE_LEGACY_KERAS=1` for QKeras. Exporting a dataset needs only `numpy`.
+Laptop (Windows, Python 3.12): everything under `data_collection/`, `train/` and the laptop side of
+`ultra96/` (`keras_stream.py`, `wk10_integration.py --mock`) runs in one venv built from
+[`requirements.txt`](requirements.txt), which pins the versions the deployed model was trained with.
+Once, from this `AI/` folder:
+
+```
+python -m venv .venv
+.venv\Scripts\python -m pip install -r requirements.txt
+```
+
+Then either activate it (`.venv\Scripts\activate`) or run each command as
+`.venv\Scripts\python -m ...`. `.venv/` is git-ignored. `train/__init__.py` sets
+`TF_USE_LEGACY_KERAS=1` for QKeras. `pyparsing` is listed on its own because QKeras imports it
+without declaring it.
 
 Conversion (WSL Ubuntu 22.04): the `hls4ml-tutorial` conda environment, Vitis HLS and Vivado 2024.1.

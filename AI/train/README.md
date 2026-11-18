@@ -58,7 +58,7 @@ It trains 3 seeds, prints the summary, and saves `results/models/<tag>_s1.h5` â€
 `exp_roll_aug` takes the same `--data` / `--labels` / `--sessions` / `--tag`, plus `--seed`,
 `--roll-p`, `--roll-deg`, `--roll-axis` and `--roll-classes`.
 
-Needs `tensorflow`, `tf-keras` and `qkeras`; `__init__.py` sets the legacy-Keras env var.
+Runs in the venv from [`../requirements.txt`](../requirements.txt) (see [Setup](../README.md#setup)); `__init__.py` sets the legacy-Keras env var.
 
 ## Evaluate a saved model
 
