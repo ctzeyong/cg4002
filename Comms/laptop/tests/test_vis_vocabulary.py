@@ -1,6 +1,6 @@
 """Pin the dummy gesture names to both ends of the vocabulary: AI's classifier and the Vis game.
 
-AI's classifier names each gesture (`NEW_LABEL_MAP` in `AI/board/keras_stream.py`), and the
+AI's classifier names each gesture (`NEW_LABEL_MAP` in `AI/ultra96/keras_stream.py`), and the
 Vis game takes a name only if its `GestureSymbol` enum in
 `SW_Visualiser/script/Input/GestureBindings.cs` has a member of that name. The phone's hook
 keeps no list of its own; it parses `payload.gesture` straight into that enum. So
@@ -23,8 +23,8 @@ import ai_events
 
 _TEAM = pathlib.Path(__file__).resolve().parents[3]
 _BINDINGS = _TEAM / "SW_Visualiser" / "script" / "Input" / "GestureBindings.cs"
-_KERAS_STREAM = _TEAM / "AI" / "board" / "keras_stream.py"
-_WK10 = _TEAM / "AI" / "board" / "wk10_integration.py"
+_KERAS_STREAM = _TEAM / "AI" / "ultra96" / "keras_stream.py"
+_WK10 = _TEAM / "AI" / "ultra96" / "wk10_integration.py"
 
 # What each side holds today. Only the guards against a parser that silently finds nothing
 # use these; the real checks compare against whatever the files say.

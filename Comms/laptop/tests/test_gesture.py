@@ -529,7 +529,7 @@ def test_a_new_session_empties_ais_buffers_and_has_no_gesture_in_progress():
 
 # --- AI's model, through gesture.AI ------------------------------------------
 
-AI_STREAM = Path(__file__).resolve().parents[3] / "AI" / "board" / f"{gesture.AI_MODULE}.py"
+AI_STREAM = Path(__file__).resolve().parents[3] / "AI" / "ultra96" / f"{gesture.AI_MODULE}.py"
 
 
 @dataclasses.dataclass
@@ -656,9 +656,9 @@ def test_on_the_board_the_flag_path_loads_ais_model_with_its_bitstream(monkeypat
     module.vocab_config = lambda vocab=None: "config"
     monkeypatch.setitem(sys.modules, gesture.AI_MODULE, module)
     monkeypatch.setattr(gesture, "FPGA_MANAGER", tmp_path)
-    ai = gesture.load_classifier(bitstream="baseline_improved.xsa")
+    ai = gesture.load_classifier(bitstream="gesture_model.xsa")
     assert isinstance(ai, gesture.AI) and (ai.module, ai.model) == (module, "model")
-    assert built == [str(tmp_path / "baseline_improved.xsa")]
+    assert built == [str(tmp_path / "gesture_model.xsa")]
 
 
 def test_the_pl_clock_is_set_only_after_the_overlay_loads(monkeypatch, tmp_path):

@@ -1,0 +1,21 @@
+# Packages for the AI code that runs on the laptop (Windows, Python 3.12):
+#   data_collection/  export_dataset
+#   train/            every exp_*, exp_eval, export_test_windows
+#   ultra96/          keras_stream (laptop .h5 testing) and wk10_integration --mock
+# Not for hls4ml/ (WSL conda env, see hls4ml/README.md) or the board (PYNQ image).
+#
+# Build a self-contained environment, from AI/, with a Python 3.12 interpreter
+# (check with `python --version`):
+#   python -m venv .venv
+#   .venv\Scripts\python -m pip install -r requirements.txt
+#
+# These versions are the ones the deployed model was trained with.
+
+tensorflow==2.21.0
+tf_keras==2.21.0          # the legacy Keras 2 API QKeras needs (TF_USE_LEGACY_KERAS=1, set in train/__init__.py)
+QKeras==0.9.0
+tensorflow-model-optimization==0.8.1   # QKeras dependency, pinned to the TF-compatible release
+pyparsing==3.1.2          # QKeras imports it but declares the unrelated "pyparser" package instead
+numpy==2.5.3
+pandas==2.3.3             # reading index.csv / CSVs in train.data, export_dataset, wk10_integration test mode
+h5py==3.14.0              # .h5 model files

@@ -126,7 +126,7 @@ def row_for(config, now, idle, load, times, wrong):
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("configs", nargs="*", default=list(DEFAULT_CONFIGS))
-    parser.add_argument("--bitstream", default="new_gestures_all.xsa")
+    parser.add_argument("--bitstream", default="gesture_model.xsa")
     parser.add_argument("--vocab", default="new")
     parser.add_argument("--idle", type=float, default=20.0, help="seconds of idle per setting")
     parser.add_argument("--load", type=float, default=20.0, help="seconds of inference per setting")
