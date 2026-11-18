@@ -44,7 +44,7 @@ FETCHED_TYPES = (".log", ".csv")
 BOARD_SOURCES = REPO / "ultra96"
 # AI's model and overlays live here. The model is always synced; the overlay named by
 # --bitstream is synced beside it (must match gesture.AI_MODULE).
-AI_BOARD_DIR = REPO.parent / "AI" / "board"
+AI_BOARD_DIR = REPO.parent / "AI" / "ultra96"
 AI_MODULE = AI_BOARD_DIR / "wk10_integration.py"
 
 # Call the venv's python directly rather than relying on an activated venv.

@@ -480,7 +480,7 @@ def main() -> None:
         default=None,
         metavar="PATH",
         help="local test: run a Keras .h5 model instead of the FPGA bitstream (implies "
-        "--gesture-flag). See AI/board/keras_stream.py.",
+        "--gesture-flag). See AI/ultra96/keras_stream.py.",
     )
     add_gesture_flag(parser)
     args = parser.parse_args()

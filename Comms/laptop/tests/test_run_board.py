@@ -418,10 +418,10 @@ async def test_sync_also_copies_the_ai_teams_module_that_gesture_imports():
 
     conn = SimpleNamespace(start_sftp_client=lambda: Opened())
     await asyncio.wait_for(
-        run_board.sync_sources(conn, "baseline_improved.xsa"), timeout=DEADLINE_S
+        run_board.sync_sources(conn, "gesture_model.xsa"), timeout=DEADLINE_S
     )
 
-    assert {"gesture.py", "tcp_client.py", "wk10_integration.py", "baseline_improved.xsa"} <= set(put)
+    assert {"gesture.py", "tcp_client.py", "wk10_integration.py", "gesture_model.xsa"} <= set(put)
 
 
 def test_sync_copies_the_model_gesture_loads():

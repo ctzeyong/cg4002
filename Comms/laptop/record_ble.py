@@ -15,7 +15,7 @@ Output, auto-named under Hardware/Data Collection/sessions/ble/ (never overwrite
   <name>.csv          sequence, esp_time_us, ax_g..gz_dps, host_rx_unix_ns, imu_status, gesture_flag
   <name>.labels.json  the intervals, as record.py writes them
   <name>.meta.json    raw_hz=100, transport=ble, node, participant, ...
-The same layout as record.py, so gesture_pipeline.export_dataset and the background loader read
+The same layout as record.py, so data_collection.export_dataset and the background loader read
 it unchanged (they take the sample rate from raw_hz).
 
 Timing: the packet's 8-bit seq is unwrapped into a running sample count on the firmware's 10 ms

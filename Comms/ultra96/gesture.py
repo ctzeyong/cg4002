@@ -18,7 +18,7 @@ import time
 import ai_events
 
 # AI's files sit next to this one on the board, but in the AI folder in the repo
-AI_BOARD = pathlib.Path(__file__).resolve().parents[2] / "AI" / "board"
+AI_BOARD = pathlib.Path(__file__).resolve().parents[2] / "AI" / "ultra96"
 if AI_BOARD.is_dir() and str(AI_BOARD) not in sys.path:
     sys.path.append(str(AI_BOARD))
 
@@ -304,7 +304,7 @@ def tune_pl(pl_mhz):
 def load_classifier(ai_h5=None, vocab=None, bitstream=None, pl_mhz=None):
     """Return AI's model on the board, or a stub anywhere else.
 
-    With `ai_h5`, run that Keras model on the laptop instead (AI/board/keras_stream.py).
+    With `ai_h5`, run that Keras model on the laptop instead (AI/ultra96/keras_stream.py).
     `vocab` selects the FPGA model's label vocabulary, "old" (7-class) or "new" (8-class
     + noise); None uses wk10_integration's default. `bitstream` is the overlay filename to
     load, resolved next to the model on the board; it is required on the FPGA path and must
@@ -315,7 +315,7 @@ def load_classifier(ai_h5=None, vocab=None, bitstream=None, pl_mhz=None):
         if pl_mhz is not None:
             log.warning("--pl-mhz ignored: no FPGA model here to slow down")
         if ai_h5:
-            import keras_stream  # AI/board is on sys.path, added at the top
+            import keras_stream  # AI/ultra96 is on sys.path, added at the top
             return AI(keras_stream, keras_stream.GestureClassifier(ai_h5))
         return StubAI()
     if not bitstream:
